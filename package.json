@@ -1,0 +1,24 @@
+{
+  "name": "figsci_new",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.0",
+    "next": "^16.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.22",
+    "eslint": "^9",
+    "eslint-config-next": "^16.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.18"
+  }
+}
