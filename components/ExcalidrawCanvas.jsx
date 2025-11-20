@@ -71,7 +71,9 @@ export default function ExcalidrawCanvas({ elements }) {
           elements: convertedElements,
           appState: {
             viewBackgroundColor: '#ffffff',
-            currentItemFontFamily: 1,
+            // 使用打印体字体和较“硬”的线条，以符合学术风格
+            currentItemFontFamily: 2,
+            currentItemRoughness: 0,
           },
           scrollToContent: true,
         }}
