@@ -10,65 +10,55 @@ const Excalidraw = dynamic(
   { ssr: false }
 );
 
-// Dynamically import convertToExcalidrawElements
-const getConvertFunction = async () => {
-  const excalidrawModule = await import('@excalidraw/excalidraw');
-  return excalidrawModule.convertToExcalidrawElements;
-};
-
-export default function ExcalidrawCanvas({ elements }) {
-  const [convertToExcalidrawElements, setConvertFunction] = useState(null);
+export default function ExcalidrawCanvas({ elements, onElementsChange }) {
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
+  const [internalElements, setInternalElements] = useState([]);
 
-  // Load convert function on mount
+  // 同步外部传入的 elements 到内部状态
   useEffect(() => {
-    getConvertFunction().then(fn => {
-      setConvertFunction(() => fn);
-    });
-  }, []);
-
-  // Convert elements to Excalidraw format
-  const convertedElements = useMemo(() => {
-    if (!elements || elements.length === 0 || !convertToExcalidrawElements) {
-      return [];
+    if (!elements || elements.length === 0) {
+      setInternalElements([]);
+    } else {
+      setInternalElements(elements);
     }
-
-    try {
-      return convertToExcalidrawElements(elements);
-    } catch (error) {
-      console.error('Failed to convert elements:', error);
-      return [];
-    }
-  }, [elements, convertToExcalidrawElements]);
+  }, [elements]);
 
   // Auto zoom to fit content when API is ready and elements change
   useEffect(() => {
-    if (excalidrawAPI && convertedElements.length > 0) {
+    if (excalidrawAPI && internalElements.length > 0) {
       // Small delay to ensure elements are rendered
       setTimeout(() => {
-        excalidrawAPI.scrollToContent(convertedElements, {
+        excalidrawAPI.scrollToContent(internalElements, {
           fitToContent: true,
           animate: true,
           duration: 300,
         });
       }, 100);
     }
-  }, [excalidrawAPI, convertedElements]);
+  }, [excalidrawAPI, internalElements]);
 
   // Generate unique key when elements change to force remount
   const canvasKey = useMemo(() => {
-    if (convertedElements.length === 0) return 'empty';
+    if (internalElements.length === 0) return 'empty';
     // Create a hash from elements to detect changes
-    return JSON.stringify(convertedElements.map(el => el.id)).slice(0, 50);
-  }, [convertedElements]);
+    return JSON.stringify(internalElements.map(el => el.id)).slice(0, 50);
+  }, [internalElements]);
+
+  const handleChange = (nextElements, appState, files) => {
+    setInternalElements(nextElements);
+    if (onElementsChange) {
+      onElementsChange(nextElements, appState, files);
+    }
+  };
 
   return (
     <div className="w-full h-full">
       <Excalidraw
         key={canvasKey}
         excalidrawAPI={(api) => setExcalidrawAPI(api)}
+        onChange={handleChange}
         initialData={{
-          elements: convertedElements,
+          elements: internalElements,
           appState: {
             viewBackgroundColor: '#ffffff',
             // 使用打印体字体和较“硬”的线条，以符合学术风格

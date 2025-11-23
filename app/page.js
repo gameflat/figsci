@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Chat from '@/components/Chat';
 import CodeEditor from '@/components/CodeEditor';
@@ -43,6 +43,16 @@ export default function Home() {
     message: '',
     type: 'info'
   });
+  const isApplyingFromCodeRef = useRef(false);
+
+  // 动态按需加载 convertToExcalidrawElements（只在浏览器端运行）
+  let convertToExcalidrawElementsFn = null;
+  const getConvertToExcalidrawElements = async () => {
+    if (convertToExcalidrawElementsFn) return convertToExcalidrawElementsFn;
+    const excalidrawModule = await import('@excalidraw/excalidraw');
+    convertToExcalidrawElementsFn = excalidrawModule.convertToExcalidrawElements;
+    return convertToExcalidrawElementsFn;
+  };
 
   // Load config on mount and listen for config changes
   useEffect(() => {
@@ -165,6 +175,98 @@ export default function Home() {
     return result;
   };
 
+  // 将 Excalidraw 画布中的元素转回 ExcalidrawElementSkeleton 结构
+  const sceneElementsToSkeleton = (sceneElements) => {
+    if (!Array.isArray(sceneElements)) return [];
+
+    // 建立 frameId -> childrenIds 映射
+    const frameChildrenMap = new Map();
+    sceneElements.forEach((el) => {
+      if (el.frameId && el.id) {
+        if (!frameChildrenMap.has(el.frameId)) {
+          frameChildrenMap.set(el.frameId, []);
+        }
+        frameChildrenMap.get(el.frameId).push(el.id);
+      }
+    });
+
+    return sceneElements.map((el) => {
+      const base = {
+        type: el.type,
+        x: el.x,
+        y: el.y,
+      };
+
+      if (el.id) base.id = el.id;
+
+      if (typeof el.width === 'number') base.width = el.width;
+      if (typeof el.height === 'number') base.height = el.height;
+
+      if (el.strokeColor) base.strokeColor = el.strokeColor;
+      if (el.backgroundColor) base.backgroundColor = el.backgroundColor;
+      if (typeof el.strokeWidth === 'number') base.strokeWidth = el.strokeWidth;
+      if (el.strokeStyle) base.strokeStyle = el.strokeStyle;
+      if (el.fillStyle) base.fillStyle = el.fillStyle;
+      if (typeof el.roughness === 'number') base.roughness = el.roughness;
+      if (typeof el.opacity === 'number') base.opacity = el.opacity;
+      if (typeof el.angle === 'number') base.angle = el.angle;
+      if (typeof el.locked === 'boolean') base.locked = el.locked;
+      if (el.link) base.link = el.link;
+      if (Array.isArray(el.groupIds) && el.groupIds.length > 0) {
+        base.groupIds = [...el.groupIds];
+      }
+
+      if (el.type === 'text') {
+        if (typeof el.text === 'string') base.text = el.text;
+        if (typeof el.fontSize === 'number') base.fontSize = el.fontSize;
+        if (typeof el.fontFamily === 'number') base.fontFamily = el.fontFamily;
+        if (el.textAlign) base.textAlign = el.textAlign;
+        if (el.verticalAlign) base.verticalAlign = el.verticalAlign;
+      }
+
+      if (el.type === 'image') {
+        if (el.fileId) base.fileId = el.fileId;
+        if (el.scale) base.scale = el.scale;
+        if (el.crop) base.crop = el.crop;
+      }
+
+      if (el.type === 'arrow') {
+        if (el.startArrowhead) base.startArrowhead = el.startArrowhead;
+        if (el.endArrowhead) base.endArrowhead = el.endArrowhead;
+        if (el.startBinding && el.startBinding.elementId) {
+          base.start = { id: el.startBinding.elementId };
+        }
+        if (el.endBinding && el.endBinding.elementId) {
+          base.end = { id: el.endBinding.elementId };
+        }
+        if (el.label && el.label.text) {
+          base.label = { text: el.label.text };
+        }
+      }
+
+      if (el.type === 'frame') {
+        const children = frameChildrenMap.get(el.id) || [];
+        if (children.length > 0) {
+          base.children = children;
+        }
+        if (typeof el.name === 'string') {
+          base.name = el.name;
+        }
+      }
+
+      return base;
+    });
+  };
+
+  // 将画布元素序列化为可编辑的 JSON 代码
+  const serializeSceneToCode = (sceneElements) => {
+    const skeleton = sceneElementsToSkeleton(sceneElements);
+    if (!skeleton.length) {
+      return '[]';
+    }
+    return JSON.stringify(skeleton, null, 2);
+  };
+
   // Handle sending a message (single-turn)
   const handleSendMessage = async (userMessage, chartType = 'auto', sourceType = 'text') => {
     const usePassword = typeof window !== 'undefined' && localStorage.getItem('smart-excalidraw-use-password') === 'true';
@@ -278,12 +380,12 @@ export default function Home() {
 
       // Try to parse and apply the generated code (already post-processed)
       const processedCode = postProcessExcalidrawCode(accumulatedCode);
-      tryParseAndApply(processedCode);
+      await tryParseAndApply(processedCode);
 
       // Automatically optimize the generated code
       const optimizedCode = optimizeExcalidrawCode(processedCode);
       setGeneratedCode(optimizedCode);
-      tryParseAndApply(optimizedCode);
+      await tryParseAndApply(optimizedCode);
 
       // Save to history only for text input mode
       if (sourceType === 'text' && userMessage && optimizedCode) {
@@ -312,7 +414,7 @@ export default function Home() {
   };
 
   // Try to parse and apply code to canvas
-  const tryParseAndApply = (code) => {
+  const tryParseAndApply = async (code) => {
     try {
       // Clear previous JSON errors
       setJsonError(null);
@@ -330,8 +432,20 @@ export default function Home() {
 
       const parsed = JSON.parse(arrayMatch[0]);
       if (Array.isArray(parsed)) {
-        setElements(parsed);
-        setJsonError(null); // Clear error on success
+        try {
+          const convertFn = await getConvertToExcalidrawElements();
+          const fullElements = convertFn(parsed);
+          // 标记为“来自代码应用”的更新，避免立刻又被 onChange 反向覆盖
+          isApplyingFromCodeRef.current = true;
+          setElements(fullElements);
+          setTimeout(() => {
+            isApplyingFromCodeRef.current = false;
+          }, 0);
+          setJsonError(null); // Clear error on success
+        } catch (e) {
+          console.error('Failed to convert skeleton to Excalidraw elements:', e);
+          setJsonError('无法将代码转换为 Excalidraw 元素：' + e.message);
+        }
       }
     } catch (error) {
       console.error('Failed to parse generated code:', error);
@@ -350,7 +464,7 @@ export default function Home() {
     try {
       // Simulate async operation for better UX
       await new Promise(resolve => setTimeout(resolve, 300));
-      tryParseAndApply(generatedCode);
+      await tryParseAndApply(generatedCode);
     } catch (error) {
       console.error('Error applying code:', error);
     } finally {
@@ -366,7 +480,7 @@ export default function Home() {
       await new Promise(resolve => setTimeout(resolve, 500));
       const optimizedCode = optimizeExcalidrawCode(generatedCode);
       setGeneratedCode(optimizedCode);
-      tryParseAndApply(optimizedCode);
+      await tryParseAndApply(optimizedCode);
     } catch (error) {
       console.error('Error optimizing code:', error);
     } finally {
@@ -387,7 +501,7 @@ export default function Home() {
   };
 
   // Handle applying history
-  const handleApplyHistory = (history) => {
+  const handleApplyHistory = async (history) => {
     // Ensure userInput is always a string when setting current input
     const userInputText = typeof history.userInput === 'object'
       ? (history.userInput.text || '图片上传生成')
@@ -396,7 +510,26 @@ export default function Home() {
     setCurrentInput(userInputText);
     setCurrentChartType(history.chartType);
     setGeneratedCode(history.generatedCode);
-    tryParseAndApply(history.generatedCode);
+    await tryParseAndApply(history.generatedCode);
+  };
+
+  // 当用户在画布中直接编辑图形时，将变更反向同步回代码编辑器
+  const handleCanvasElementsChange = (sceneElements) => {
+    // 忽略由代码应用导致的 Excalidraw 初始 onChange
+    if (isApplyingFromCodeRef.current) {
+      return;
+    }
+
+    setElements(sceneElements);
+
+    try {
+      const codeFromCanvas = serializeSceneToCode(sceneElements);
+      setGeneratedCode(codeFromCanvas);
+      setJsonError(null);
+    } catch (error) {
+      console.error('Failed to serialize canvas elements:', error);
+      setJsonError('从画布导出代码失败：' + error.message);
+    }
   };
 
   // Handle horizontal resizing (left panel vs right panel)
@@ -532,7 +665,10 @@ export default function Home() {
 
         {/* Right Panel - Excalidraw Canvas */}
         <div style={{ width: `${100 - leftPanelWidth}%` }} className="bg-gray-50">
-          <ExcalidrawCanvas elements={elements} />
+          <ExcalidrawCanvas
+            elements={elements}
+            onElementsChange={handleCanvasElementsChange}
+          />
         </div>
       </div>
 
