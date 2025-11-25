@@ -1,54 +1,5 @@
 'use client';
 
-<<<<<<< HEAD
-import { useState, useEffect } from 'react';
-import Chat from '@/components/Chat';
-import CodeEditor from '@/components/CodeEditor';
-import ExcalidrawCanvas from '@/components/ExcalidrawCanvas';
-import ConfigManager from '@/components/ConfigManager';
-import HistoryModal from '@/components/HistoryModal';
-import { getActiveConfig } from '@/lib/config-manager';
-import { addHistoryEntry } from '@/lib/history-manager';
-
-export default function Home() {
-  const [config, setConfig] = useState(null);
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [excalidrawElements, setExcalidrawElements] = useState([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [currentInput, setCurrentInput] = useState(null);
-  const [currentChartType, setCurrentChartType] = useState('auto');
-
-  useEffect(() => {
-    // Load active config on mount
-    const activeConfig = getActiveConfig();
-    if (activeConfig) {
-      setConfig(activeConfig);
-    }
-  }, []);
-
-  const handleSendMessage = async (userInput, chartType, sourceType) => {
-    if (!config) {
-      alert('Please configure your OpenAI API settings first');
-      return;
-    }
-
-    setIsGenerating(true);
-    setCurrentInput(userInput);
-    setCurrentChartType(chartType);
-    setGeneratedCode('');
-    setExcalidrawElements([]);
-
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          config,
-          userInput,
-=======
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Chat from '@/components/Chat';
@@ -57,14 +8,15 @@ import ConfigManager from '@/components/ConfigManager';
 import ContactModal from '@/components/ContactModal';
 import HistoryModal from '@/components/HistoryModal';
 import AccessPasswordModal from '@/components/AccessPasswordModal';
+import OptimizationPanel from '@/components/OptimizationPanel';
 import Notification from '@/components/Notification';
 import { getConfig, isConfigValid } from '@/lib/config';
 import { optimizeExcalidrawCode } from '@/lib/optimizeArrows';
 import { historyManager } from '@/lib/history-manager';
-import { repairJsonClosure } from '@/lib/json-repair';
+import { OPTIMIZATION_SYSTEM_PROMPT, createOptimizationPrompt, createContinuationPrompt } from '@/lib/prompts';
 
-// Dynamically import ExcalidrawCanvas to avoid SSR issues
-const ExcalidrawCanvas = dynamic(() => import('@/components/ExcalidrawCanvas'), {
+// Dynamically import DrawioCanvas to avoid SSR issues
+const DrawioCanvas = dynamic(() => import('@/components/DrawioCanvas'), {
   ssr: false,
 });
 
@@ -74,7 +26,9 @@ export default function Home() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isAccessPasswordModalOpen, setIsAccessPasswordModalOpen] = useState(false);
+  const [isOptimizationPanelOpen, setIsOptimizationPanelOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
+  const [generatedXml, setGeneratedXml] = useState('');
   const [elements, setElements] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApplyingCode, setIsApplyingCode] = useState(false);
@@ -86,22 +40,15 @@ export default function Home() {
   const [currentInput, setCurrentInput] = useState('');
   const [currentChartType, setCurrentChartType] = useState('auto');
   const [usePassword, setUsePassword] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+  const [canContinue, setCanContinue] = useState(false);
   const [notification, setNotification] = useState({
     isOpen: false,
     title: '',
     message: '',
     type: 'info'
   });
-  const isApplyingFromCodeRef = useRef(false);
-
-  // 动态按需加载 convertToExcalidrawElements（只在浏览器端运行）
-  let convertToExcalidrawElementsFn = null;
-  const getConvertToExcalidrawElements = async () => {
-    if (convertToExcalidrawElementsFn) return convertToExcalidrawElementsFn;
-    const excalidrawModule = await import('@excalidraw/excalidraw');
-    convertToExcalidrawElementsFn = excalidrawModule.convertToExcalidrawElements;
-    return convertToExcalidrawElementsFn;
-  };
+  const abortControllerRef = useRef(null);
 
   // Load config on mount and listen for config changes
   useEffect(() => {
@@ -140,184 +87,38 @@ export default function Home() {
     };
   }, []);
 
-  // Post-process Excalidraw code: remove markdown wrappers, repair closures, and fix unescaped quotes
-  const postProcessExcalidrawCode = (code) => {
+  // Post-process draw.io XML code: remove markdown wrappers
+  const postProcessDrawioCode = (code) => {
     if (!code || typeof code !== 'string') return code;
-    
+
     let processed = code.trim();
-    
-    // Step 1: Remove markdown code fence wrappers (```json, ```javascript, ```js, or just ```)
-    processed = processed.replace(/^```(?:json|javascript|js)?\s*\n?/i, '');
+
+    // Remove markdown code fence wrappers (```xml, ```mxgraph, or just ```)
+    processed = processed.replace(/^```(?:xml|mxgraph)?\s*\n?/i, '');
     processed = processed.replace(/\n?```\s*$/, '');
     processed = processed.trim();
-    
-    // Step 1.5: Repair common JSON closure issues (missing quotes/brackets at end)
-    processed = repairJsonClosure(processed);
-    
-    // Step 2: Fix unescaped double quotes within JSON string values
-    // This is a complex task - we need to be careful not to break valid JSON structure
-    // Strategy: Parse the JSON structure and fix quotes only in string values
-    try {
-      // First, try to parse as-is to see if it's already valid
-      JSON.parse(processed);
-      return processed; // Already valid JSON, no need to fix
-    } catch (e) {
-      // JSON is invalid, try to fix unescaped quotes
-      // This regex finds string values and fixes unescaped quotes within them
-      // It looks for: "key": "value with "unescaped" quotes"
-      processed = fixUnescapedQuotes(processed);
-      // After fixing quotes, attempt a final repair of closures
-      processed = repairJsonClosure(processed);
-      return processed;
+
+    // Validate XML structure
+    if (!processed.includes('<mxfile>') || !processed.includes('</mxfile>')) {
+      console.warn('Generated code does not contain valid mxfile structure');
     }
+
+    return processed;
   };
 
-  // Helper function to fix unescaped quotes in JSON strings
-  const fixUnescapedQuotes = (jsonString) => {
-    let result = '';
-    let inString = false;
-    let escapeNext = false;
-    let currentQuotePos = -1;
-    
-    for (let i = 0; i < jsonString.length; i++) {
-      const char = jsonString[i];
-      const prevChar = i > 0 ? jsonString[i - 1] : '';
-      
-      if (escapeNext) {
-        result += char;
-        escapeNext = false;
-        continue;
-      }
-      
-      if (char === '\\') {
-        result += char;
-        escapeNext = true;
-        continue;
-      }
-      
-      if (char === '"') {
-        if (!inString) {
-          // Starting a string
-          inString = true;
-          currentQuotePos = i;
-          result += char;
-        } else {
-          // Potentially ending a string
-          // Check if this is a structural quote (followed by : or , or } or ])
-          const nextNonWhitespace = jsonString.slice(i + 1).match(/^\s*(.)/);
-          const nextChar = nextNonWhitespace ? nextNonWhitespace[1] : '';
-          
-          if (nextChar === ':' || nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === '') {
-            // This is a closing quote for the string
-            inString = false;
-            result += char;
-          } else {
-            // This is an unescaped quote within the string - escape it
-            result += '\\"';
-          }
-        }
-      } else {
-        result += char;
-      }
+
+  // Handle stopping generation
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
-    
-    return result;
-  };
-
-  // 将 Excalidraw 画布中的元素转回 ExcalidrawElementSkeleton 结构
-  const sceneElementsToSkeleton = (sceneElements) => {
-    if (!Array.isArray(sceneElements)) return [];
-
-    // 建立 frameId -> childrenIds 映射
-    const frameChildrenMap = new Map();
-    sceneElements.forEach((el) => {
-      if (el.frameId && el.id) {
-        if (!frameChildrenMap.has(el.frameId)) {
-          frameChildrenMap.set(el.frameId, []);
-        }
-        frameChildrenMap.get(el.frameId).push(el.id);
-      }
-    });
-
-    return sceneElements.map((el) => {
-      const base = {
-        type: el.type,
-        x: el.x,
-        y: el.y,
-      };
-
-      if (el.id) base.id = el.id;
-
-      if (typeof el.width === 'number') base.width = el.width;
-      if (typeof el.height === 'number') base.height = el.height;
-
-      if (el.strokeColor) base.strokeColor = el.strokeColor;
-      if (el.backgroundColor) base.backgroundColor = el.backgroundColor;
-      if (typeof el.strokeWidth === 'number') base.strokeWidth = el.strokeWidth;
-      if (el.strokeStyle) base.strokeStyle = el.strokeStyle;
-      if (el.fillStyle) base.fillStyle = el.fillStyle;
-      if (typeof el.roughness === 'number') base.roughness = el.roughness;
-      if (typeof el.opacity === 'number') base.opacity = el.opacity;
-      if (typeof el.angle === 'number') base.angle = el.angle;
-      if (typeof el.locked === 'boolean') base.locked = el.locked;
-      if (el.link) base.link = el.link;
-      if (Array.isArray(el.groupIds) && el.groupIds.length > 0) {
-        base.groupIds = [...el.groupIds];
-      }
-
-      if (el.type === 'text') {
-        if (typeof el.text === 'string') base.text = el.text;
-        if (typeof el.fontSize === 'number') base.fontSize = el.fontSize;
-        if (typeof el.fontFamily === 'number') base.fontFamily = el.fontFamily;
-        if (el.textAlign) base.textAlign = el.textAlign;
-        if (el.verticalAlign) base.verticalAlign = el.verticalAlign;
-      }
-
-      if (el.type === 'image') {
-        if (el.fileId) base.fileId = el.fileId;
-        if (el.scale) base.scale = el.scale;
-        if (el.crop) base.crop = el.crop;
-      }
-
-      if (el.type === 'arrow') {
-        if (el.startArrowhead) base.startArrowhead = el.startArrowhead;
-        if (el.endArrowhead) base.endArrowhead = el.endArrowhead;
-        if (el.startBinding && el.startBinding.elementId) {
-          base.start = { id: el.startBinding.elementId };
-        }
-        if (el.endBinding && el.endBinding.elementId) {
-          base.end = { id: el.endBinding.elementId };
-        }
-        if (el.label && el.label.text) {
-          base.label = { text: el.label.text };
-        }
-      }
-
-      if (el.type === 'frame') {
-        const children = frameChildrenMap.get(el.id) || [];
-        if (children.length > 0) {
-          base.children = children;
-        }
-        if (typeof el.name === 'string') {
-          base.name = el.name;
-        }
-      }
-
-      return base;
-    });
-  };
-
-  // 将画布元素序列化为可编辑的 JSON 代码
-  const serializeSceneToCode = (sceneElements) => {
-    const skeleton = sceneElementsToSkeleton(sceneElements);
-    if (!skeleton.length) {
-      return '[]';
-    }
-    return JSON.stringify(skeleton, null, 2);
+    setIsGenerating(false);
+    setApiError(null);
   };
 
   // Handle sending a message (single-turn)
-  const handleSendMessage = async (userMessage, chartType = 'auto', sourceType = 'text') => {
+  const handleSendMessage = async (userMessage, chartType = 'auto') => {
     const usePassword = typeof window !== 'undefined' && localStorage.getItem('smart-excalidraw-use-password') === 'true';
     const accessPassword = typeof window !== 'undefined' ? localStorage.getItem('smart-excalidraw-access-password') : '';
 
@@ -332,11 +133,20 @@ export default function Home() {
       return;
     }
 
-    setCurrentInput(userMessage);
+    const displayInput = typeof userMessage === 'string'
+      ? userMessage
+      : (typeof userMessage === 'object' && userMessage !== null
+          ? (userMessage.text || '[图片输入请求]')
+          : '');
+
+    setCurrentInput(displayInput);
     setCurrentChartType(chartType);
     setIsGenerating(true);
     setApiError(null); // Clear previous errors
     setJsonError(null); // Clear previous JSON errors
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
 
     try {
       const headers = { 'Content-Type': 'application/json' };
@@ -344,29 +154,38 @@ export default function Home() {
         headers['x-access-password'] = accessPassword;
       }
 
+      // Clean userInput if it contains image data
+      let cleanedUserInput = userMessage;
+      if (typeof userMessage === 'object' && userMessage.image) {
+        cleanedUserInput = {
+          text: userMessage.text,
+          image: {
+            data: userMessage.image.data,
+            mimeType: userMessage.image.mimeType
+          }
+        };
+      }
+
+      console.log('[DEBUG] Sending to API:', {
+        hasImage: !!cleanedUserInput?.image,
+        imageDataLength: cleanedUserInput?.image?.data?.length,
+        imageDataPreview: cleanedUserInput?.image?.data?.substring(0, 50),
+        mimeType: cleanedUserInput?.image?.mimeType
+      });
+
       // Call generate API with streaming
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           config: usePassword ? null : config,
-          userInput: userMessage,
->>>>>>> origin/figsci
+          userInput: cleanedUserInput,
           chartType,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
-<<<<<<< HEAD
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate diagram');
-      }
-
-      // Handle streaming response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedCode = '';
-=======
         // Parse error response body if available
         let errorMessage = '生成代码失败';
         try {
@@ -404,38 +223,13 @@ export default function Home() {
       const decoder = new TextDecoder();
       let accumulatedCode = '';
       let buffer = '';
->>>>>>> origin/figsci
+      let hasError = false;
+      let errorMessage = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-<<<<<<< HEAD
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter((line) => line.trim() !== '');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-
-            if (data === '[DONE]') {
-              continue;
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-
-              if (parsed.error) {
-                throw new Error(parsed.error);
-              }
-
-              if (parsed.content) {
-                accumulatedCode += parsed.content;
-                setGeneratedCode(accumulatedCode);
-              }
-            } catch (e) {
-              console.warn('Failed to parse chunk:', e);
-=======
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
@@ -446,226 +240,184 @@ export default function Home() {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.content) {
+              if (data.error) {
+                hasError = true;
+                errorMessage = data.error;
+                throw new Error(data.error);
+              } else if (data.content) {
                 accumulatedCode += data.content;
                 // Post-process and set the cleaned code to editor
-                const processedCode = postProcessExcalidrawCode(accumulatedCode);
+                const processedCode = postProcessDrawioCode(accumulatedCode);
                 setGeneratedCode(processedCode);
-              } else if (data.error) {
-                throw new Error(data.error);
               }
             } catch (e) {
-              // SSE parsing errors - show to user
-              if (e.message && !e.message.includes('Unexpected')) {
-                setApiError('数据流解析错误：' + e.message);
+              // If it's an error from the API, throw it
+              if (hasError && errorMessage) {
+                throw new Error(errorMessage);
               }
-              console.error('Failed to parse SSE:', e);
->>>>>>> origin/figsci
+              // SSE parsing errors - log but don't break the stream
+              if (e.message && !e.message.includes('Unexpected') && !e.message.includes('JSON')) {
+                console.warn('SSE parsing warning:', e.message);
+              }
             }
           }
         }
       }
 
-<<<<<<< HEAD
-      // Clean up the generated code and auto-apply
-      const cleanedCode = cleanExcalidrawCode(accumulatedCode);
-      setGeneratedCode(cleanedCode);
+      // If there was an error, throw it
+      if (hasError && errorMessage) {
+        throw new Error(errorMessage);
+      }
 
-      // Auto-apply the code
-      tryParseAndApply(cleanedCode);
+      // Check if we got any code
+      if (!accumulatedCode || accumulatedCode.trim().length === 0) {
+        throw new Error('未收到任何生成内容，请检查模型配置或重试');
+      }
 
-      // Save to history
-      addHistoryEntry({
-        userInput,
-        chartType,
-        generatedCode: cleanedCode,
-        config: {
-          name: config.name,
-          model: config.model,
-        },
-      });
-    } catch (error) {
-      console.error('Generation error:', error);
-      alert(`Error: ${error.message}`);
-=======
       // Try to parse and apply the generated code (already post-processed)
-      const processedCode = postProcessExcalidrawCode(accumulatedCode);
-      await tryParseAndApply(processedCode);
+      const processedCode = postProcessDrawioCode(accumulatedCode);
+      setGeneratedCode(processedCode);
+      tryParseAndApply(processedCode);
 
-      // Automatically optimize the generated code
-      const optimizedCode = optimizeExcalidrawCode(processedCode);
-      setGeneratedCode(optimizedCode);
-      await tryParseAndApply(optimizedCode);
-
-      // Save to history only for text input mode
-      if (sourceType === 'text' && userMessage && optimizedCode) {
-        const userInputText = typeof userMessage === 'object' ? (userMessage.text || '') : userMessage;
+      // Save to history (only for text input)
+      if (userMessage && processedCode) {
         historyManager.addHistory({
           chartType,
-          userInput: userInputText,
-          generatedCode: optimizedCode,
+          userInput: userMessage,
+          generatedCode: processedCode,
           config: {
-            name: config?.name || config?.type,
-            model: config?.model
+            name: config.name || config.type,
+            model: config.model
           }
         });
       }
     } catch (error) {
       console.error('Error generating code:', error);
-      // Check if it's a network error
-      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-        setApiError('网络连接失败，请检查网络连接');
-      } else {
-        setApiError(error.message);
-      }
->>>>>>> origin/figsci
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
-<<<<<<< HEAD
-  const tryParseAndApply = (code) => {
-    try {
-      // Remove markdown code fences if present
-      let cleanCode = code.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-      // Try to extract JSON array
-      const arrayMatch = cleanCode.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {
-        const elements = JSON.parse(arrayMatch[0]);
-        if (Array.isArray(elements)) {
-          setExcalidrawElements(elements);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to parse code:', error);
-    }
-  };
-
-  const handleApplyCode = () => {
-    tryParseAndApply(generatedCode);
-  };
-
-  const handleClearCode = () => {
-    if (confirm('Clear the generated code?')) {
-      setGeneratedCode('');
-      setExcalidrawElements([]);
-    }
-  };
-
-  const handleConfigChange = (newConfig) => {
-    setConfig(newConfig);
-  };
-
-  const handleApplyHistory = (entry) => {
-    setGeneratedCode(entry.generatedCode || '');
-    setCurrentInput(entry.userInput);
-    setCurrentChartType(entry.chartType);
-
-    // Auto-apply if code exists
-    if (entry.generatedCode) {
-      tryParseAndApply(entry.generatedCode);
-    }
-  };
-
-  const cleanExcalidrawCode = (code) => {
-    // Remove markdown code fences
-    let cleaned = code.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    // Trim whitespace
-    cleaned = cleaned.trim();
-    return cleaned;
-  };
-
-  return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Figsci</h1>
-            <p className="text-sm text-gray-600">AI-Powered Diagram Generator</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsHistoryOpen(true)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              History
-            </button>
-          </div>
-        </div>
-        <ConfigManager onConfigChange={handleConfigChange} />
-      </header>
-
-      {/* Main Content - 3 Panel Layout */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Chat Input */}
-        <div className="w-1/3 min-w-[300px] max-w-[500px]">
-          <Chat onSendMessage={handleSendMessage} isGenerating={isGenerating} />
-        </div>
-
-        {/* Middle Panel - Code Editor */}
-        <div className="w-1/3 min-w-[300px]">
-          <CodeEditor
-            code={generatedCode}
-            onChange={setGeneratedCode}
-            onConvert={handleApplyCode}
-            onClear={handleClearCode}
-          />
-        </div>
-
-        {/* Right Panel - Excalidraw Canvas */}
-        <div className="flex-1">
-          <ExcalidrawCanvas elements={excalidrawElements} />
-        </div>
-      </main>
-
-      {/* History Modal */}
-      <HistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        onApplyHistory={handleApplyHistory}
-=======
-  // Try to parse and apply code to canvas
-  const tryParseAndApply = async (code) => {
-    try {
-      // Clear previous JSON errors
-      setJsonError(null);
-
-      // Code is already post-processed, just extract the array and parse
-      const cleanedCode = code.trim();
-
-      // Extract array from code if wrapped in other text
-      const arrayMatch = cleanedCode.match(/\[[\s\S]*\]/);
-      if (!arrayMatch) {
-        setJsonError('代码中未找到有效的 JSON 数组');
-        console.error('No array found in generated code');
+      // If user aborted, exit silently
+      if (error.name === 'AbortError') {
+        console.log('Generation aborted by user');
         return;
       }
 
-      const parsed = JSON.parse(arrayMatch[0]);
-      if (Array.isArray(parsed)) {
+      // Check if it's a network error
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        setApiError('网络连接失败，请检查网络连接和API配置');
+      } else if (error.message && error.message.includes('连接被重置')) {
+        setApiError(error.message);
+      } else if (error.message && error.message.includes('网络连接失败')) {
+        setApiError(error.message);
+      } else if (error.message && error.message.includes('请求超时')) {
+        setApiError(error.message);
+      } else {
+        setApiError(error.message || '生成失败，请检查配置和网络连接');
+      }
+    } finally {
+      setIsGenerating(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  // Try to parse and apply code to canvas
+  const tryParseAndApply = (code) => {
+    try {
+      setJsonError(null);
+      
+      // Check if code is empty or just whitespace
+      if (!code || typeof code !== 'string' || code.trim().length === 0) {
+        setJsonError('生成的代码为空，请检查模型配置或重试');
+        console.error('No array or XML found in generated code - code is empty');
+        return;
+      }
+
+      const cleanedCode = code.trim();
+
+      console.log('[DEBUG] tryParseAndApply - code preview:', cleanedCode.substring(0, 200));
+
+      // 多层级截断检测
+      const hasStart = cleanedCode.includes('<mxfile');
+      const hasDiagram = cleanedCode.includes('<diagram');
+      const hasModel = cleanedCode.includes('<mxGraphModel');
+      const hasRoot = cleanedCode.includes('<root');
+
+      const hasEndFile = cleanedCode.includes('</mxfile>');
+      const hasEndDiagram = cleanedCode.includes('</diagram>');
+      const hasEndModel = cleanedCode.includes('</mxGraphModel>');
+      const hasEndRoot = cleanedCode.includes('</root>');
+
+      // 检测任何层级的截断
+      const isTruncatedCheck = (
+        (hasStart && !hasEndFile) ||
+        (hasDiagram && !hasEndDiagram) ||
+        (hasModel && !hasEndModel) ||
+        (hasRoot && !hasEndRoot)
+      );
+
+      if (isTruncatedCheck) {
+        setIsTruncated(true);
+        setCanContinue(true);
+
+        // 生成详细的错误信息
+        const missingTags = [];
+        if (hasStart && !hasEndFile) missingTags.push('</mxfile>');
+        if (hasDiagram && !hasEndDiagram) missingTags.push('</diagram>');
+        if (hasModel && !hasEndModel) missingTags.push('</mxGraphModel>');
+        if (hasRoot && !hasEndRoot) missingTags.push('</root>');
+
+        setJsonError(`代码生成被截断，缺少闭合标签：${missingTags.join(', ')}。请点击"继续生成"按钮完成剩余部分。`);
+
+        // Still try to apply the incomplete XML for preview
+        setGeneratedXml(cleanedCode);
+        setElements([]);
+        return;
+      } else {
+        // Reset truncation state if complete
+        setIsTruncated(false);
+        setCanContinue(false);
+      }
+
+      // Try to extract XML from anywhere in the code (more flexible)
+      const xmlMatch = cleanedCode.match(/<mxfile[\s\S]*?<\/mxfile>/);
+      if (xmlMatch) {
+        console.log('[DEBUG] Found XML, length:', xmlMatch[0].length);
+        setGeneratedXml(xmlMatch[0]);
+        setElements([]);
+        return;
+      }
+
+      // Try to parse as JSON array
+      const arrayMatch = cleanedCode.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
         try {
-          const convertFn = await getConvertToExcalidrawElements();
-          const fullElements = convertFn(parsed);
-          // 标记为“来自代码应用”的更新，避免立刻又被 onChange 反向覆盖
-          isApplyingFromCodeRef.current = true;
-          setElements(fullElements);
-          setTimeout(() => {
-            isApplyingFromCodeRef.current = false;
-          }, 0);
-          setJsonError(null); // Clear error on success
-        } catch (e) {
-          console.error('Failed to convert skeleton to Excalidraw elements:', e);
-          setJsonError('无法将代码转换为 Excalidraw 元素：' + e.message);
+          const parsed = JSON.parse(arrayMatch[0]);
+          if (Array.isArray(parsed)) {
+            setElements(parsed);
+            setGeneratedXml('');
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to parse JSON:', error);
         }
       }
+
+      // If nothing found, show error with more context
+      console.log('[DEBUG] No XML or JSON found. Code length:', cleanedCode.length);
+      console.log('[DEBUG] Code preview:', cleanedCode.substring(0, 500));
+      
+      // Check if it looks like an error message
+      if (cleanedCode.toLowerCase().includes('error') || 
+          cleanedCode.toLowerCase().includes('失败') || 
+          cleanedCode.toLowerCase().includes('无法') ||
+          cleanedCode.length < 50) {
+        setJsonError(`代码生成失败：${cleanedCode.substring(0, 200)}`);
+      } else {
+        setJsonError('代码中未找到有效的 JSON 数组或 XML。LLM 可能返回了解释性文字而非代码。请检查提示词或重试。');
+      }
+      console.error('No array or XML found in generated code');
     } catch (error) {
       console.error('Failed to parse generated code:', error);
-      // Extract native JSON error message
       if (error instanceof SyntaxError) {
-        setJsonError('JSON 语法错误：' + error.message);
+        setJsonError('语法错误：' + error.message);
       } else {
         setJsonError('解析失败：' + error.message);
       }
@@ -678,7 +430,7 @@ export default function Home() {
     try {
       // Simulate async operation for better UX
       await new Promise(resolve => setTimeout(resolve, 300));
-      await tryParseAndApply(generatedCode);
+      tryParseAndApply(generatedCode);
     } catch (error) {
       console.error('Error applying code:', error);
     } finally {
@@ -690,13 +442,11 @@ export default function Home() {
   const handleOptimizeCode = async () => {
     setIsOptimizingCode(true);
     try {
-      // Simulate async operation for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const optimizedCode = optimizeExcalidrawCode(generatedCode);
-      setGeneratedCode(optimizedCode);
-      await tryParseAndApply(optimizedCode);
+      // XML doesn't need optimization, just reapply
+      await new Promise(resolve => setTimeout(resolve, 300));
+      tryParseAndApply(generatedCode);
     } catch (error) {
-      console.error('Error optimizing code:', error);
+      console.error('Error applying code:', error);
     } finally {
       setIsOptimizingCode(false);
     }
@@ -707,6 +457,332 @@ export default function Home() {
     setGeneratedCode('');
   };
 
+  // Handle opening optimization panel
+  const handleOpenOptimizationPanel = () => {
+    if (!generatedCode.trim()) {
+      setNotification({
+        isOpen: true,
+        title: '提示',
+        message: '请先生成图表代码',
+        type: 'warning'
+      });
+      return;
+    }
+    setIsOptimizationPanelOpen(true);
+  };
+
+  // Handle advanced optimization
+  const handleAdvancedOptimize = async (suggestions) => {
+    if (!generatedCode.trim()) {
+      return;
+    }
+
+    setIsOptimizationPanelOpen(false);
+
+    // Build optimization prompt
+    const optimizationPrompt = createOptimizationPrompt(generatedCode, suggestions);
+
+    // Use optimization system prompt
+    const usePassword = typeof window !== 'undefined' && localStorage.getItem('smart-excalidraw-use-password') === 'true';
+    const accessPassword = typeof window !== 'undefined' ? localStorage.getItem('smart-excalidraw-access-password') : '';
+
+    if (!usePassword && !isConfigValid(config)) {
+      setNotification({
+        isOpen: true,
+        title: '配置提醒',
+        message: '请先配置您的 LLM 提供商或启用访问密码',
+        type: 'warning'
+      });
+      setIsConfigManagerOpen(true);
+      return;
+    }
+
+    setIsGenerating(true);
+    setApiError(null);
+    setJsonError(null);
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (usePassword && accessPassword) {
+        headers['x-access-password'] = accessPassword;
+      }
+
+      let finalConfig = usePassword ? null : config;
+      if (usePassword && accessPassword) {
+        // Server will use server-side config
+        finalConfig = null;
+      }
+
+      // Call generate API with optimization prompt
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          config: finalConfig,
+          userInput: optimizationPrompt,
+          chartType: 'auto',
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        let errorMessage = '优化失败';
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          errorMessage = `请求失败 (${response.status})`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Process streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedCode = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim() === '' || line.trim() === 'data: [DONE]') continue;
+
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.content) {
+                accumulatedCode += data.content;
+                const processedCode = postProcessDrawioCode(accumulatedCode);
+                setGeneratedCode(processedCode);
+              } else if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              if (e.message && !e.message.includes('Unexpected')) {
+                setApiError('数据流解析错误：' + e.message);
+              }
+              console.error('Failed to parse SSE:', e);
+            }
+          }
+        }
+      }
+
+      // Apply optimized code
+      const processedCode = postProcessDrawioCode(accumulatedCode);
+      setGeneratedCode(processedCode);
+      tryParseAndApply(processedCode);
+
+      setNotification({
+        isOpen: true,
+        title: '优化完成',
+        message: '图表已成功优化',
+        type: 'info'
+      });
+    } catch (error) {
+      console.error('Error optimizing code:', error);
+
+      // If user aborted, exit silently
+      if (error.name === 'AbortError') {
+        console.log('Optimization aborted by user');
+        return;
+      }
+
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        setApiError('网络连接失败，请检查网络连接和API配置');
+      } else if (error.message && error.message.includes('连接被重置')) {
+        setApiError(error.message);
+      } else if (error.message && error.message.includes('网络连接失败')) {
+        setApiError(error.message);
+      } else if (error.message && error.message.includes('请求超时')) {
+        setApiError(error.message);
+      } else {
+        setApiError(error.message || '优化失败，请检查配置和网络连接');
+      }
+    } finally {
+      setIsGenerating(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  // Handle continuing truncated generation
+  const handleContinueGeneration = async () => {
+    if (!generatedCode.trim() || !isTruncated) {
+      return;
+    }
+
+    const usePassword = typeof window !== 'undefined' && localStorage.getItem('smart-excalidraw-use-password') === 'true';
+    const accessPassword = typeof window !== 'undefined' ? localStorage.getItem('smart-excalidraw-access-password') : '';
+
+    if (!usePassword && !isConfigValid(config)) {
+      setNotification({
+        isOpen: true,
+        title: '配置提醒',
+        message: '请先配置您的 LLM 提供商或启用访问密码',
+        type: 'warning'
+      });
+      setIsConfigManagerOpen(true);
+      return;
+    }
+
+    setIsGenerating(true);
+    setApiError(null);
+    setJsonError(null);
+    setCanContinue(false); // Disable continue button during generation
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (usePassword && accessPassword) {
+        headers['x-access-password'] = accessPassword;
+      }
+
+      let finalConfig = usePassword ? null : config;
+
+      // Build continuation prompt
+      const continuationPrompt = createContinuationPrompt(generatedCode);
+
+      // Call generate API with continuation prompt and flag
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          config: finalConfig,
+          userInput: continuationPrompt,
+          chartType: 'auto',
+          isContinuation: true, // Flag to use CONTINUATION_SYSTEM_PROMPT
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        let errorMessage = '续写失败';
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          errorMessage = `请求失败 (${response.status})`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Process streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedCode = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim() === '' || line.trim() === 'data: [DONE]') continue;
+
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.content) {
+                accumulatedCode += data.content;
+
+                // 智能拼接：去除 LLM 可能重复的开始标签
+                let continuationCode = accumulatedCode.trim();
+
+                // 去除可能重复的 XML 声明和开始标签
+                continuationCode = continuationCode.replace(/^<\?xml[^>]*>\s*/i, '');
+                continuationCode = continuationCode.replace(/^<mxfile[^>]*>\s*/i, '');
+                continuationCode = continuationCode.replace(/^<diagram[^>]*>\s*/i, '');
+                continuationCode = continuationCode.replace(/^<mxGraphModel[^>]*>\s*/i, '');
+                continuationCode = continuationCode.replace(/^<root>\s*/i, '');
+
+                // 拼接：原代码 + 清理后的续写代码
+                const completeCode = generatedCode + '\n' + continuationCode;
+                const processedCode = postProcessDrawioCode(completeCode);
+                setGeneratedCode(processedCode);
+              } else if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
+      }
+
+      // Try to parse and apply the completed code
+      // 智能拼接：去除 LLM 可能重复的开始标签
+      let continuationCode = accumulatedCode.trim();
+
+      // 去除可能重复的 XML 声明和开始标签
+      continuationCode = continuationCode.replace(/^<\?xml[^>]*>\s*/i, '');
+      continuationCode = continuationCode.replace(/^<mxfile[^>]*>\s*/i, '');
+      continuationCode = continuationCode.replace(/^<diagram[^>]*>\s*/i, '');
+      continuationCode = continuationCode.replace(/^<mxGraphModel[^>]*>\s*/i, '');
+      continuationCode = continuationCode.replace(/^<root>\s*/i, '');
+
+      // 拼接：原代码 + 清理后的续写代码
+      const completeCode = generatedCode + '\n' + continuationCode;
+      const processedCode = postProcessDrawioCode(completeCode);
+      setGeneratedCode(processedCode);
+      tryParseAndApply(processedCode);
+
+      // Save to history
+      if (processedCode) {
+        historyManager.addHistory({
+          chartType: currentChartType,
+          userInput: currentInput + ' (续写)',
+          generatedCode: processedCode,
+          config: {
+            name: config?.name || config?.type || 'server',
+            model: config?.model || 'unknown'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error continuing generation:', error);
+
+      // If user aborted, exit silently
+      if (error.name === 'AbortError') {
+        console.log('Continuation aborted by user');
+        return;
+      }
+
+      // Check if it's a network error
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        setApiError('网络连接失败，请检查网络连接和API配置');
+      } else if (error.message && error.message.includes('连接被重置')) {
+        setApiError(error.message);
+      } else if (error.message && error.message.includes('网络连接失败')) {
+        setApiError(error.message);
+      } else if (error.message && error.message.includes('请求超时')) {
+        setApiError(error.message);
+      } else {
+        setApiError(error.message || '生成失败，请检查配置和网络连接');
+      }
+    } finally {
+      setIsGenerating(false);
+      abortControllerRef.current = null;
+    }
+  };
+
   // Handle config selection from manager
   const handleConfigSelect = (selectedConfig) => {
     if (selectedConfig) {
@@ -715,35 +791,11 @@ export default function Home() {
   };
 
   // Handle applying history
-  const handleApplyHistory = async (history) => {
-    // Ensure userInput is always a string when setting current input
-    const userInputText = typeof history.userInput === 'object'
-      ? (history.userInput.text || '图片上传生成')
-      : history.userInput;
-
-    setCurrentInput(userInputText);
+  const handleApplyHistory = (history) => {
+    setCurrentInput(history.userInput);
     setCurrentChartType(history.chartType);
     setGeneratedCode(history.generatedCode);
-    await tryParseAndApply(history.generatedCode);
-  };
-
-  // 当用户在画布中直接编辑图形时，将变更反向同步回代码编辑器
-  const handleCanvasElementsChange = (sceneElements) => {
-    // 忽略由代码应用导致的 Excalidraw 初始 onChange
-    if (isApplyingFromCodeRef.current) {
-      return;
-    }
-
-    setElements(sceneElements);
-
-    try {
-      const codeFromCanvas = serializeSceneToCode(sceneElements);
-      setGeneratedCode(codeFromCanvas);
-      setJsonError(null);
-    } catch (error) {
-      console.error('Failed to serialize canvas elements:', error);
-      setJsonError('从画布导出代码失败：' + error.message);
-    }
+    tryParseAndApply(history.generatedCode);
   };
 
   // Handle horizontal resizing (left panel vs right panel)
@@ -782,7 +834,7 @@ export default function Home() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Smart Excalidraw</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Smart Drawio</h1>
           <p className="text-xs text-gray-500">AI 驱动的图表生成</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -851,6 +903,7 @@ export default function Home() {
               isGenerating={isGenerating}
               initialInput={currentInput}
               initialChartType={currentChartType}
+              onStop={handleStopGeneration}
             />
           </div>
 
@@ -861,12 +914,16 @@ export default function Home() {
               onChange={setGeneratedCode}
               onApply={handleApplyCode}
               onOptimize={handleOptimizeCode}
+              onAdvancedOptimize={handleOpenOptimizationPanel}
               onClear={handleClearCode}
               jsonError={jsonError}
               onClearJsonError={() => setJsonError(null)}
               isGenerating={isGenerating}
               isApplyingCode={isApplyingCode}
               isOptimizingCode={isOptimizingCode}
+              isTruncated={isTruncated}
+              canContinue={canContinue}
+              onContinue={handleContinueGeneration}
             />
           </div>
         </div>
@@ -877,12 +934,9 @@ export default function Home() {
           className="w-1 bg-gray-200 hover:bg-gray-400 cursor-col-resize transition-colors duration-200 flex-shrink-0"
         />
 
-        {/* Right Panel - Excalidraw Canvas */}
-        <div style={{ width: `${100 - leftPanelWidth}%` }} className="bg-gray-50">
-          <ExcalidrawCanvas
-            elements={elements}
-            onElementsChange={handleCanvasElementsChange}
-          />
+        {/* Right Panel - Drawio Canvas */}
+        <div style={{ width: `${100 - leftPanelWidth}%`, height: '100%' }} className="bg-gray-50">
+          <DrawioCanvas elements={elements} xml={generatedXml} />
         </div>
       </div>
 
@@ -891,56 +945,14 @@ export default function Home() {
         isOpen={isConfigManagerOpen}
         onClose={() => setIsConfigManagerOpen(false)}
         onConfigSelect={handleConfigSelect}
->>>>>>> origin/figsci
       />
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 px-6 py-3">
-<<<<<<< HEAD
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <p>Figsci v0.2.0 - AI Diagram Generation Tool</p>
-          <p>
-            {generatedCode && (
-              <span className="text-green-600 font-medium">✓ Code generated</span>
-            )}
-            {excalidrawElements.length > 0 && (
-              <span className="text-blue-600 font-medium ml-4">
-                ✓ {excalidrawElements.length} elements rendered
-              </span>
-            )}
-          </p>
-        </div>
-      </footer>
-=======
         <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
-          <span>Smart Excalidraw v0.1.0</span>
+          <span>Smart Drawio v0.1.0</span>
           <span className="text-gray-400">|</span>
-          <span>AI 驱动的智能图表生成工具</span>
-          <span className="text-gray-400">|</span>
-          <a
-            href="https://github.com/liujuntao123/smart-excalidraw-next"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center space-x-1 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-            </svg>
-            <span>GitHub</span>
-          </a>
-          <span className="text-gray-400">|</span>
-          <button
-            onClick={() => setIsContactModalOpen(true)}
-            className="flex items-center space-x-1 hover:text-gray-900 transition-colors text-blue-600 hover:text-blue-700"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <span>联系作者</span>
-          </button>
-          <button onClick={() => setIsContactModalOpen(true)} >
-          <span className="text-orange-500 font-medium">🎁 进群限时领取免费 claude-4.5-sonnet key</span>
-          </button>
+          <span>AI 驱动的智能科研图表生成工具</span>
         </div>
       </footer>
 
@@ -957,6 +969,14 @@ export default function Home() {
         onClose={() => setIsAccessPasswordModalOpen(false)}
       />
 
+      {/* Optimization Panel */}
+      <OptimizationPanel
+        isOpen={isOptimizationPanelOpen}
+        onClose={() => setIsOptimizationPanelOpen(false)}
+        onOptimize={handleAdvancedOptimize}
+        isOptimizing={isGenerating}
+      />
+
       {/* Contact Modal */}
       <ContactModal
         isOpen={isContactModalOpen}
@@ -971,7 +991,6 @@ export default function Home() {
         message={notification.message}
         type={notification.type}
       />
->>>>>>> origin/figsci
     </div>
   );
 }

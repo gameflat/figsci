@@ -1,35 +1,14 @@
 import { NextResponse } from 'next/server';
-<<<<<<< HEAD
-import { callOpenAI, processMessage, validateConfig } from '@/lib/openai-client';
-import { SYSTEM_PROMPT, getUserPrompt } from '@/lib/prompts';
-
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
-/**
- * POST /api/generate
- * Generate Excalidraw diagram from user input using OpenAI
- */
-export async function POST(request) {
-  try {
-    const body = await request.json();
-    const { config, userInput, chartType } = body;
-
-    // Validate configuration
-    if (!validateConfig(config)) {
-      return NextResponse.json(
-        { error: 'Invalid configuration. Please check your API settings.' },
-=======
 import { callLLM } from '@/lib/llm-client';
-import { SYSTEM_PROMPT, USER_PROMPT_TEMPLATE } from '@/lib/prompts';
+import { SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, CONTINUATION_SYSTEM_PROMPT } from '@/lib/prompts';
 
 /**
  * POST /api/generate
- * Generate Excalidraw code based on user input
+ * Generate Draw.io diagram based on user input
  */
 export async function POST(request) {
   try {
-    const { config, userInput, chartType } = await request.json();
+    const { config, userInput, chartType, isContinuation } = await request.json();
     const accessPassword = request.headers.get('x-access-password');
 
     // Check if using server-side config with access password
@@ -64,54 +43,48 @@ export async function POST(request) {
     } else if (!config || !userInput) {
       return NextResponse.json(
         { error: 'Missing required parameters: config, userInput' },
->>>>>>> origin/figsci
         { status: 400 }
       );
     }
 
-<<<<<<< HEAD
-    // Validate user input
-    if (!userInput) {
-      return NextResponse.json({ error: 'User input is required' }, { status: 400 });
-    }
-
-    // Build messages array
-    const messages = [
-      {
-        role: 'system',
-        content: SYSTEM_PROMPT,
-      },
-    ];
-
-    // Handle different input types
-    if (typeof userInput === 'string') {
-      // Text input - use the getUserPrompt function
-      const userPrompt = getUserPrompt(userInput, chartType || 'auto');
-
-      messages.push({
-        role: 'user',
-        content: userPrompt,
-      });
-    } else if (userInput.image) {
-      // Image input (multimodal)
-      const textContent =
-        userInput.text || 'Please analyze this image and convert it to Excalidraw format diagram.';
-      const userMessage = processMessage({
-        text: textContent,
-        image: userInput.image,
-      });
-      messages.push(userMessage);
-    } else {
-      return NextResponse.json({ error: 'Invalid input format' }, { status: 400 });
-    }
-
-    // Create streaming response
-=======
     // Build messages array
     let userMessage;
 
+    console.log('[DEBUG] Received userInput:', {
+      type: typeof userInput,
+      hasImage: !!userInput?.image,
+      imageDataLength: userInput?.image?.data?.length,
+      mimeType: userInput?.image?.mimeType
+    });
+
     // Handle different input types
     if (typeof userInput === 'object' && userInput.image) {
+      // Check if model supports vision
+      const model = finalConfig.model.toLowerCase();
+      const supportsVision =
+        model.includes('vision') ||
+        model.includes('gpt-4o') ||
+        model.includes('gpt-4-turbo') ||
+        model.includes('claude-3') ||
+        model.includes('claude-sonnet') ||
+        model.includes('claude-opus') ||
+        model.includes('claude-haiku') ||
+        model.includes('vl');
+
+      console.log('[DEBUG] API Configuration:', {
+        type: finalConfig.type,
+        baseUrl: finalConfig.baseUrl,
+        model: finalConfig.model,
+        supportsVision: supportsVision
+      });
+
+      if (!supportsVision) {
+        return NextResponse.json(
+          { error: '当前模型不支持图片输入，请使用支持vision的模型（如 gpt-4o, gpt-4-vision-preview, claude-3-opus, claude-3-sonnet, claude-sonnet-4 等）' },
+          { status: 400 }
+        );
+      }
+
       // Image input with text and image data
       const { text, image } = userInput;
       userMessage = {
@@ -122,6 +95,12 @@ export async function POST(request) {
           mimeType: image.mimeType
         }
       };
+
+      console.log('[DEBUG] Built userMessage:', {
+        hasImage: !!userMessage?.image,
+        imageDataLength: userMessage?.image?.data?.length,
+        mimeType: userMessage?.image?.mimeType
+      });
     } else {
       // Regular text input
       userMessage = {
@@ -130,44 +109,85 @@ export async function POST(request) {
       };
     }
 
+    // Choose system prompt based on continuation flag
+    const systemPrompt = isContinuation ? CONTINUATION_SYSTEM_PROMPT : SYSTEM_PROMPT;
+
+    // 调试：输出 system prompt 摘要
+    console.log('[DEBUG] System Prompt Info:', {
+      type: isContinuation ? 'CONTINUATION' : 'SYSTEM',
+      length: systemPrompt.length,
+      firstLine: systemPrompt.split('\n')[0],
+      hasMetaStructure: systemPrompt.includes('## 任务') || systemPrompt.includes('## Task')
+    });
+
     const fullMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       userMessage
     ];
 
+    // 调试：输出消息结构
+    console.log('[DEBUG] Messages Structure:', {
+      totalMessages: fullMessages.length,
+      systemRole: fullMessages[0].role,
+      systemContentLength: fullMessages[0].content.length,
+      systemContentPreview: fullMessages[0].content.substring(0, 150) + '...',
+      userRole: fullMessages[1].role,
+      userContentType: typeof fullMessages[1].content,
+      userContentPreview: typeof fullMessages[1].content === 'string'
+        ? fullMessages[1].content.substring(0, 100)
+        : '[Multimodal content]'
+    });
+
     // Create a readable stream for SSE
->>>>>>> origin/figsci
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        let isClosed = false;
+        
+        // Helper function to safely enqueue data
+        const safeEnqueue = (data) => {
+          if (!isClosed) {
+            try {
+              controller.enqueue(encoder.encode(data));
+            } catch (error) {
+              // Controller might be closed by client
+              if (error.code !== 'ERR_INVALID_STATE') {
+                console.error('Error enqueueing data:', error);
+              }
+              isClosed = true;
+            }
+          }
+        };
+
         try {
-<<<<<<< HEAD
-          await callOpenAI(config, messages, (chunk) => {
-            // Send each chunk to the client
-=======
-          await callLLM(finalConfig, fullMessages, (chunk) => {
+          const result = await callLLM(finalConfig, fullMessages, (chunk) => {
             // Send each chunk as SSE
->>>>>>> origin/figsci
             const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
-            controller.enqueue(encoder.encode(data));
+            safeEnqueue(data);
           });
 
-<<<<<<< HEAD
-          // Send completion signal
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        } catch (error) {
-          console.error('OpenAI API error:', error);
-=======
+          // Check if result is empty or contains error
+          if (!result || result.trim().length === 0) {
+            throw new Error('LLM 返回了空响应，请检查模型配置或重试');
+          }
+
           // Send done signal
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
+          safeEnqueue('data: [DONE]\n\n');
+          if (!isClosed) {
+            controller.close();
+            isClosed = true;
+          }
         } catch (error) {
           console.error('Error in stream:', error);
->>>>>>> origin/figsci
-          const errorData = `data: ${JSON.stringify({ error: error.message })}\n\n`;
-          controller.enqueue(encoder.encode(errorData));
-          controller.close();
+          // Send error as SSE data
+          const errorData = `data: ${JSON.stringify({ error: error.message || '生成失败，请检查配置和网络连接' })}\n\n`;
+          safeEnqueue(errorData);
+          // Send done signal after error
+          safeEnqueue('data: [DONE]\n\n');
+          if (!isClosed) {
+            controller.close();
+            isClosed = true;
+          }
         }
       },
     });
@@ -176,14 +196,6 @@ export async function POST(request) {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-<<<<<<< HEAD
-        Connection: 'keep-alive',
-      },
-    });
-  } catch (error) {
-    console.error('Generate API error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
-=======
         'Connection': 'keep-alive',
       },
     });
@@ -193,7 +205,6 @@ export async function POST(request) {
       { error: error.message || 'Failed to generate code' },
       { status: 500 }
     );
->>>>>>> origin/figsci
   }
 }
 
