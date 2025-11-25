@@ -1,23 +1,8 @@
 'use client';
 
-<<<<<<< HEAD
-export default function CodeEditor({ code, onChange, onConvert, onClear }) {
-  return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800">Excalidraw Code</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={onClear}
-            className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-            disabled={!code}
-          >
-            Clear
-=======
 import { Editor } from '@monaco-editor/react';
 
-export default function CodeEditor({ code, onChange, onApply, onOptimize, onClear, jsonError, onClearJsonError, isGenerating, isApplyingCode, isOptimizingCode }) {
+export default function CodeEditor({ code, onChange, onApply, onOptimize, onAdvancedOptimize, onClear, jsonError, onClearJsonError, isGenerating, isApplyingCode, isOptimizingCode, isTruncated, canContinue, onContinue }) {
   return (
     <div className="flex relative flex-col h-full bg-gray-50 border-t border-gray-200">
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
@@ -33,6 +18,35 @@ export default function CodeEditor({ code, onChange, onApply, onOptimize, onClea
               <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
             )}
           </button>
+          {isTruncated && (
+            <button
+              onClick={onContinue}
+              disabled={!canContinue || isGenerating}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+              title="继续生成剩余代码"
+            >
+              {isGenerating ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>生成中...</span>
+                </>
+              ) : (
+                <>
+                  <span>继续生成</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    className="w-4 h-4"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.81V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z" />
+                  </svg>
+                </>
+              )}
+            </button>
+          )}
           <button
             onClick={onOptimize}
             disabled={isGenerating || isApplyingCode || isOptimizingCode || !code.trim()}
@@ -55,6 +69,17 @@ export default function CodeEditor({ code, onChange, onApply, onOptimize, onClea
                 )}
               </>
             )}
+          </button>
+          <button
+            onClick={onAdvancedOptimize}
+            disabled={isGenerating || isApplyingCode || isOptimizingCode || !code.trim()}
+            className="px-4 py-2 text-sm font-medium text-white rounded disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+            style={{
+              background: isGenerating || isApplyingCode || isOptimizingCode ? '#d1d5db' : 'linear-gradient(135deg, #f093fb 0%, #f093fb 100%)'
+            }}
+            title="高级优化选项"
+          >
+            <span>高级优化</span>
           </button>
           <button
             onClick={onApply}
@@ -84,58 +109,10 @@ export default function CodeEditor({ code, onChange, onApply, onOptimize, onClea
                 )}
               </>
             )}
->>>>>>> origin/figsci
           </button>
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* Code Display */}
-      <div className="flex-1 overflow-auto p-4">
-        {code ? (
-          <pre className="text-sm font-mono bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-auto">
-            <code>{code}</code>
-          </pre>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            <div className="text-center">
-              <svg
-                className="mx-auto h-16 w-16 mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                />
-              </svg>
-              <p className="text-lg font-medium">No code generated yet</p>
-              <p className="text-sm mt-1">Generate a diagram to see the Excalidraw JSON here</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
-        <button
-          onClick={onConvert}
-          disabled={!code}
-          className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
-            code
-              ? 'bg-green-600 text-white hover:bg-green-700'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Convert to Diagram
-        </button>
-        {code && (
-          <p className="text-xs text-gray-500 mt-2 text-center">{code.length} characters</p>
-        )}
-=======
       {/* JSON Error Banner */}
       {jsonError && (
         <div className="absolute bottom-0 z-1 border-b border-red-200 px-4 py-3 flex items-start justify-between bg-white" >
@@ -175,7 +152,6 @@ export default function CodeEditor({ code, onChange, onApply, onOptimize, onClea
             wordWrap: 'on',
           }}
         />
->>>>>>> origin/figsci
       </div>
     </div>
   );

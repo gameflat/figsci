@@ -1,80 +1,5 @@
 'use client';
 
-<<<<<<< HEAD
-import { useState } from 'react';
-import { imageToBase64, validateImageFile } from '@/lib/image-utils';
-
-export default function ImageUpload({ onImageUpload, disabled }) {
-  const [preview, setPreview] = useState(null);
-  const [error, setError] = useState('');
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file
-    const validation = validateImageFile(file);
-    if (!validation.valid) {
-      setError(validation.error);
-      return;
-    }
-
-    setError('');
-
-    try {
-      // Convert to base64
-      const imageData = await imageToBase64(file);
-
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setPreview(previewUrl);
-
-      // Notify parent
-      onImageUpload(imageData);
-    } catch (err) {
-      setError('Failed to process image');
-      console.error(err);
-    }
-  };
-
-  const handleClear = () => {
-    setPreview(null);
-    setError('');
-    onImageUpload(null);
-  };
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Upload diagram image</label>
-        <input
-          type="file"
-          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-          onChange={handleFileChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          disabled={disabled}
-        />
-        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
-      </div>
-
-      {preview && (
-        <div className="relative">
-          <img src={preview} alt="Preview" className="w-full rounded-lg border border-gray-300" />
-          <button
-            onClick={handleClear}
-            className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
-            disabled={disabled}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-=======
 import { useState, useRef } from 'react';
 import {
   validateImage,
@@ -85,7 +10,7 @@ import {
 } from '@/lib/image-utils';
 import { CHART_TYPES } from '@/lib/constants';
 
-export default function ImageUpload({ onImageSelect, isGenerating, chartType, onChartTypeChange, onImageGenerate }) {
+export default function ImageUpload({ onImageSelect, isGenerating, chartType, onChartTypeChange, onImageGenerate, onStop }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(''); // '', 'uploading', 'success', 'error'
@@ -358,37 +283,33 @@ export default function ImageUpload({ onImageSelect, isGenerating, chartType, on
           )}
 
           {/* 生成按钮 */}
-          {uploadStatus === 'success' && !isGenerating && (
-            <button
-              onClick={onImageGenerate}
-              className="w-full mt-2 px-4 py-3 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center space-x-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>开始生成</span>
-            </button>
-          )}
-
-          {/* 生成中状态 */}
-          {isGenerating && uploadStatus === 'success' && (
-            <div className="mt-2 flex items-center justify-center text-sm text-blue-600">
-              <div className="flex space-x-1 mr-2">
-                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-              <span>正在识别...</span>
+          {uploadStatus === 'success' && (
+            <div className="mt-2">
+              {isGenerating ? (
+                <button
+                  onClick={onStop}
+                  className="w-full px-4 py-3 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>停止生成</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onImageGenerate}
+                  className="w-full px-4 py-3 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>开始生成</span>
+                </button>
+              )}
             </div>
           )}
->>>>>>> origin/figsci
         </div>
       )}
     </div>
   );
-<<<<<<< HEAD
 }
-
-=======
-}
->>>>>>> origin/figsci

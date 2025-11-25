@@ -1,208 +1,24 @@
 'use client';
 
-<<<<<<< HEAD
-import { useState } from 'react';
-import { CHART_TYPES } from '@/lib/constants';
-import ImageUpload from './ImageUpload';
-
-export default function Chat({ onSendMessage, isGenerating }) {
-  const [activeTab, setActiveTab] = useState('text');
-  const [textInput, setTextInput] = useState('');
-  const [chartType, setChartType] = useState('auto');
-  const [uploadedFile, setUploadedFile] = useState(null);
-  const [uploadedImage, setUploadedImage] = useState(null);
-
-  const handleSend = () => {
-    if (activeTab === 'text' && textInput.trim()) {
-      onSendMessage(textInput, chartType, 'text');
-    } else if (activeTab === 'file' && uploadedFile) {
-      onSendMessage(uploadedFile.content, chartType, 'file');
-    } else if (activeTab === 'image' && uploadedImage) {
-      onSendMessage(
-        {
-          text: textInput || 'Convert this diagram to Excalidraw format',
-          image: uploadedImage,
-        },
-        chartType,
-        'image'
-      );
-    }
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setUploadedFile({
-        name: file.name,
-        content: event.target.result,
-      });
-    };
-    reader.readAsText(file);
-  };
-
-  const handleImageUpload = (imageData) => {
-    setUploadedImage(imageData);
-  };
-
-  const canSend = () => {
-    if (isGenerating) return false;
-    if (activeTab === 'text') return textInput.trim().length > 0;
-    if (activeTab === 'file') return uploadedFile !== null;
-    if (activeTab === 'image') return uploadedImage !== null;
-    return false;
-  };
-
-  return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800">Input</h2>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('text')}
-          className={`flex-1 px-4 py-2 text-sm font-medium ${
-            activeTab === 'text'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Text Input
-        </button>
-        <button
-          onClick={() => setActiveTab('file')}
-          className={`flex-1 px-4 py-2 text-sm font-medium ${
-            activeTab === 'file'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          File Upload
-        </button>
-        <button
-          onClick={() => setActiveTab('image')}
-          className={`flex-1 px-4 py-2 text-sm font-medium ${
-            activeTab === 'image'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Image Upload
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 p-4 overflow-y-auto">
-        {activeTab === 'text' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Describe your diagram
-              </label>
-              <textarea
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="E.g., Create a flowchart showing the user authentication process..."
-                className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                disabled={isGenerating}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'file' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload text file (.txt, .md)
-              </label>
-              <input
-                type="file"
-                accept=".txt,.md"
-                onChange={handleFileUpload}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={isGenerating}
-              />
-              {uploadedFile && (
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">File:</span> {uploadedFile.name}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {uploadedFile.content.length} characters
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'image' && (
-          <div className="space-y-4">
-            <ImageUpload onImageUpload={handleImageUpload} disabled={isGenerating} />
-            {uploadedImage && (
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional instructions (optional)
-                </label>
-                <textarea
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  placeholder="E.g., Focus on the main workflow, simplify the diagram..."
-                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  disabled={isGenerating}
-                />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200 space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Diagram Type</label>
-          <select
-            value={chartType}
-            onChange={(e) => setChartType(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            disabled={isGenerating}
-          >
-            {CHART_TYPES.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          onClick={handleSend}
-          disabled={!canSend()}
-          className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
-            canSend()
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {isGenerating ? 'Generating...' : 'Generate Diagram'}
-        </button>
-=======
 import { useState, useRef, useEffect } from 'react';
 import ImageUpload from './ImageUpload';
 import LoadingOverlay from './LoadingOverlay';
 import { generateImagePrompt } from '@/lib/image-utils';
 import { CHART_TYPES } from '@/lib/constants';
-import { track } from '@vercel/analytics';
 
-export default function Chat({ onSendMessage, isGenerating, initialInput = '', initialChartType = 'auto' }) {
+const sanitizeInitialInput = (value) => {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value && typeof value === 'object') {
+    return value.text || '[图片输入请求]';
+  }
+  return '';
+};
+
+export default function Chat({ onSendMessage, isGenerating, initialInput = '', initialChartType = 'auto', onStop }) {
   const [activeTab, setActiveTab] = useState('text'); // 'text', 'file', or 'image'
-  const [input, setInput] = useState(initialInput);
+  const [input, setInput] = useState(sanitizeInitialInput(initialInput));
   const [chartType, setChartType] = useState(initialChartType); // Selected chart type
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileStatus, setFileStatus] = useState(''); // '', 'parsing', 'success', 'error'
@@ -212,19 +28,10 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
   const [canGenerate, setCanGenerate] = useState(false); // Track if generation is possible
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
-  // Track the last submission source to prevent unwanted input syncing
-  const lastSubmitSourceRef = useRef('text'); // 'text' | 'file' | 'image'
 
   // Sync with parent state changes
   useEffect(() => {
-    // Only sync initialInput into the text area for text-originated submissions
-    // If the last submission came from file/image, suppress this one update
-    if (lastSubmitSourceRef.current === 'text') {
-      setInput(initialInput);
-    } else {
-      // Reset to allow future legitimate updates (e.g., history selection)
-      lastSubmitSourceRef.current = 'text';
-    }
+    setInput(sanitizeInitialInput(initialInput));
   }, [initialInput]);
 
   useEffect(() => {
@@ -234,9 +41,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isGenerating) {
-      track('text_submit');
-      lastSubmitSourceRef.current = 'text';
-      onSendMessage(input.trim(), chartType, 'text');
+      onSendMessage(input.trim(), chartType);
       // Don't clear input - keep it for user reference
     }
   };
@@ -248,7 +53,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) {
       // Reset file-related state when no file is selected
@@ -261,20 +66,20 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
     }
 
     // Validate file type
-    const validExtensions = ['.md', '.txt'];
+    const validExtensions = ['.md', '.txt', '.json', '.csv'];
     const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 
     if (!validExtensions.includes(fileExtension)) {
-      setFileError('请选择 .md 或 .txt 文件');
+      setFileError('请选择支持的文件格式（.md, .txt, .json, .csv）');
       setFileStatus('error');
       setCanGenerate(false);
       return;
     }
 
-    // Validate file size (max 1MB)
-    const maxSize = 1 * 1024 * 1024; // 1MB in bytes
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
     if (file.size > maxSize) {
-      setFileError('文件大小不能超过 1MB');
+      setFileError('文件大小不能超过 10MB');
       setFileStatus('error');
       setCanGenerate(false);
       return;
@@ -309,7 +114,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
       setCanGenerate(false);
     };
 
-    reader.readAsText(file);
+    reader.readAsText(file, 'UTF-8');
   };
 
   const handleFileButtonClick = () => {
@@ -318,10 +123,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
 
   const handleFileGenerate = () => {
     if (fileContent && !isGenerating) {
-      track('file_submit');
-      // Mark source as file to avoid syncing file content into text input
-      lastSubmitSourceRef.current = 'file';
-      onSendMessage(fileContent, chartType, 'file');
+      onSendMessage(fileContent, chartType);
       // Reset canGenerate state after initiating generation
       setCanGenerate(false);
     }
@@ -340,20 +142,19 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
 
   const handleImageSubmit = () => {
     if (selectedImage && !isGenerating) {
-      track('image_submit');
-      // Mark source as image to avoid syncing into text input
-      lastSubmitSourceRef.current = 'image';
       // 生成针对图片的提示词
       const imagePrompt = generateImagePrompt(chartType);
 
-      // 创建包含图片数据的消息对象
+      // 创建包含图片数据的消息对象，只保留必要字段
       const messageData = {
         text: imagePrompt,
-        image: selectedImage,
-        chartType
+        image: {
+          data: selectedImage.data,
+          mimeType: selectedImage.mimeType
+        }
       };
 
-      onSendMessage(messageData, chartType, 'image');
+      onSendMessage(messageData, chartType);
       // Reset canGenerate state after initiating generation
       setCanGenerate(false);
     }
@@ -448,22 +249,29 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
                   }}
                   disabled={isGenerating}
                 />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isGenerating}
-                  className="absolute right-2 bottom-2 p-2 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
-                  title={isGenerating ? "生成中..." : "发送"}
-                >
-                  {isGenerating ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  ) : (
+                {isGenerating ? (
+                  <button
+                    type="button"
+                    onClick={onStop}
+                    className="absolute right-2 bottom-2 p-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200"
+                    title="停止生成"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim()}
+                    className="absolute right-2 bottom-2 p-2 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
+                    title="发送"
+                  >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
-                  )}
-                </button>
+                  </button>
+                )}
               </div>
             </form>
             {/* Unified Loading Overlay */}
@@ -498,13 +306,13 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
             </div>
             <div className="text-center mb-6">
               <p className="text-sm text-gray-600 mb-2">上传 Markdown 或文本文件</p>
-              <p className="text-xs text-gray-400">支持 .md 和 .txt 格式，最大 1MB</p>
+              <p className="text-xs text-gray-400">支持 .md, .txt, .json, .csv 格式，最大 10MB</p>
             </div>
 
             <input
               ref={fileInputRef}
               type="file"
-              accept=".md,.txt"
+              accept=".md,.txt,.json,.csv"
               onChange={handleFileChange}
               className="hidden"
               disabled={isGenerating || fileStatus === 'parsing'}
@@ -573,18 +381,30 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
                 </div>
 
                 {/* Generate Button */}
-                {fileStatus === 'success' && !isGenerating && (
+                {fileStatus === 'success' && (
                   <div className="mt-4">
-                    <button
-                      onClick={handleFileGenerate}
-                      disabled={!canGenerate}
-                      className="w-full px-4 py-3 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span>开始生成</span>
-                    </button>
+                    {isGenerating ? (
+                      <button
+                        onClick={onStop}
+                        className="w-full px-4 py-3 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 flex items-center justify-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span>停止生成</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleFileGenerate}
+                        disabled={!canGenerate}
+                        className="w-full px-4 py-3 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span>开始生成</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -606,6 +426,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
               chartType={chartType}
               onChartTypeChange={setChartType}
               onImageGenerate={handleImageSubmit}
+              onStop={onStop}
             />
             {/* Unified Loading Overlay for image upload */}
             <LoadingOverlay
@@ -614,7 +435,6 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
             />
           </div>
         )}
->>>>>>> origin/figsci
       </div>
     </div>
   );
