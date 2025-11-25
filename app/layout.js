@@ -1,14 +1,43 @@
+<<<<<<< HEAD
 import './globals.css';
 
 export const metadata = {
   title: 'Figsci - AI-Powered Diagram Generator',
   description: 'Generate beautiful diagrams using AI and Excalidraw',
+=======
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { Analytics } from '@vercel/analytics/next';
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata = {
+  title: "Smart Excalidraw",
+  description: "AI 驱动的图表生成",
+>>>>>>> origin/figsci
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+<<<<<<< HEAD
       <body>{children}</body>
+=======
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {children}
+        <Analytics />
+      </body>
+>>>>>>> origin/figsci
     </html>
   );
 }
