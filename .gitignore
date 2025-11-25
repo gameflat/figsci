@@ -40,3 +40,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE - VS Code (keep project settings)
+.vscode/*
+!.vscode/settings.json
+
+# Test/temp files (exclude official assets in public/ and docs/)
+fixed-page-*.png
+*.test.png
+*.temp.png
+
+# Claude Code local cache (personal chat history)
+.claude/
