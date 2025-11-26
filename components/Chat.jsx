@@ -5,13 +5,14 @@ import ImageUpload from './ImageUpload';
 import LoadingOverlay from './LoadingOverlay';
 import { generateImagePrompt } from '@/lib/image-utils';
 import { CHART_TYPES } from '@/lib/constants';
+import { track } from '@vercel/analytics';
 
 const sanitizeInitialInput = (value) => {
   if (typeof value === 'string') {
     return value;
   }
   if (value && typeof value === 'object') {
-    return value.text || '[图片输入请求]';
+    return value.text || 'Image upload request';
   }
   return '';
 };
@@ -28,10 +29,19 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
   const [canGenerate, setCanGenerate] = useState(false); // Track if generation is possible
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  // 跟踪上次提交来源，以防止不必要的输入同步
+  const lastSubmitSourceRef = useRef('text'); // 'text' | 'file' | 'image'
 
-  // Sync with parent state changes
+  // 与父状态更改同步
   useEffect(() => {
-    setInput(sanitizeInitialInput(initialInput));
+    // 仅对文本类型的提交将初始输入同步到文本区域
+    // 如果上次提交来自文件/图像，则抑制此次更新
+    if (lastSubmitSourceRef.current === 'text') {
+      setInput(sanitizeInitialInput(initialInput));
+    } else {
+      // 重置以允许将来进行合法更新（例如，历史记录选择）
+      lastSubmitSourceRef.current = 'text';
+    }
   }, [initialInput]);
 
   useEffect(() => {
@@ -41,8 +51,10 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isGenerating) {
-      onSendMessage(input.trim(), chartType);
-      // Don't clear input - keep it for user reference
+      track('text_submit');
+      lastSubmitSourceRef.current = 'text';
+      onSendMessage(input.trim(), chartType, 'text');
+      // 不要清除输入 - 保留以供用户参考
     }
   };
 
@@ -56,7 +68,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) {
-      // Reset file-related state when no file is selected
+      // 当未选择任何文件时，重置文件相关状态
       setSelectedFile(null);
       setFileStatus('');
       setFileError('');
@@ -65,12 +77,12 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
       return;
     }
 
-    // Validate file type
+    // 验证文件类型
     const validExtensions = ['.md', '.txt', '.json', '.csv'];
     const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 
     if (!validExtensions.includes(fileExtension)) {
-      setFileError('请选择支持的文件格式（.md, .txt, .json, .csv）');
+      setFileError('Please select a supported file format (.md, .txt, .json, .csv)');
       setFileStatus('error');
       setCanGenerate(false);
       return;
@@ -79,7 +91,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB in bytes
     if (file.size > maxSize) {
-      setFileError('文件大小不能超过 10MB');
+      setFileError('The file size cannot exceed 10MB');
       setFileStatus('error');
       setCanGenerate(false);
       return;
@@ -88,28 +100,28 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
     setSelectedFile(file);
     setFileStatus('parsing');
     setFileError('');
-    setFileContent(''); // Clear previous content
-    setCanGenerate(false); // Disable generation until parsing is complete
+    setFileContent(''); // 清除先前内容
+    setCanGenerate(false); // 解析完成前禁用生成
 
-    // Read file content
+    // 读取文件内容
     const reader = new FileReader();
 
     reader.onload = (event) => {
       const content = event.target?.result;
       if (typeof content === 'string' && content.trim()) {
         setFileStatus('success');
-        setFileContent(content.trim()); // Store content for manual generation
-        setCanGenerate(true); // Enable generation button
-        // Don't auto-submit the file content - wait for user to click generate button
+        setFileContent(content.trim()); // 存储用于手动生成的内容
+        setCanGenerate(true); // 启用生成按钮
+        // 不要自动提交文件内容 - 等待用户点击生成按钮
       } else {
-        setFileError('文件内容为空');
+        setFileError('The file is empty');
         setFileStatus('error');
         setCanGenerate(false);
       }
     };
 
     reader.onerror = () => {
-      setFileError('文件读取失败');
+      setFileError('File read failed');
       setFileStatus('error');
       setCanGenerate(false);
     };
@@ -123,8 +135,11 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
 
   const handleFileGenerate = () => {
     if (fileContent && !isGenerating) {
-      onSendMessage(fileContent, chartType);
-      // Reset canGenerate state after initiating generation
+      track('file_submit');
+      // 将源标记为文件，以避免将文件内容同步到文本输入框中
+      lastSubmitSourceRef.current = 'file';
+      onSendMessage(fileContent, chartType, 'file');
+      // 启动生成后重置 canGenerate 状态
       setCanGenerate(false);
     }
   };
@@ -134,7 +149,7 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
     // 图片选择完成后，不立即发送处理请求
     // 用户需要点击"开始生成"按钮才会开始生成
     if (imageData) {
-      setCanGenerate(true); // Enable generation button for image
+      setCanGenerate(true); // 启用图像生成按钮
     } else {
       setCanGenerate(false);
     }
@@ -142,6 +157,9 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
 
   const handleImageSubmit = () => {
     if (selectedImage && !isGenerating) {
+      track('image_submit');
+      // 将源标记为文件，以避免将文件内容同步到文本输入框中
+      lastSubmitSourceRef.current = 'image';
       // 生成针对图片的提示词
       const imagePrompt = generateImagePrompt(chartType);
 
@@ -151,11 +169,12 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
         image: {
           data: selectedImage.data,
           mimeType: selectedImage.mimeType
-        }
+        },
+        chartType
       };
 
-      onSendMessage(messageData, chartType);
-      // Reset canGenerate state after initiating generation
+      onSendMessage(messageData, chartType, 'image');
+      // 启动生成后重置 canGenerate 状态
       setCanGenerate(false);
     }
   };
@@ -263,13 +282,19 @@ export default function Chat({ onSendMessage, isGenerating, initialInput = '', i
                 ) : (
                   <button
                     type="submit"
-                    disabled={!input.trim()}
+                    disabled={!input.trim() || isGenerating}
                     className="absolute right-2 bottom-2 p-2 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
-                    title="发送"
+                    title={isGenerating ? "生成中..." : "发送"}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
+                    {isGenerating ? (
+                      <div className="flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    )}
                   </button>
                 )}
               </div>

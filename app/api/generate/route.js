@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT, USER_PROMPT_TEMPLATE, CONTINUATION_SYSTEM_PROMPT } from 
 
 /**
  * POST /api/generate
- * Generate Draw.io diagram based on user input
+ * 基于用户输入生成 Excalidraw 图表
  */
 export async function POST(request) {
   try {
@@ -17,17 +17,17 @@ export async function POST(request) {
       const envPassword = process.env.ACCESS_PASSWORD;
       if (!envPassword) {
         return NextResponse.json(
-          { error: '服务器未配置访问密码' },
+          { error: 'The server is not configured with an access password' },
           { status: 400 }
         );
       }
       if (accessPassword !== envPassword) {
         return NextResponse.json(
-          { error: '访问密码错误' },
+          { error: 'Incorrect access password' },
           { status: 401 }
         );
       }
-      // Use server-side config
+      // 使用服务端配置
       finalConfig = {
         type: process.env.SERVER_LLM_TYPE,
         baseUrl: process.env.SERVER_LLM_BASE_URL,
@@ -36,7 +36,7 @@ export async function POST(request) {
       };
       if (!finalConfig.type || !finalConfig.apiKey) {
         return NextResponse.json(
-          { error: '服务器LLM配置不完整' },
+          { error: 'Server LLM configuration incomplete' },
           { status: 500 }
         );
       }
@@ -47,7 +47,6 @@ export async function POST(request) {
       );
     }
 
-    // Build messages array
     let userMessage;
 
     console.log('[DEBUG] Received userInput:', {
@@ -57,9 +56,9 @@ export async function POST(request) {
       mimeType: userInput?.image?.mimeType
     });
 
-    // Handle different input types
+    // 处理不同的输入类型
     if (typeof userInput === 'object' && userInput.image) {
-      // Check if model supports vision
+      // 检查模型是否支持视觉
       const model = finalConfig.model.toLowerCase();
       const supportsVision =
         model.includes('vision') ||
@@ -80,12 +79,12 @@ export async function POST(request) {
 
       if (!supportsVision) {
         return NextResponse.json(
-          { error: '当前模型不支持图片输入，请使用支持vision的模型（如 gpt-4o, gpt-4-vision-preview, claude-3-opus, claude-3-sonnet, claude-sonnet-4 等）' },
+          { error: 'The current model does not support image input. Please use a model that supports vision (such as gpt-4o, gpt-4-vision-preview, claude-3-opus, claude-3-sonnet, claude-sonnet-4, qwen-vl, etc)' },
           { status: 400 }
         );
       }
 
-      // Image input with text and image data
+      // 多模态输入（文本+图片）
       const { text, image } = userInput;
       userMessage = {
         role: 'user',
@@ -102,17 +101,17 @@ export async function POST(request) {
         mimeType: userMessage?.image?.mimeType
       });
     } else {
-      // Regular text input
+      // 纯文本输入
       userMessage = {
         role: 'user',
         content: USER_PROMPT_TEMPLATE(userInput, chartType)
       };
     }
 
-    // Choose system prompt based on continuation flag
+    // 基于是否是继续对话，选择合适的系统 Prompt
     const systemPrompt = isContinuation ? CONTINUATION_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
-    // 调试：输出 system prompt 摘要
+    // 调试：输出系统 Prompt 摘要
     console.log('[DEBUG] System Prompt Info:', {
       type: isContinuation ? 'CONTINUATION' : 'SYSTEM',
       length: systemPrompt.length,
@@ -138,55 +137,65 @@ export async function POST(request) {
         : '[Multimodal content]'
     });
 
-    // Create a readable stream for SSE
+    // 为 SSE 创建一个可读流
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         let isClosed = false;
         
-        // Helper function to safely enqueue data
+        // 安全地 enqueue 数据
         const safeEnqueue = (data) => {
-          if (!isClosed) {
-            try {
+          try {
+            if (!isClosed) {
               controller.enqueue(encoder.encode(data));
-            } catch (error) {
-              // Controller might be closed by client
-              if (error.code !== 'ERR_INVALID_STATE') {
-                console.error('Error enqueueing data:', error);
-              }
+            }
+          } catch (error) {
+            // Controller 可能已经关闭（客户端断开连接等）
+            if (error.message && error.message.includes('closed')) {
               isClosed = true;
+            } else {
+              console.error('Error enqueueing data:', error);
             }
           }
         };
-
+        
+        // 安全地关闭 controller
+        const safeClose = () => {
+          try {
+            if (!isClosed) {
+              controller.close();
+              isClosed = true;
+            }
+          } catch (error) {
+            // Controller 已经关闭，忽略错误
+            isClosed = true;
+          }
+        };
+        
         try {
-          const result = await callLLM(finalConfig, fullMessages, (chunk) => {
-            // Send each chunk as SSE
+          await callLLM(finalConfig, fullMessages, (chunk) => {
+            // 检查是否已关闭
+            if (isClosed) return;
+            
+            // 将每个数据块以 SSE 格式发送
             const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
             safeEnqueue(data);
           });
 
-          // Check if result is empty or contains error
-          if (!result || result.trim().length === 0) {
-            throw new Error('LLM 返回了空响应，请检查模型配置或重试');
-          }
-
-          // Send done signal
-          safeEnqueue('data: [DONE]\n\n');
+          // 发送完成信号
           if (!isClosed) {
-            controller.close();
-            isClosed = true;
+            safeEnqueue('data: [DONE]\n\n');
+            safeClose();
           }
         } catch (error) {
           console.error('Error in stream:', error);
-          // Send error as SSE data
-          const errorData = `data: ${JSON.stringify({ error: error.message || '生成失败，请检查配置和网络连接' })}\n\n`;
-          safeEnqueue(errorData);
-          // Send done signal after error
-          safeEnqueue('data: [DONE]\n\n');
+          
+          // 只有在 controller 未关闭时才发送错误
           if (!isClosed) {
-            controller.close();
-            isClosed = true;
+            // 以 SSE 数据形式发送错误
+            const errorData = `data: ${JSON.stringify({ error: error.message || 'Generation failed. Please check your configuration and network connection' })}\n\n`;
+            safeEnqueue(errorData);
+            safeClose();
           }
         }
       },

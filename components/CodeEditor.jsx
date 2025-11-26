@@ -2,7 +2,7 @@
 
 import { Editor } from '@monaco-editor/react';
 
-export default function CodeEditor({ code, onChange, onApply, onOptimize, onAdvancedOptimize, onClear, jsonError, onClearJsonError, isGenerating, isApplyingCode, isOptimizingCode, isTruncated, canContinue, onContinue }) {
+export default function CodeEditor({ code, onChange, onApply, onOptimize, onAdvancedOptimize, onClear, jsonError, onClearJsonError, isGenerating, isApplyingCode, isOptimizingCode }) {
   return (
     <div className="flex relative flex-col h-full bg-gray-50 border-t border-gray-200">
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
@@ -18,35 +18,6 @@ export default function CodeEditor({ code, onChange, onApply, onOptimize, onAdva
               <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
             )}
           </button>
-          {isTruncated && (
-            <button
-              onClick={onContinue}
-              disabled={!canContinue || isGenerating}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
-              title="继续生成剩余代码"
-            >
-              {isGenerating ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>生成中...</span>
-                </>
-              ) : (
-                <>
-                  <span>继续生成</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    stroke="currentColor"
-                    className="w-4 h-4"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.81V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z" />
-                  </svg>
-                </>
-              )}
-            </button>
-          )}
           <button
             onClick={onOptimize}
             disabled={isGenerating || isApplyingCode || isOptimizingCode || !code.trim()}

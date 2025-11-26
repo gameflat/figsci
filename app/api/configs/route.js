@@ -3,7 +3,7 @@ import { testConnection } from '@/lib/llm-client';
 
 /**
  * GET /api/configs/test-connection
- * Test connection to a provider API
+ * 测试 AI 供应商的 API
  */
 export async function POST(request) {
   try {
@@ -24,7 +24,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        message: error.message || '连接测试失败'
+        message: error.message || 'Connection test failed'
       },
       { status: 500 }
     );

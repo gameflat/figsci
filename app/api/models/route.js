@@ -3,7 +3,7 @@ import { fetchModels } from '@/lib/llm-client';
 
 /**
  * GET /api/models
- * Fetch available models from the configured provider
+ * 从已配置的 AI 供应商的 API 中获取可用模型
  */
 export async function GET(request) {
   try {

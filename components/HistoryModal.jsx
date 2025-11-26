@@ -33,8 +33,8 @@ export default function HistoryModal({ isOpen, onClose, onApply }) {
   const handleDelete = (id) => {
     setConfirmDialog({
       isOpen: true,
-      title: '确认删除',
-      message: '确定要删除这条历史记录吗？',
+      title: 'Confirm deletion',
+      message: 'Are you sure you want to delete this history record?',
       onConfirm: () => {
         historyManager.deleteHistory(id);
         loadHistories();
@@ -45,8 +45,8 @@ export default function HistoryModal({ isOpen, onClose, onApply }) {
   const handleClearAll = () => {
     setConfirmDialog({
       isOpen: true,
-      title: '确认清空',
-      message: '确定要清空所有历史记录吗？此操作不可恢复。',
+      title: 'Confirm clear',
+      message: 'Are you sure you want to clear all history? This operation is irreversible',
       onConfirm: () => {
         historyManager.clearAll();
         loadHistories();
@@ -55,6 +55,11 @@ export default function HistoryModal({ isOpen, onClose, onApply }) {
   };
 
   const truncateText = (text, maxLength = 100) => {
+    if (!text) return '';
+    // 处理文本可能是对象的情况（例如图片上传）
+    if (typeof text === 'object') {
+      return text.text || 'Image upload request';
+    }
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 

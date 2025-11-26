@@ -306,6 +306,18 @@ export default function ImageUpload({ onImageSelect, isGenerating, chartType, on
                   <span>开始生成</span>
                 </button>
               )}
+
+              {/* 生成中状态 */}
+              {isGenerating && uploadStatus === 'success' && (
+                <div className="mt-2 flex items-center justify-center text-sm text-blue-600">
+                  <div className="flex space-x-1 mr-2">
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                  <span>正在识别...</span>
+                </div>
+              )}
             </div>
           )}
         </div>

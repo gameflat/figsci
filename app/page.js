@@ -8,15 +8,16 @@ import ConfigManager from '@/components/ConfigManager';
 import ContactModal from '@/components/ContactModal';
 import HistoryModal from '@/components/HistoryModal';
 import AccessPasswordModal from '@/components/AccessPasswordModal';
-import OptimizationPanel from '@/components/OptimizationPanel';
 import Notification from '@/components/Notification';
+import OptimizationPanel from '@/components/OptimizationPanel';
 import { getConfig, isConfigValid } from '@/lib/config';
-import { optimizeExcalidrawCode } from '@/lib/optimizeArrows';
+import { optimizeExcalidrawCode } from '@/lib/optimization';
 import { historyManager } from '@/lib/history-manager';
-import { OPTIMIZATION_SYSTEM_PROMPT, createOptimizationPrompt, createContinuationPrompt } from '@/lib/prompts';
+import { repairJson } from '@/lib/json-repair';
+import { createOptimizationPrompt } from '@/lib/prompts';
 
-// Dynamically import DrawioCanvas to avoid SSR issues
-const DrawioCanvas = dynamic(() => import('@/components/DrawioCanvas'), {
+// 动态导入 ExcalidrawCanvas 以避免 SSR 问题
+const ExcalidrawCanvas = dynamic(() => import('@/components/ExcalidrawCanvas'), {
   ssr: false,
 });
 
@@ -28,20 +29,17 @@ export default function Home() {
   const [isAccessPasswordModalOpen, setIsAccessPasswordModalOpen] = useState(false);
   const [isOptimizationPanelOpen, setIsOptimizationPanelOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
-  const [generatedXml, setGeneratedXml] = useState('');
   const [elements, setElements] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApplyingCode, setIsApplyingCode] = useState(false);
   const [isOptimizingCode, setIsOptimizingCode] = useState(false);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(25); // Percentage of viewport width
+  const [leftPanelWidth, setLeftPanelWidth] = useState(25); // 视口宽度百分比
   const [isResizingHorizontal, setIsResizingHorizontal] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [jsonError, setJsonError] = useState(null);
   const [currentInput, setCurrentInput] = useState('');
   const [currentChartType, setCurrentChartType] = useState('auto');
   const [usePassword, setUsePassword] = useState(false);
-  const [isTruncated, setIsTruncated] = useState(false);
-  const [canContinue, setCanContinue] = useState(false);
   const [notification, setNotification] = useState({
     isOpen: false,
     title: '',
@@ -49,19 +47,29 @@ export default function Home() {
     type: 'info'
   });
   const abortControllerRef = useRef(null);
+  const isApplyingFromCodeRef = useRef(false);
 
-  // Load config on mount and listen for config changes
+  // 动态按需加载 convertToExcalidrawElements（只在浏览器端运行）
+  let convertToExcalidrawElementsFn = null;
+  const getConvertToExcalidrawElements = async () => {
+    if (convertToExcalidrawElementsFn) return convertToExcalidrawElementsFn;
+    const excalidrawModule = await import('@excalidraw/excalidraw');
+    convertToExcalidrawElementsFn = excalidrawModule.convertToExcalidrawElements;
+    return convertToExcalidrawElementsFn;
+  };
+
+  // 挂载时加载配置并监听配置更改
   useEffect(() => {
     const savedConfig = getConfig();
     if (savedConfig) {
       setConfig(savedConfig);
     }
 
-    // Load password access state
+    // 加载密码访问状态
     const passwordEnabled = localStorage.getItem('smart-excalidraw-use-password') === 'true';
     setUsePassword(passwordEnabled);
 
-    // Listen for storage changes to sync across tabs
+    // 监听存储更改，以便在标签页之间同步
     const handleStorageChange = (e) => {
       if (e.key === 'smart-excalidraw-active-config' || e.key === 'smart-excalidraw-configs') {
         const newConfig = getConfig();
@@ -73,7 +81,7 @@ export default function Home() {
       }
     };
 
-    // Listen for custom event from AccessPasswordModal (same tab)
+    // 监听 AccessPasswordModal（同一标签页）中的自定义事件
     const handlePasswordSettingsChanged = (e) => {
       setUsePassword(e.detail.usePassword);
     };
@@ -87,27 +95,204 @@ export default function Home() {
     };
   }, []);
 
-  // Post-process draw.io XML code: remove markdown wrappers
-  const postProcessDrawioCode = (code) => {
+  // Excalidraw Code 后处理：移除 Markdown Wrappers、修复 Json Closures 问题、修复未转义的引号
+  const postProcessExcalidrawCode = (code) => {
     if (!code || typeof code !== 'string') return code;
 
     let processed = code.trim();
 
-    // Remove markdown code fence wrappers (```xml, ```mxgraph, or just ```)
-    processed = processed.replace(/^```(?:xml|mxgraph)?\s*\n?/i, '');
+    // 步骤 1：移除 Markdown Wrappers （```json、```javascript、```js 或仅 ```）
+    processed = processed.replace(/^```(?:json|javascript|js)?\s*\n?/i, '');
     processed = processed.replace(/\n?```\s*$/, '');
     processed = processed.trim();
 
-    // Validate XML structure
-    if (!processed.includes('<mxfile>') || !processed.includes('</mxfile>')) {
-      console.warn('Generated code does not contain valid mxfile structure');
-    }
+    // 步骤 1.5：修复常见的 JSON Closures 问题（末尾缺少引号/括号）
+    processed = repairJson(processed);
 
-    return processed;
+    // 步骤 2：修复 JSON 字符串值中未转义的双引号
+    // 这是一项复杂的任务——我们需要小心，避免破坏有效的 JSON 结构
+    // 策略：解析 JSON 结构，仅修复字符串值中的引号
+    try {
+      // 首先，尝试直接解析，看看它是否已经有效
+      JSON.parse(processed);
+      return processed; // 已经是有效的 JSON，无需修复
+    } catch (e) {
+      // JSON 无效，请尝试修复未转义的引号
+      // 此正则表达式查找字符串值并修复其中未转义的引号
+      // 它查找："key": "包含未转义引号的值"
+      processed = fixUnescapedQuotes(processed);
+      // 修复引号后，尝试对 JSON Closures 进行最终修复
+      processed = repairJson(processed);
+      return processed;
+    }
   };
 
+  // 用于修复 JSON 字符串中未转义引号的辅助函数
+  const fixUnescapedQuotes = (jsonString) => {
+    let result = '';
+    let inString = false;
+    let escapeNext = false;
+    let currentQuotePos = -1;
+    
+    for (let i = 0; i < jsonString.length; i++) {
+      const char = jsonString[i];
+      const prevChar = i > 0 ? jsonString[i - 1] : '';
+      
+      if (escapeNext) {
+        result += char;
+        escapeNext = false;
+        continue;
+      }
+      
+      if (char === '\\') {
+        result += char;
+        escapeNext = true;
+        continue;
+      }
+      
+      if (char === '"') {
+        if (!inString) {
+          // string 开头
+          inString = true;
+          currentQuotePos = i;
+          result += char;
+        } else {
+          // string 可能的结尾
+          // 检查这是否为结构化引用（后面跟着 : 或 , 或 } 或 ] ）
+          const nextNonWhitespace = jsonString.slice(i + 1).match(/^\s*(.)/);
+          const nextChar = nextNonWhitespace ? nextNonWhitespace[1] : '';
+          
+          if (nextChar === ':' || nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === '') {
+            //这是一个 string 的结束引用
+            inString = false;
+            result += char;
+          } else {
+            // 这是字符串中未转义的引号 - 请对其进行转义
+            result += '\\"';
+          }
+        }
+      } else {
+        result += char;
+      }
+    }
+    
+    return result;
+  };
 
-  // Handle stopping generation
+  // 将 Excalidraw 画布中的元素转回 ExcalidrawElementSkeleton 结构
+  const sceneElementsToSkeleton = (sceneElements) => {
+    if (!Array.isArray(sceneElements)) return [];
+
+    // 建立 frameId -> childrenIds 映射
+    const frameChildrenMap = new Map();
+    sceneElements.forEach((el) => {
+      if (el.frameId && el.id) {
+        if (!frameChildrenMap.has(el.frameId)) {
+          frameChildrenMap.set(el.frameId, []);
+        }
+        frameChildrenMap.get(el.frameId).push(el.id);
+      }
+    });
+
+    return sceneElements.map((el) => {
+      // 跳过无效的元素
+      if (!el || !el.type) {
+        return null;
+      }
+
+      const base = {
+        type: el.type,
+        x: el.x,
+        y: el.y,
+      };
+
+      if (el.id) base.id = el.id;
+
+      if (typeof el.width === 'number') base.width = el.width;
+      if (typeof el.height === 'number') base.height = el.height;
+
+      if (el.strokeColor) base.strokeColor = el.strokeColor;
+      if (el.backgroundColor) base.backgroundColor = el.backgroundColor;
+      if (typeof el.strokeWidth === 'number') base.strokeWidth = el.strokeWidth;
+      if (el.strokeStyle) base.strokeStyle = el.strokeStyle;
+      if (el.fillStyle) base.fillStyle = el.fillStyle;
+      if (typeof el.roughness === 'number') base.roughness = el.roughness;
+      if (typeof el.opacity === 'number') base.opacity = el.opacity;
+      if (typeof el.angle === 'number') base.angle = el.angle;
+      if (typeof el.locked === 'boolean') base.locked = el.locked;
+      if (el.link) base.link = el.link;
+      if (Array.isArray(el.groupIds) && el.groupIds.length > 0) {
+        base.groupIds = [...el.groupIds];
+      }
+
+      if (el.type === 'text') {
+        if (typeof el.text === 'string') base.text = el.text;
+        if (typeof el.fontSize === 'number') base.fontSize = el.fontSize;
+        if (typeof el.fontFamily === 'number') base.fontFamily = el.fontFamily;
+        if (el.textAlign) base.textAlign = el.textAlign;
+        if (el.verticalAlign) base.verticalAlign = el.verticalAlign;
+      }
+
+      if (el.type === 'image') {
+        if (el.fileId) base.fileId = el.fileId;
+        if (el.scale) base.scale = el.scale;
+        if (el.crop) base.crop = el.crop;
+      }
+
+      if (el.type === 'arrow') {
+        if (el.startArrowhead) base.startArrowhead = el.startArrowhead;
+        if (el.endArrowhead) base.endArrowhead = el.endArrowhead;
+        if (el.startBinding && el.startBinding.elementId) {
+          base.start = { id: el.startBinding.elementId };
+        }
+        if (el.endBinding && el.endBinding.elementId) {
+          base.end = { id: el.endBinding.elementId };
+        }
+        if (el.label && el.label.text) {
+          base.label = { text: el.label.text };
+        }
+      }
+
+      if (el.type === 'frame') {
+        const children = frameChildrenMap.get(el.id) || [];
+        if (children.length > 0) {
+          base.children = children;
+        } else {
+          // 如果没有 children，跳过这个 frame（无效的 frame）
+          return null;
+        }
+        if (typeof el.name === 'string' && el.name) {
+          base.name = el.name;
+        }
+      }
+
+      return base;
+    }).filter(el => el !== null); // 过滤掉 null 值
+  };
+
+  // 将画布元素序列化为可编辑的 JSON 代码
+  const serializeSceneToCode = (sceneElements) => {
+    const skeleton = sceneElementsToSkeleton(sceneElements);
+    if (!skeleton.length) {
+      return '[]';
+    }
+    
+    // 确保 frame 元素有有效的 children 数组
+    const cleanedSkeleton = skeleton.map(el => {
+      if (el.type === 'frame') {
+        // 确保 frame 有 children 属性，且是数组
+        if (!el.children || !Array.isArray(el.children) || el.children.length === 0) {
+          // 如果没有有效的 children，移除这个 frame
+          return null;
+        }
+      }
+      return el;
+    }).filter(el => el !== null);
+    
+    return JSON.stringify(cleanedSkeleton, null, 2);
+  };
+
+  // 处理停止生成操作
   const handleStopGeneration = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -117,35 +302,29 @@ export default function Home() {
     setApiError(null);
   };
 
-  // Handle sending a message (single-turn)
-  const handleSendMessage = async (userMessage, chartType = 'auto') => {
+  // 处理消息发送（单轮对话）
+  const handleSendMessage = async (userMessage, chartType = 'auto', sourceType = 'text') => {
     const usePassword = typeof window !== 'undefined' && localStorage.getItem('smart-excalidraw-use-password') === 'true';
     const accessPassword = typeof window !== 'undefined' ? localStorage.getItem('smart-excalidraw-access-password') : '';
 
     if (!usePassword && !isConfigValid(config)) {
       setNotification({
         isOpen: true,
-        title: '配置提醒',
-        message: '请先配置您的 LLM 提供商或启用访问密码',
+        title: 'Configuration reminder',
+        message: 'Please configure your LLM provider or enable access passwords first',
         type: 'warning'
       });
       setIsConfigManagerOpen(true);
       return;
     }
 
-    const displayInput = typeof userMessage === 'string'
-      ? userMessage
-      : (typeof userMessage === 'object' && userMessage !== null
-          ? (userMessage.text || '[图片输入请求]')
-          : '');
-
-    setCurrentInput(displayInput);
+    setCurrentInput(userMessage);
     setCurrentChartType(chartType);
     setIsGenerating(true);
-    setApiError(null); // Clear previous errors
-    setJsonError(null); // Clear previous JSON errors
+    setApiError(null); // 清除之前的错误
+    setJsonError(null); // 清除之前的 JSON 错误
 
-    // Create new AbortController for this request
+    // 为此请求创建新的 AbortController
     abortControllerRef.current = new AbortController();
 
     try {
@@ -154,71 +333,52 @@ export default function Home() {
         headers['x-access-password'] = accessPassword;
       }
 
-      // Clean userInput if it contains image data
-      let cleanedUserInput = userMessage;
-      if (typeof userMessage === 'object' && userMessage.image) {
-        cleanedUserInput = {
-          text: userMessage.text,
-          image: {
-            data: userMessage.image.data,
-            mimeType: userMessage.image.mimeType
-          }
-        };
-      }
-
-      console.log('[DEBUG] Sending to API:', {
-        hasImage: !!cleanedUserInput?.image,
-        imageDataLength: cleanedUserInput?.image?.data?.length,
-        imageDataPreview: cleanedUserInput?.image?.data?.substring(0, 50),
-        mimeType: cleanedUserInput?.image?.mimeType
-      });
-
-      // Call generate API with streaming
+      // 调用流式生成 API
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           config: usePassword ? null : config,
-          userInput: cleanedUserInput,
+          userInput: userMessage,
           chartType,
         }),
         signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
-        // Parse error response body if available
-        let errorMessage = '生成代码失败';
+        // 如果可用，请解析错误响应正文
+        let errorMessage = 'Code generation failed';
         try {
           const errorData = await response.json();
           if (errorData.error) {
             errorMessage = errorData.error;
           }
         } catch (e) {
-          // If response body is not JSON, use status-based messages
+          // 如果响应体不是 JSON 格式，则使用基于状态的消息
           switch (response.status) {
             case 400:
-              errorMessage = '请求参数错误，请检查输入内容';
+              errorMessage = 'The request parameters are incorrect. Please check your input';
               break;
             case 401:
             case 403:
-              errorMessage = 'API 密钥无效或权限不足，请检查配置';
+              errorMessage = 'The API key is invalid or you do not have sufficient permissions. Please check your configuration';
               break;
             case 429:
-              errorMessage = '请求过于频繁，请稍后再试';
+              errorMessage = 'Too many requests, please try again later';
               break;
             case 500:
             case 502:
             case 503:
-              errorMessage = '服务器错误，请稍后重试';
+              errorMessage = 'Server error, please try again later';
               break;
             default:
-              errorMessage = `请求失败 (${response.status})`;
+              errorMessage = `Request failed (${response.status})`;
           }
         }
         throw new Error(errorMessage);
       }
 
-      // Process streaming response
+      // 处理流式响应
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedCode = '';
@@ -246,17 +406,18 @@ export default function Home() {
                 throw new Error(data.error);
               } else if (data.content) {
                 accumulatedCode += data.content;
-                // Post-process and set the cleaned code to editor
-                const processedCode = postProcessDrawioCode(accumulatedCode);
+                // 对清理后的代码进行后处理并将其设置为编辑器
+                const processedCode = postProcessExcalidrawCode(accumulatedCode);
                 setGeneratedCode(processedCode);
               }
             } catch (e) {
-              // If it's an error from the API, throw it
+              // 如果是 API 错误，则抛出异常
               if (hasError && errorMessage) {
                 throw new Error(errorMessage);
               }
-              // SSE parsing errors - log but don't break the stream
-              if (e.message && !e.message.includes('Unexpected') && !e.message.includes('JSON')) {
+              // SSE 解析错误 - 记录日志但不要中断流
+              if (e.message && !e.message.includes('Unexpected')) {
+                setApiError('Data stream parsing error: ' + e.message)
                 console.warn('SSE parsing warning:', e.message);
               }
             }
@@ -264,53 +425,48 @@ export default function Home() {
         }
       }
 
-      // If there was an error, throw it
+      // 如果出现错误，则抛出异常
       if (hasError && errorMessage) {
         throw new Error(errorMessage);
       }
 
-      // Check if we got any code
+      // 检查是否有任何代码
       if (!accumulatedCode || accumulatedCode.trim().length === 0) {
-        throw new Error('未收到任何生成内容，请检查模型配置或重试');
+        throw new Error('No generated content received. Please check your model configuration or try again');
       }
 
-      // Try to parse and apply the generated code (already post-processed)
-      const processedCode = postProcessDrawioCode(accumulatedCode);
-      setGeneratedCode(processedCode);
-      tryParseAndApply(processedCode);
+      // 尝试解析并应用生成的代码（已进行后处理）
+      const processedCode = postProcessExcalidrawCode(accumulatedCode);
+      const optimizedCode = optimizeExcalidrawCode(processedCode);  // 自动优化一次
+      setGeneratedCode(optimizedCode);
+      tryParseAndApply(optimizedCode);
 
-      // Save to history (only for text input)
-      if (userMessage && processedCode) {
+      // 保存到历史记录（仅限纯文本输入）
+      if (sourceType === 'text' && userMessage && optimizedCode) {
+        const userInputText = typeof userMessage === 'object' ? (userMessage.text || '') : userMessage;
         historyManager.addHistory({
           chartType,
-          userInput: userMessage,
-          generatedCode: processedCode,
+          userInput: userInputText,
+          generatedCode: optimizedCode,
           config: {
-            name: config.name || config.type,
-            model: config.model
+            name: config?.name || config?.type,
+            model: config?.model
           }
         });
       }
     } catch (error) {
-      console.error('Error generating code:', error);
-
-      // If user aborted, exit silently
+      // 如果用户中止操作，则静默退出
       if (error.name === 'AbortError') {
         console.log('Generation aborted by user');
         return;
-      }
-
-      // Check if it's a network error
-      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-        setApiError('网络连接失败，请检查网络连接和API配置');
-      } else if (error.message && error.message.includes('连接被重置')) {
-        setApiError(error.message);
-      } else if (error.message && error.message.includes('网络连接失败')) {
-        setApiError(error.message);
-      } else if (error.message && error.message.includes('请求超时')) {
-        setApiError(error.message);
       } else {
-        setApiError(error.message || '生成失败，请检查配置和网络连接');
+        console.error('Error generating code:', error);
+        // 检查是否是网络错误
+        if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+          setApiError('Network connection failed, please check your network connection');
+        } else {
+          setApiError(error.message);
+        }
       }
     } finally {
       setIsGenerating(false);
@@ -318,15 +474,16 @@ export default function Home() {
     }
   };
 
-  // Try to parse and apply code to canvas
-  const tryParseAndApply = (code) => {
+  // 尝试解析代码并将其应用到画布上
+  const tryParseAndApply = async (code) => {
     try {
+      // 清除之前的 JSON 错误
       setJsonError(null);
       
-      // Check if code is empty or just whitespace
+      // 检查代码是否为空或仅包含空格
       if (!code || typeof code !== 'string' || code.trim().length === 0) {
-        setJsonError('生成的代码为空，请检查模型配置或重试');
-        console.error('No array or XML found in generated code - code is empty');
+        setJsonError('The generated code is empty. Please check your model configuration or try again');
+        console.error('No array or Json found in generated code - code is empty');
         return;
       }
 
@@ -334,103 +491,77 @@ export default function Home() {
 
       console.log('[DEBUG] tryParseAndApply - code preview:', cleanedCode.substring(0, 200));
 
-      // 多层级截断检测
-      const hasStart = cleanedCode.includes('<mxfile');
-      const hasDiagram = cleanedCode.includes('<diagram');
-      const hasModel = cleanedCode.includes('<mxGraphModel');
-      const hasRoot = cleanedCode.includes('<root');
-
-      const hasEndFile = cleanedCode.includes('</mxfile>');
-      const hasEndDiagram = cleanedCode.includes('</diagram>');
-      const hasEndModel = cleanedCode.includes('</mxGraphModel>');
-      const hasEndRoot = cleanedCode.includes('</root>');
-
-      // 检测任何层级的截断
-      const isTruncatedCheck = (
-        (hasStart && !hasEndFile) ||
-        (hasDiagram && !hasEndDiagram) ||
-        (hasModel && !hasEndModel) ||
-        (hasRoot && !hasEndRoot)
-      );
-
-      if (isTruncatedCheck) {
-        setIsTruncated(true);
-        setCanContinue(true);
-
-        // 生成详细的错误信息
-        const missingTags = [];
-        if (hasStart && !hasEndFile) missingTags.push('</mxfile>');
-        if (hasDiagram && !hasEndDiagram) missingTags.push('</diagram>');
-        if (hasModel && !hasEndModel) missingTags.push('</mxGraphModel>');
-        if (hasRoot && !hasEndRoot) missingTags.push('</root>');
-
-        setJsonError(`代码生成被截断，缺少闭合标签：${missingTags.join(', ')}。请点击"继续生成"按钮完成剩余部分。`);
-
-        // Still try to apply the incomplete XML for preview
-        setGeneratedXml(cleanedCode);
-        setElements([]);
-        return;
-      } else {
-        // Reset truncation state if complete
-        setIsTruncated(false);
-        setCanContinue(false);
-      }
-
-      // Try to extract XML from anywhere in the code (more flexible)
-      const xmlMatch = cleanedCode.match(/<mxfile[\s\S]*?<\/mxfile>/);
-      if (xmlMatch) {
-        console.log('[DEBUG] Found XML, length:', xmlMatch[0].length);
-        setGeneratedXml(xmlMatch[0]);
-        setElements([]);
-        return;
-      }
-
-      // Try to parse as JSON array
+      // 如果代码被其他文本包裹，则从代码中提取数组
       const arrayMatch = cleanedCode.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {
+      if (!arrayMatch) {
+        setJsonError('No valid JSON array found in the code');
+        console.error('No array found in generated code');
+        return;
+      }
+
+      const parsed = JSON.parse(arrayMatch[0]);
+      if (Array.isArray(parsed)) {
         try {
-          const parsed = JSON.parse(arrayMatch[0]);
-          if (Array.isArray(parsed)) {
-            setElements(parsed);
-            setGeneratedXml('');
-            return;
-          }
-        } catch (error) {
-          console.error('Failed to parse JSON:', error);
+          // 在转换前，确保 frame 元素格式正确
+          const cleanedParsed = parsed.map(el => {
+            if (el.type === 'frame') {
+              // 确保 frame 有有效的 children 数组
+              if (!el.children || !Array.isArray(el.children)) {
+                console.warn('Frame element missing valid children array, skipping');
+                return null;
+              }
+              // 确保 children 中的 id 在数组中存在
+              const elementIds = new Set(parsed.filter(e => e.id).map(e => e.id));
+              el.children = el.children.filter(id => elementIds.has(id));
+              if (el.children.length === 0) {
+                console.warn('Frame element has no valid children, skipping');
+                return null;
+              }
+            }
+            return el;
+          }).filter(el => el !== null);
+          
+          const convertFn = await getConvertToExcalidrawElements();
+          const fullElements = convertFn(cleanedParsed);
+          // 标记为"来自代码应用"的更新，避免立刻又被 onChange 反向覆盖
+          isApplyingFromCodeRef.current = true;
+          setElements(fullElements);
+          setTimeout(() => {
+            isApplyingFromCodeRef.current = false;
+          }, 0);
+          setJsonError(null); // 成功时清除历史 Json 错误
+        } catch (e) {
+          console.error('Failed to convert skeleton to Excalidraw elements:', e);
+          setJsonError('Unable to convert code to Excalidraw element: ' + e.message);
         }
       }
-
-      // If nothing found, show error with more context
-      console.log('[DEBUG] No XML or JSON found. Code length:', cleanedCode.length);
-      console.log('[DEBUG] Code preview:', cleanedCode.substring(0, 500));
       
-      // Check if it looks like an error message
+      // 检查一下它是不是错误信息
       if (cleanedCode.toLowerCase().includes('error') || 
           cleanedCode.toLowerCase().includes('失败') || 
           cleanedCode.toLowerCase().includes('无法') ||
           cleanedCode.length < 50) {
-        setJsonError(`代码生成失败：${cleanedCode.substring(0, 200)}`);
+        setJsonError(`Code generation failed: ${cleanedCode.substring(0, 200)}`);
       } else {
-        setJsonError('代码中未找到有效的 JSON 数组或 XML。LLM 可能返回了解释性文字而非代码。请检查提示词或重试。');
+        setJsonError('No valid JSON array was found in the code. LLM may have returned explanatory literals instead of code. Please check the prompt words or try again');
       }
-      console.error('No array or XML found in generated code');
     } catch (error) {
       console.error('Failed to parse generated code:', error);
       if (error instanceof SyntaxError) {
-        setJsonError('语法错误：' + error.message);
+        setJsonError('Json Syntax error: ' + error.message);
       } else {
-        setJsonError('解析失败：' + error.message);
+        setJsonError('Parsing failed: ' + error.message);
       }
     }
   };
 
-  // Handle applying code from editor
+  // 处理从编辑器应用代码的操作
   const handleApplyCode = async () => {
     setIsApplyingCode(true);
     try {
-      // Simulate async operation for better UX
+      // 模拟异步操作以提升用户体验
       await new Promise(resolve => setTimeout(resolve, 300));
-      tryParseAndApply(generatedCode);
+      await tryParseAndApply(generatedCode);
     } catch (error) {
       console.error('Error applying code:', error);
     } finally {
@@ -438,13 +569,15 @@ export default function Home() {
     }
   };
 
-  // Handle optimizing code
+  // 处理代码优化
   const handleOptimizeCode = async () => {
     setIsOptimizingCode(true);
     try {
-      // XML doesn't need optimization, just reapply
-      await new Promise(resolve => setTimeout(resolve, 300));
-      tryParseAndApply(generatedCode);
+      // 模拟异步操作以提升用户体验
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const optimizedCode = optimizeExcalidrawCode(generatedCode);
+      setGeneratedCode(optimizedCode);
+      await tryParseAndApply(optimizedCode);
     } catch (error) {
       console.error('Error applying code:', error);
     } finally {
@@ -452,18 +585,18 @@ export default function Home() {
     }
   };
 
-  // Handle clearing code
+  // 处理清除代码操作
   const handleClearCode = () => {
     setGeneratedCode('');
   };
 
-  // Handle opening optimization panel
+  // 处理打开优化面板
   const handleOpenOptimizationPanel = () => {
     if (!generatedCode.trim()) {
       setNotification({
         isOpen: true,
-        title: '提示',
-        message: '请先生成图表代码',
+        title: 'Reminder',
+        message: 'Please generate the chart code first',
         type: 'warning'
       });
       return;
@@ -471,7 +604,7 @@ export default function Home() {
     setIsOptimizationPanelOpen(true);
   };
 
-  // Handle advanced optimization
+  // 处理高级优化操作
   const handleAdvancedOptimize = async (suggestions) => {
     if (!generatedCode.trim()) {
       return;
@@ -479,18 +612,18 @@ export default function Home() {
 
     setIsOptimizationPanelOpen(false);
 
-    // Build optimization prompt
+    // 构建优化提示
     const optimizationPrompt = createOptimizationPrompt(generatedCode, suggestions);
 
-    // Use optimization system prompt
+    // 使用优化系统 prompt
     const usePassword = typeof window !== 'undefined' && localStorage.getItem('smart-excalidraw-use-password') === 'true';
     const accessPassword = typeof window !== 'undefined' ? localStorage.getItem('smart-excalidraw-access-password') : '';
 
     if (!usePassword && !isConfigValid(config)) {
       setNotification({
         isOpen: true,
-        title: '配置提醒',
-        message: '请先配置您的 LLM 提供商或启用访问密码',
+        title: 'Configuration reminder',
+        message: 'Please configure your LLM provider or enable access passwords first',
         type: 'warning'
       });
       setIsConfigManagerOpen(true);
@@ -501,7 +634,7 @@ export default function Home() {
     setApiError(null);
     setJsonError(null);
 
-    // Create new AbortController for this request
+    // 为此请求创建新的 AbortController
     abortControllerRef.current = new AbortController();
 
     try {
@@ -512,11 +645,11 @@ export default function Home() {
 
       let finalConfig = usePassword ? null : config;
       if (usePassword && accessPassword) {
-        // Server will use server-side config
+        // 服务器将使用服务器端配置
         finalConfig = null;
       }
 
-      // Call generate API with optimization prompt
+      // 调用生成 API 并提示优化
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers,
@@ -529,19 +662,19 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        let errorMessage = '优化失败';
+        let errorMessage = 'Optimization failed';
         try {
           const errorData = await response.json();
           if (errorData.error) {
             errorMessage = errorData.error;
           }
         } catch (e) {
-          errorMessage = `请求失败 (${response.status})`;
+          errorMessage = `Request failed (${response.status})`;
         }
         throw new Error(errorMessage);
       }
 
-      // Process streaming response
+      // 处理流式响应
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedCode = '';
@@ -563,51 +696,46 @@ export default function Home() {
               const data = JSON.parse(line.slice(6));
               if (data.content) {
                 accumulatedCode += data.content;
-                const processedCode = postProcessDrawioCode(accumulatedCode);
+                const processedCode = postProcessExcalidrawCode(accumulatedCode);
                 setGeneratedCode(processedCode);
               } else if (data.error) {
                 throw new Error(data.error);
               }
             } catch (e) {
               if (e.message && !e.message.includes('Unexpected')) {
-                setApiError('数据流解析错误：' + e.message);
+                setApiError('Data stream parsing error: ' + e.message);
               }
-              console.error('Failed to parse SSE:', e);
+              console.error('Failed to parse SSE: ', e);
             }
           }
         }
       }
 
-      // Apply optimized code
-      const processedCode = postProcessDrawioCode(accumulatedCode);
+      // 应用优化代码
+      const processedCode = postProcessExcalidrawCode(accumulatedCode);
       setGeneratedCode(processedCode);
       tryParseAndApply(processedCode);
 
       setNotification({
         isOpen: true,
-        title: '优化完成',
-        message: '图表已成功优化',
+        title: 'Optimization complete',
+        message: 'The chart has been successfully optimized',
         type: 'info'
       });
     } catch (error) {
       console.error('Error optimizing code:', error);
 
-      // If user aborted, exit silently
+      // 如果用户中止操作，则静默退出
       if (error.name === 'AbortError') {
         console.log('Optimization aborted by user');
         return;
       }
 
+      // 检查是否是网络错误
       if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-        setApiError('网络连接失败，请检查网络连接和API配置');
-      } else if (error.message && error.message.includes('连接被重置')) {
-        setApiError(error.message);
-      } else if (error.message && error.message.includes('网络连接失败')) {
-        setApiError(error.message);
-      } else if (error.message && error.message.includes('请求超时')) {
-        setApiError(error.message);
+        setApiError('Network connection failed, please check your network connection');
       } else {
-        setApiError(error.message || '优化失败，请检查配置和网络连接');
+        setApiError(error.message);
       }
     } finally {
       setIsGenerating(false);
@@ -615,190 +743,46 @@ export default function Home() {
     }
   };
 
-  // Handle continuing truncated generation
-  const handleContinueGeneration = async () => {
-    if (!generatedCode.trim() || !isTruncated) {
-      return;
-    }
-
-    const usePassword = typeof window !== 'undefined' && localStorage.getItem('smart-excalidraw-use-password') === 'true';
-    const accessPassword = typeof window !== 'undefined' ? localStorage.getItem('smart-excalidraw-access-password') : '';
-
-    if (!usePassword && !isConfigValid(config)) {
-      setNotification({
-        isOpen: true,
-        title: '配置提醒',
-        message: '请先配置您的 LLM 提供商或启用访问密码',
-        type: 'warning'
-      });
-      setIsConfigManagerOpen(true);
-      return;
-    }
-
-    setIsGenerating(true);
-    setApiError(null);
-    setJsonError(null);
-    setCanContinue(false); // Disable continue button during generation
-
-    // Create new AbortController for this request
-    abortControllerRef.current = new AbortController();
-
-    try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (usePassword && accessPassword) {
-        headers['x-access-password'] = accessPassword;
-      }
-
-      let finalConfig = usePassword ? null : config;
-
-      // Build continuation prompt
-      const continuationPrompt = createContinuationPrompt(generatedCode);
-
-      // Call generate API with continuation prompt and flag
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          config: finalConfig,
-          userInput: continuationPrompt,
-          chartType: 'auto',
-          isContinuation: true, // Flag to use CONTINUATION_SYSTEM_PROMPT
-        }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        let errorMessage = '续写失败';
-        try {
-          const errorData = await response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch (e) {
-          errorMessage = `请求失败 (${response.status})`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Process streaming response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedCode = '';
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.trim() === '' || line.trim() === 'data: [DONE]') continue;
-
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                accumulatedCode += data.content;
-
-                // 智能拼接：去除 LLM 可能重复的开始标签
-                let continuationCode = accumulatedCode.trim();
-
-                // 去除可能重复的 XML 声明和开始标签
-                continuationCode = continuationCode.replace(/^<\?xml[^>]*>\s*/i, '');
-                continuationCode = continuationCode.replace(/^<mxfile[^>]*>\s*/i, '');
-                continuationCode = continuationCode.replace(/^<diagram[^>]*>\s*/i, '');
-                continuationCode = continuationCode.replace(/^<mxGraphModel[^>]*>\s*/i, '');
-                continuationCode = continuationCode.replace(/^<root>\s*/i, '');
-
-                // 拼接：原代码 + 清理后的续写代码
-                const completeCode = generatedCode + '\n' + continuationCode;
-                const processedCode = postProcessDrawioCode(completeCode);
-                setGeneratedCode(processedCode);
-              } else if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error('Error parsing SSE data:', e);
-            }
-          }
-        }
-      }
-
-      // Try to parse and apply the completed code
-      // 智能拼接：去除 LLM 可能重复的开始标签
-      let continuationCode = accumulatedCode.trim();
-
-      // 去除可能重复的 XML 声明和开始标签
-      continuationCode = continuationCode.replace(/^<\?xml[^>]*>\s*/i, '');
-      continuationCode = continuationCode.replace(/^<mxfile[^>]*>\s*/i, '');
-      continuationCode = continuationCode.replace(/^<diagram[^>]*>\s*/i, '');
-      continuationCode = continuationCode.replace(/^<mxGraphModel[^>]*>\s*/i, '');
-      continuationCode = continuationCode.replace(/^<root>\s*/i, '');
-
-      // 拼接：原代码 + 清理后的续写代码
-      const completeCode = generatedCode + '\n' + continuationCode;
-      const processedCode = postProcessDrawioCode(completeCode);
-      setGeneratedCode(processedCode);
-      tryParseAndApply(processedCode);
-
-      // Save to history
-      if (processedCode) {
-        historyManager.addHistory({
-          chartType: currentChartType,
-          userInput: currentInput + ' (续写)',
-          generatedCode: processedCode,
-          config: {
-            name: config?.name || config?.type || 'server',
-            model: config?.model || 'unknown'
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error continuing generation:', error);
-
-      // If user aborted, exit silently
-      if (error.name === 'AbortError') {
-        console.log('Continuation aborted by user');
-        return;
-      }
-
-      // Check if it's a network error
-      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
-        setApiError('网络连接失败，请检查网络连接和API配置');
-      } else if (error.message && error.message.includes('连接被重置')) {
-        setApiError(error.message);
-      } else if (error.message && error.message.includes('网络连接失败')) {
-        setApiError(error.message);
-      } else if (error.message && error.message.includes('请求超时')) {
-        setApiError(error.message);
-      } else {
-        setApiError(error.message || '生成失败，请检查配置和网络连接');
-      }
-    } finally {
-      setIsGenerating(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  // Handle config selection from manager
+  // 从管理器处理配置选择
   const handleConfigSelect = (selectedConfig) => {
     if (selectedConfig) {
       setConfig(selectedConfig);
     }
   };
 
-  // Handle applying history
-  const handleApplyHistory = (history) => {
-    setCurrentInput(history.userInput);
+  // 处理应用历史记录操作
+  const handleApplyHistory = async (history) => {
+    // 设置当前输入时，请确保 userInput 始终为字符串
+    const userInputText = typeof history.userInput === 'object'
+      ? (history.userInput.text || 'Image upload request')
+      : history.userInput;
+
+    setCurrentInput(userInputText);
     setCurrentChartType(history.chartType);
     setGeneratedCode(history.generatedCode);
-    tryParseAndApply(history.generatedCode);
+    await tryParseAndApply(history.generatedCode);
   };
 
-  // Handle horizontal resizing (left panel vs right panel)
+  // 当用户在画布中直接编辑图形时，将变更反向同步回代码编辑器
+  const handleCanvasElementsChange = (sceneElements) => {
+    // 忽略由代码应用导致的 Excalidraw 初始 onChange
+    if (isApplyingFromCodeRef.current) {
+      return;
+    }
+
+    setElements(sceneElements);
+
+    try {
+      const codeFromCanvas = serializeSceneToCode(sceneElements);
+      setGeneratedCode(codeFromCanvas);
+      setJsonError(null);
+    } catch (error) {
+      console.error('Failed to serialize canvas elements: ', error);
+      setJsonError('Failed to export code from canvas: ' + error.message);
+    }
+  };
+
+  // 处理水平方向的尺寸调整（左侧面板与右侧面板）
   const handleHorizontalMouseDown = (e) => {
     setIsResizingHorizontal(true);
     e.preventDefault();
@@ -834,7 +818,7 @@ export default function Home() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Smart Drawio</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Figsci</h1>
           <p className="text-xs text-gray-500">AI 驱动的图表生成</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -921,9 +905,6 @@ export default function Home() {
               isGenerating={isGenerating}
               isApplyingCode={isApplyingCode}
               isOptimizingCode={isOptimizingCode}
-              isTruncated={isTruncated}
-              canContinue={canContinue}
-              onContinue={handleContinueGeneration}
             />
           </div>
         </div>
@@ -934,9 +915,9 @@ export default function Home() {
           className="w-1 bg-gray-200 hover:bg-gray-400 cursor-col-resize transition-colors duration-200 flex-shrink-0"
         />
 
-        {/* Right Panel - Drawio Canvas */}
+        {/* Right Panel - Excalidraw Canvas */}
         <div style={{ width: `${100 - leftPanelWidth}%`, height: '100%' }} className="bg-gray-50">
-          <DrawioCanvas elements={elements} xml={generatedXml} />
+          <ExcalidrawCanvas elements={elements} onElementsChange={handleCanvasElementsChange} />
         </div>
       </div>
 
@@ -950,7 +931,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 px-6 py-3">
         <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
-          <span>Smart Drawio v0.1.0</span>
+          <span>Figsci v0.1.0</span>
           <span className="text-gray-400">|</span>
           <span>AI 驱动的智能科研图表生成工具</span>
         </div>
