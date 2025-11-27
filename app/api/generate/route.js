@@ -68,7 +68,8 @@ export async function POST(request) {
         model.includes('claude-3') ||
         model.includes('claude-sonnet') ||
         model.includes('claude-opus') ||
-        model.includes('claude-haiku');
+        model.includes('claude-haiku') || 
+        model.includes('vl');
 
       console.log('[DEBUG] API Configuration:', {
         type: finalConfig.type,
@@ -79,7 +80,7 @@ export async function POST(request) {
 
       if (!supportsVision) {
         return NextResponse.json(
-          { error: '当前模型不支持图片输入，请使用支持vision的模型（如 gpt-4o, gpt-4-vision-preview, claude-3-opus, claude-3-sonnet, claude-sonnet-4 等）' },
+          { error: '当前模型不支持图片输入，请使用支持vision的模型（如 gpt-4o, gpt-4-vision-preview, claude-3-opus, claude-3-sonnet, claude-sonnet-4, qwen3-vl-30b-a3b-instruct 等）' },
           { status: 400 }
         );
       }
@@ -141,11 +142,25 @@ export async function POST(request) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        let isClosed = false;
+
+        // Helper function to safely enqueue data
+        const safeEnqueue = (data) => {
+          if (!isClosed) {
+            try {
+              controller.enqueue(data);
+            } catch (error) {
+              console.error('Failed to enqueue data:', error);
+              isClosed = true;
+            }
+          }
+        };
+
         try {
           const result = await callLLM(finalConfig, fullMessages, (chunk) => {
             // Send each chunk as SSE
             const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
-            controller.enqueue(encoder.encode(data));
+            safeEnqueue(encoder.encode(data));
           });
 
           // Check if result is empty or contains error
@@ -154,16 +169,22 @@ export async function POST(request) {
           }
 
           // Send done signal
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
+          safeEnqueue(encoder.encode('data: [DONE]\n\n'));
+          if (!isClosed) {
+            controller.close();
+            isClosed = true;
+          }
         } catch (error) {
           console.error('Error in stream:', error);
           // Send error as SSE data
           const errorData = `data: ${JSON.stringify({ error: error.message || '生成失败，请检查配置和网络连接' })}\n\n`;
-          controller.enqueue(encoder.encode(errorData));
+          safeEnqueue(encoder.encode(errorData));
           // Send done signal after error
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
+          safeEnqueue(encoder.encode('data: [DONE]\n\n'));
+          if (!isClosed) {
+            controller.close();
+            isClosed = true;
+          }
         }
       },
     });
