@@ -1,0 +1,74 @@
+{
+    "name": "flowpilot",
+    "version": "1.0.0",
+    "description": "AI-powered diagram creation tool with chat-while-you-draw experience",
+    "author": "FlowPilot Contributors",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/flowpilot.git"
+    },
+    "bugs": {
+        "url": "https://github.com/yourusername/flowpilot/issues"
+    },
+    "homepage": "https://github.com/yourusername/flowpilot#readme",
+    "keywords": [
+        "ai",
+        "diagram",
+        "flowchart",
+        "draw.io",
+        "llm",
+        "visualization",
+        "nextjs"
+    ],
+    "scripts": {
+        "dev": "next dev --port 6002",
+        "build": "next build",
+        "start": "next start --port 6001",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "@ai-sdk/amazon-bedrock": "^3.0.52",
+        "@ai-sdk/google": "^2.0.0",
+        "@ai-sdk/openai": "^2.0.19",
+        "@ai-sdk/react": "^2.0.22",
+        "@openrouter/ai-sdk-provider": "^0.4.6",
+        "@radix-ui/react-collapsible": "^1.1.12",
+        "@radix-ui/react-dialog": "^1.1.6",
+        "@radix-ui/react-scroll-area": "^1.2.3",
+        "@radix-ui/react-slot": "^1.1.2",
+        "@radix-ui/react-tooltip": "^1.1.8",
+        "@vercel/analytics": "^1.5.0",
+        "@xmldom/xmldom": "^0.9.8",
+        "ai": "^5.0.89",
+        "base-64": "^1.0.0",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "jsdom": "^26.0.0",
+        "jszip": "^3.10.1",
+        "lucide-react": "^0.483.0",
+        "nanoid": "^5.0.7",
+        "next": "15.2.3",
+        "pako": "^2.1.0",
+        "pptxgenjs": "^3.12.0",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "react-drawio": "^1.0.3",
+        "react-icons": "^5.5.0",
+        "remark-gfm": "^4.0.1",
+        "tailwind-merge": "^3.0.2",
+        "tailwindcss-animate": "^1.0.7",
+        "zod": "^3.25.76"
+    },
+    "devDependencies": {
+        "eslint": "^9.14.0",
+        "eslint-config-next": "^15.2.3",
+        "@tailwindcss/postcss": "^4",
+        "@types/node": "^20",
+        "@types/pako": "^2.0.3",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "tailwindcss": "^4",
+        "typescript": "^5"
+    }
+}

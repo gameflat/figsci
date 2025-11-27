@@ -1,0 +1,31 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+.next
+*.local
+.eslintcache
+report.html
+vite.config.*.timestamp*
+public
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+yarn.lock
+npm-debug.log*
+.pnpm-error.log*
+.pnpm-debug.log
+tests/**/coverage/
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+tsconfig.tsbuildinfo
