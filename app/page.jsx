@@ -16,7 +16,7 @@
 "use client";
 
 // React 核心：状态管理和副作用处理
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 // Draw.io 嵌入组件：用于在页面中嵌入 Draw.io 编辑器
 import { DrawIoEmbed } from "react-drawio";
@@ -57,7 +57,23 @@ import { SvgStudio } from "@/components/svg-studio";
 export default function Home() {
   // ========== Context Hooks ==========
   // 从图表上下文获取 Draw.io 引用、导出处理函数和运行时错误设置函数
-  const { drawioRef, handleDiagramExport, setRuntimeError } = useDiagram();
+const { drawioRef, handleDiagramExport, setRuntimeError, loadDiagram, chartXML } = useDiagram();
+const drawioReadyRef = React.useRef(false);
+const initialDiagramHydratedRef = React.useRef(false);
+
+const hydrateDiagramFromContext = useCallback(() => {
+  if (initialDiagramHydratedRef.current) {
+    return;
+  }
+  if (!drawioReadyRef.current) {
+    return;
+  }
+  if (!chartXML || !chartXML.trim()) {
+    return;
+  }
+  loadDiagram(chartXML);
+  initialDiagramHydratedRef.current = true;
+}, [chartXML, loadDiagram]);
   
   // 从国际化上下文获取翻译函数
   const { t } = useLocale();
@@ -157,10 +173,16 @@ export default function Home() {
    * Draw.io 加载完成处理函数
    * 当 Draw.io 编辑器成功加载时调用，清除加载状态和错误状态
    */
-  const handleDrawioLoad = () => {
-    setIsDrawioLoading(false);
-    setDrawioError(null);
-  };
+const handleDrawioLoad = () => {
+  setIsDrawioLoading(false);
+  setDrawioError(null);
+  drawioReadyRef.current = true;
+  hydrateDiagramFromContext();
+};
+
+useEffect(() => {
+  hydrateDiagramFromContext();
+}, [hydrateDiagramFromContext]);
   
   // ========== 计算值 ==========
   // 判断是否显示 Draw.io 编辑器（根据渲染模式）

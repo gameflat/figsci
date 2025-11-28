@@ -18,15 +18,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 // 提供页面访问量、性能指标等数据
 import { Analytics } from "@vercel/analytics/react";
 
-// Context Providers：应用状态管理的上下文提供者
-// DiagramProvider：图表状态管理（当前图表 XML、渲染模式等）
-import { DiagramProvider } from "@/contexts/diagram-context";
-// ConversationProvider：对话状态管理（消息历史、当前对话等）
-import { ConversationProvider } from "@/contexts/conversation-context";
-// LocaleProvider：国际化状态管理（当前语言、语言切换等）
-import { LocaleProvider } from "@/contexts/locale-context";
-// SvgEditorProvider：SVG 编辑器状态管理（SVG 内容、编辑历史等）
-import { SvgEditorProvider } from "@/contexts/svg-editor-context";
+import { AppProviders } from "./providers";
 
 // 全局样式：导入应用的主题系统、颜色变量、基础样式等
 import "./globals.css";
@@ -124,13 +116,7 @@ export default function RootLayout({ children }) {
           
           注意：Provider 的嵌套顺序很重要，内层 Provider 可以访问外层 Provider 的状态
         */}
-        <LocaleProvider>
-          <ConversationProvider>
-            <DiagramProvider>
-              <SvgEditorProvider>{children}</SvgEditorProvider>
-            </DiagramProvider>
-          </ConversationProvider>
-        </LocaleProvider>
+        <AppProviders>{children}</AppProviders>
 
         {/* 
           Vercel Analytics 组件

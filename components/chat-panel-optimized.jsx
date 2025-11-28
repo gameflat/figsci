@@ -1,3 +1,4 @@
+// -*- coding: utf-8 -*-
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaGithub } from "react-icons/fa";
@@ -150,6 +151,7 @@ function ChatPanelOptimized({
     [isSvgMode, exportSvgMarkup, getLatestDiagramXml]
   );
   const lastBranchIdRef = useRef(activeBranchId);
+  const initialHydratedRef = useRef(false);
   const fetchAndFormatDiagram = useCallback(
     async (options) => {
       if (isSvgMode) {
@@ -265,8 +267,8 @@ function ChatPanelOptimized({
       return {
         prompt: FLOWPILOT_FREEFORM_PROMPT,
         badges: [
-          "\u81EA\u7531\xB7AI \u81EA\u4E3B\u9009\u578B",
-          "\u9ED8\u8BA4\xB7\u5E72\u51C0\u7F8E\u89C2"
+          "自由·AI 自主选型",
+          "默认·干净美观"
         ],
         mode: briefMode
       };
@@ -286,39 +288,39 @@ function ChatPanelOptimized({
     const segments = [];
     const badges = [];
     if (intentMeta) {
-      segments.push(`\u6A21\u5F0F\uFF1A\u300C${intentMeta.title}\u300D\u2014 ${intentMeta.prompt}`);
-      badges.push(`\u6A21\u5F0F\xB7${intentMeta.title}`);
+      segments.push(`模式：「${intentMeta.title}」— ${intentMeta.prompt}`);
+      badges.push(`模式·${intentMeta.title}`);
     }
     if (toneMeta) {
-      segments.push(`\u89C6\u89C9\uFF1A${toneMeta.prompt}`);
-      badges.push(`\u89C6\u89C9\xB7${toneMeta.title}`);
+      segments.push(`视觉：${toneMeta.prompt}`);
+      badges.push(`视觉·${toneMeta.title}`);
     }
     if (focusMeta.length > 0) {
       segments.push(
-        `\u91CD\u70B9\uFF1A${focusMeta.map((item) => item.prompt).join("\uFF1B")}`
+        `重点：${focusMeta.map((item) => item.prompt).join("；")}`
       );
-      focusMeta.forEach((item) => badges.push(`\u91CD\u70B9\xB7${item.title}`));
+      focusMeta.forEach((item) => badges.push(`重点·${item.title}`));
     }
     if (diagramTypeMeta.length > 0) {
       segments.push(
-        `\u56FE\u578B\uFF1A${diagramTypeMeta.map((item) => item.prompt).join("\uFF1B")}`
+        `图型：${diagramTypeMeta.map((item) => item.prompt).join("；")}`
       );
       diagramTypeMeta.forEach(
-        (item) => badges.push(`\u56FE\u578B\xB7${item.title}`)
+        (item) => badges.push(`图型·${item.title}`)
       );
     }
     const prompt = segments.length > 0 ? `### FlowPilot Brief\\n${segments.map((segment) => `- ${segment}`).join("\\n")}` : "";
     return { prompt, badges, mode: briefMode };
   }, [briefMode, briefState]);
   const briefDisplayBadges = briefContext.badges.length > 0 ? briefContext.badges : briefMode === "free" ? [
-    "\u81EA\u7531\xB7AI \u81EA\u4E3B\u9009\u578B",
-    "\u9ED8\u8BA4\xB7\u5E72\u51C0\u7F8E\u89C2"
+    "自由·AI 自主选型",
+    "默认·干净美观"
   ] : [
-    "\u6A21\u5F0F\xB7\u7A7A\u767D\u8D77\u7A3F",
-    "\u89C6\u89C9\xB7\u4E2D\u6027\u7B80\u7EA6",
-    "\u91CD\u70B9\xB7\u7B80\u6D01\u6E05\u6670"
+    "模式·空白起稿",
+    "视觉·中性简约",
+    "重点·简洁清晰"
   ];
-  const briefSummary = briefDisplayBadges.slice(0, 3).join(" \xB7 ");
+  const briefSummary = briefDisplayBadges.slice(0, 3).join(" · ");
   const {
     messages,
     sendMessage,
@@ -336,13 +338,13 @@ function ChatPanelOptimized({
         const { xml } = toolCall.input;
         try {
           if (!xml || typeof xml !== "string" || !xml.trim()) {
-            throw new Error("\u5927\u6A21\u578B\u8FD4\u56DE\u7684 XML \u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u6E32\u67D3\u3002");
+            throw new Error("大模型返回的 XML 为空，无法渲染。");
           }
           if (isSvgMode) {
             addToolResult({
               tool: "display_diagram",
               toolCallId: toolCall.toolCallId,
-              output: "\u5F53\u524D\u5904\u4E8E SVG \u6A21\u5F0F\uFF0C\u8BF7\u4F7F\u7528 display_svg \u5DE5\u5177\u8FD4\u56DE SVG\u3002"
+              output: "当前处于 SVG 模式，请使用 display_svg 工具返回 SVG。"
             });
             return;
           }
@@ -378,7 +380,7 @@ function ChatPanelOptimized({
         const { svg } = toolCall.input;
         try {
           if (!svg || typeof svg !== "string" || !svg.trim()) {
-            throw new Error("\u5927\u6A21\u578B\u8FD4\u56DE\u7684 SVG \u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u6E32\u67D3\u3002");
+            throw new Error("大模型返回的 SVG 为空，无法渲染。");
           }
           if (isSvgMode) {
             loadSvgMarkup(svg);
@@ -393,7 +395,7 @@ function ChatPanelOptimized({
             addToolResult({
               tool: "display_svg",
               toolCallId: toolCall.toolCallId,
-              output: "SVG \u5DF2\u8F7D\u5165\u65B0\u7F16\u8F91\u5668\uFF0C\u53EF\u76F4\u63A5\u7F16\u8F91\u3002"
+              output: "SVG 已载入新编辑器，可直接编辑。"
             });
             return;
           }
@@ -419,7 +421,7 @@ function ChatPanelOptimized({
           addToolResult({
             tool: "display_svg",
             toolCallId: toolCall.toolCallId,
-            output: "SVG \u5DF2\u8F6C\u6362\u5E76\u6E32\u67D3\u5230\u753B\u5E03\u3002"
+            output: "SVG 已转换并渲染到画布。"
           });
         } catch (error2) {
           const message = error2 instanceof Error ? error2.message : "Failed to display SVG.";
@@ -508,15 +510,15 @@ function ChatPanelOptimized({
   const handleCopyXml = useCallback(
     async (xml) => {
       if (!xml || xml.trim().length === 0) {
-        notifyComparison("error", "\u5F53\u524D\u7ED3\u679C\u7F3A\u5C11 XML \u5185\u5BB9\uFF0C\u65E0\u6CD5\u590D\u5236\u3002");
+        notifyComparison("error", "当前结果缺少 XML 内容，无法复制。");
         return;
       }
       try {
         await navigator.clipboard.writeText(xml);
-        notifyComparison("success", "XML \u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F\u3002");
+        notifyComparison("success", "XML 已复制到剪贴板。");
       } catch (copyError) {
         console.error("Copy XML failed:", copyError);
-        notifyComparison("error", "\u590D\u5236 XML \u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u6D4F\u89C8\u5668\u6743\u9650\u3002");
+        notifyComparison("error", "复制 XML 失败，请检查浏览器权限。");
       }
     },
     [notifyComparison]
@@ -528,7 +530,7 @@ function ChatPanelOptimized({
           await stop();
         }
       } catch (stopError) {
-        console.error("\u505C\u6B62\u751F\u6210\u5931\u8D25\uFF1A", stopError);
+        console.error("停止生成失败：", stopError);
       }
       cancelComparisonJobs();
       if (notice) {
@@ -544,7 +546,7 @@ function ChatPanelOptimized({
       }
       const lastUserMessage = messages.slice().reverse().find((msg) => msg.role === "user");
       if (!lastUserMessage) {
-        console.error("\u6CA1\u6709\u627E\u5230\u7528\u6237\u6D88\u606F\u53EF\u4EE5\u91CD\u8BD5");
+        console.error("没有找到用户消息可以重试");
         return;
       }
       const lastMessageIndex = messages.length - 1;
@@ -565,7 +567,7 @@ function ChatPanelOptimized({
         }
       );
     } catch (error2) {
-      console.error("\u91CD\u8BD5\u751F\u6210\u5931\u8D25\uFF1A", error2);
+      console.error("重试生成失败：", error2);
     }
   }, [status, stop, messages, setMessages, sendMessage, onFetchChart, selectedModel, renderMode]);
   const handleCopyWechat = useCallback(async () => {
@@ -573,34 +575,34 @@ function ChatPanelOptimized({
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText("leland1999");
       } else if (typeof window !== "undefined") {
-        const fallback = window.prompt("\u590D\u5236\u5FAE\u4FE1\u53F7", "leland1999");
+        const fallback = window.prompt("复制微信号", "leland1999");
         if (fallback === null) {
-          throw new Error("\u7528\u6237\u53D6\u6D88\u590D\u5236\u3002");
+          throw new Error("用户取消复制。");
         }
       }
       setContactCopyState("copied");
       setTimeout(() => setContactCopyState("idle"), 1800);
     } catch (error2) {
-      console.error("\u590D\u5236\u5FAE\u4FE1\u53F7\u5931\u8D25\uFF1A", error2);
+      console.error("复制微信号失败：", error2);
       setContactCopyState("idle");
     }
   }, []);
   const briefTagTone = useCallback((badge) => {
-    const prefix = badge.split("\xB7")[0];
+    const prefix = badge.split("·")[0];
     switch (prefix) {
-      case "\u6A21\u5F0F":
+      case "模式":
         return "border-indigo-200 bg-indigo-50 text-indigo-700";
-      case "\u89C6\u89C9":
+      case "视觉":
         return "border-rose-200 bg-rose-50 text-rose-700";
-      case "\u91CD\u70B9":
+      case "重点":
         return "border-amber-200 bg-amber-50 text-amber-700";
-      case "\u62A4\u680F":
+      case "护栏":
         return "border-emerald-200 bg-emerald-50 text-emerald-700";
-      case "\u81EA\u7531":
+      case "自由":
         return "border-sky-200 bg-sky-50 text-sky-700";
-      case "\u8BED\u6CD5":
+      case "语法":
         return "border-emerald-200 bg-emerald-50 text-emerald-700";
-      case "\u9ED8\u8BA4":
+      case "默认":
         return "border-slate-200 bg-slate-50 text-slate-700";
       default:
         return "border-slate-200 bg-slate-50 text-slate-700";
@@ -634,7 +636,7 @@ function ChatPanelOptimized({
     if (showHistory && (status === "streaming" || status === "submitted" || isComparisonRunning)) {
       void handleStopAll({
         type: "error",
-        message: "\u67E5\u770B\u5386\u53F2\u65F6\u5DF2\u6682\u505C\u5F53\u524D\u751F\u6210\u3002"
+        message: "查看历史时已暂停当前生成。"
       });
     }
   }, [showHistory, status, isComparisonRunning, handleStopAll]);
@@ -709,23 +711,23 @@ ${input}` : input;
   };
   const handleAICalibrationRequest = async () => {
     if (!ensureBranchSelectionSettled()) {
-      throw new Error("\u8BF7\u5148\u5904\u7406\u5BF9\u6BD4\u7ED3\u679C\uFF0C\u518D\u6267\u884C\u6821\u51C6\u3002");
+      throw new Error("请先处理对比结果，再执行校准。");
     }
     if (status === "streaming") {
-      throw new Error("AI \u6B63\u5728\u56DE\u7B54\u5176\u4ED6\u8BF7\u6C42\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
+      throw new Error("AI 正在回答其他请求，请稍后再试。");
     }
     if (!selectedModel) {
       setIsModelConfigOpen(true);
-      throw new Error("\u8BF7\u5148\u914D\u7F6E\u53EF\u7528\u6A21\u578B\u540E\u518D\u6267\u884C\u6821\u51C6\u3002");
+      throw new Error("请先配置可用模型后再执行校准。");
     }
     if (renderMode === "svg") {
-      throw new Error("SVG \u6A21\u5F0F\u6682\u4E0D\u652F\u6301\u6821\u51C6\uFF0C\u8BF7\u5207\u6362\u56DE draw.io XML \u6A21\u5F0F\u3002");
+      throw new Error("SVG 模式暂不支持校准，请切换回 draw.io XML 模式。");
     }
     let chartXml = await onFetchChart();
     if (!chartXml.trim()) {
-      throw new Error("\u5F53\u524D\u753B\u5E03\u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u6267\u884C\u6821\u51C6\u3002");
+      throw new Error("当前画布为空，无法执行校准。");
     }
-    const userVisibleMessage = "\u{1F3AF} \u542F\u52A8 AI \u6821\u51C6\n\n\u8BF7\u4F18\u5316\u5F53\u524D\u6D41\u7A0B\u56FE\u7684\u5E03\u5C40\uFF1A\n\u2022 \u4FDD\u6301\u6240\u6709\u8282\u70B9\u548C\u5185\u5BB9\u4E0D\u53D8\n\u2022 \u4F18\u5316\u8282\u70B9\u4F4D\u7F6E\u548C\u95F4\u8DDD\n\u2022 \u6574\u7406\u8FDE\u63A5\u7EBF\u8DEF\u5F84\n\u2022 \u4F7F\u7528 edit_diagram \u5DE5\u5177\u8FDB\u884C\u6279\u91CF\u8C03\u6574";
+    const userVisibleMessage = "启动 AI 校准\n\n请优化当前流程图的布局：\n• 保持所有节点和内容不变\n• 优化节点位置和间距\n• 整理连接线路径\n• 使用 edit_diagram 工具进行批量调整";
     const streamingFlag = selectedModel?.isStreaming ?? false;
     await sendMessage(
       {
@@ -782,7 +784,7 @@ ${input}` : input;
       }
       await handleStopAll({
         type: "error",
-        message: "\u5DF2\u6682\u505C\u5F53\u524D\u751F\u6210\uFF0C\u51C6\u5907\u5207\u6362\u5206\u652F\u3002"
+        message: "已暂停当前生成，准备切换分支。"
       });
       switchBranch(branchId);
     },
@@ -799,7 +801,7 @@ ${input}` : input;
   const handleClearChat = () => {
     void handleStopAll({
       type: "success",
-      message: "\u5DF2\u6E05\u7A7A\u5F53\u524D\u5BF9\u8BDD\u5E76\u505C\u6B62\u751F\u6210\u3002"
+      message: "已清空当前对话并停止生成。"
     });
     setMessages([]);
     resetActiveBranch();
@@ -846,7 +848,7 @@ ${input}` : input;
             modelRuntime: void 0
           });
         } catch (error2) {
-          console.error("\u5207\u6362\u5206\u652F\u5E94\u7528\u753B\u5E03\u5931\u8D25\uFF1A", error2);
+          console.error("切换分支应用画布失败：", error2);
         }
       })();
     }
@@ -857,7 +859,7 @@ ${input}` : input;
       if (status === "streaming" || status === "submitted" || isComparisonRunning) {
         void handleStopAll({
           type: "error",
-          message: "\u5DF2\u5207\u6362\u5206\u652F\uFF0C\u81EA\u52A8\u6682\u505C\u751F\u6210\u3002"
+          message: "已切换分支，自动暂停生成。"
         });
       }
       lastBranchIdRef.current = activeBranchId;
@@ -872,6 +874,34 @@ ${input}` : input;
     setMessages,
     status
   ]);
+
+  useEffect(() => {
+    if (initialHydratedRef.current || !activeBranch) {
+      return;
+    }
+    initialHydratedRef.current = true;
+
+    if (activeBranch.diagramXml) {
+      (async () => {
+        try {
+          await handleDiagramXml(activeBranch.diagramXml, {
+            origin: "display",
+            modelRuntime: void 0
+          });
+        } catch (error2) {
+          console.error("初始化应用画布失败:", error2);
+        }
+      })();
+    }
+
+    if (
+      activeBranch.messages &&
+      activeBranch.messages.length > 0 &&
+      messages !== activeBranch.messages
+    ) {
+      setMessages(activeBranch.messages);
+    }
+  }, [activeBranch, handleDiagramXml, messages, setMessages]);
   const handleMessageRevert = useCallback(
     ({ messageId, text }) => {
       const targetIndex = messages.findIndex(
@@ -884,10 +914,10 @@ ${input}` : input;
       const labelSuffix = targetIndex + 1 <= 9 ? `0${targetIndex + 1}` : `${targetIndex + 1}`;
       const revertBranch = createBranch({
         parentId: activeBranchId,
-        label: `\u56DE\u6EDA \xB7 \u6D88\u606F ${labelSuffix}`,
+        label: `回滚 · 消息 ${labelSuffix}`,
         meta: {
           type: "history",
-          label: `\u6D88\u606F ${labelSuffix}`
+          label: `消息 ${labelSuffix}`
         },
         diagramXml: activeBranch?.diagramXml ?? null,
         seedMessages: truncated,
@@ -1134,7 +1164,7 @@ ${input}` : input;
     onConsumeRuntimeError={() => setRuntimeError(null)}
     onStopAll={() => void handleStopAll({
       type: "error",
-      message: "\u5DF2\u624B\u52A8\u6682\u505C\u5F53\u524D\u751F\u6210\u4EFB\u52A1\u3002"
+      message: "已手动暂停当前生成任务。"
     })}
     onRetryGeneration={handleRetryGeneration}
     isGenerationBusy={isGenerationBusy}
@@ -1163,7 +1193,7 @@ ${input}` : input;
                                 </span>
                                 <div
     className="flex min-w-0 max-w-[300px] items-center gap-1 overflow-hidden whitespace-nowrap pr-1"
-    title={briefDisplayBadges.join(" \xB7 ")}
+    title={briefDisplayBadges.join(" · ")}
   >
                                     {briefDisplayBadges.map((badge, index) => <span
     key={`${badge}-${index}`}
@@ -1247,7 +1277,7 @@ ${input}` : input;
     onRestoreHistory={handleRestoreHistory}
     onStop={() => handleStopAll({
       type: "success",
-      message: "\u5DF2\u624B\u52A8\u6682\u505C\u5F53\u524D\u751F\u6210\u4EFB\u52A1\u3002"
+      message: "已手动暂停当前生成任务。"
     })}
     isBusy={isGenerationBusy}
   />

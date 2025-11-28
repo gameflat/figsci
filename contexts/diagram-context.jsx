@@ -11,8 +11,6 @@ import React, {
 import { extractDiagramXML } from "../lib/utils";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates.js";
 
-const LAST_XML_STORAGE_KEY = "flowpilot.diagram.latestXml";
-
 /**
  * @typedef {import("react-drawio").DrawIoEmbedRef} DrawIoEmbedRef
  * @typedef {import("@/types/diagram").RuntimeErrorPayload} RuntimeErrorPayload
@@ -42,16 +40,7 @@ const DiagramContext = createContext(undefined);
  * @param {{ children: React.ReactNode }} props
  */
 export function DiagramProvider({ children }) {
-    const [chartXML, setChartXML] = useState(() => {
-        if (typeof window === "undefined") {
-            return "";
-        }
-        try {
-            return window.localStorage.getItem(LAST_XML_STORAGE_KEY) || "";
-        } catch {
-            return "";
-        }
-    });
+    const [chartXML, setChartXML] = useState("");
     useEffect(() => {
         if (typeof window === "undefined") return;
         try {
@@ -146,20 +135,6 @@ export function DiagramProvider({ children }) {
             exportTimeoutRef.current = null;
         }
     };
-
-    // 持久化最新 XML，便于跨页面访问
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        try {
-            if (chartXML && chartXML.trim()) {
-                window.localStorage.setItem(LAST_XML_STORAGE_KEY, chartXML);
-            } else {
-                window.localStorage.removeItem(LAST_XML_STORAGE_KEY);
-            }
-        } catch (error) {
-            console.warn("保存画布 XML 到本地失败：", error);
-        }
-    }, [chartXML]);
 
     const clearDiagram = () => {
         loadDiagram(EMPTY_MXFILE);
