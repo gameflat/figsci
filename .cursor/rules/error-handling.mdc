@@ -1,0 +1,107 @@
+---
+alwaysApply: true
+description: 错误处理规范和用户友好的错误消息
+---
+
+# 错误处理规范
+
+## 基本原则
+
+1. **所有用户可见的错误消息必须使用中文**
+2. **错误消息应该具体、可操作**，告诉用户如何解决问题
+3. **区分开发环境和生产环境的错误详情**
+
+## 错误处理模式
+
+### 1. API 路由错误处理
+
+```javascript
+// 统一错误处理函数
+let errorHandler = function(error) {
+  console.error("Stream error:", error);
+  
+  if (error == null) {
+    return "未知错误";
+  }
+  
+  if (typeof error === "string") {
+    return error;
+  }
+  
+  if (error instanceof Error) {
+    const errorMessage = error.message;
+    
+    // HTTP 状态码错误
+    if (errorMessage.includes("404") || errorMessage.includes("Not Found")) {
+      return `API 接口未找到。请检查 Base URL 配置是否正确。当前配置: ${modelRuntime?.baseUrl || "未知"}`;
+    }
+    
+    if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
+      return "API Key 无效或已过期，请检查配置。";
+    }
+    
+    if (errorMessage.includes("403") || errorMessage.includes("Forbidden")) {
+      return "API Key 权限不足，请检查配置。";
+    }
+    
+    return errorMessage;
+  }
+  
+  return JSON.stringify(error);
+};
+```
+
+### 2. Try-Catch 块
+
+```javascript
+try {
+  // 业务逻辑
+} catch (error) {
+  console.error("操作失败:", error);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorDetails = error instanceof Error ? error.stack : undefined;
+  
+  return Response.json(
+    {
+      error: "内部服务器错误",
+      message: errorMessage,
+      ...(process.env.NODE_ENV === 'development' && { details: errorDetails })
+    },
+    { status: 500 }
+  );
+}
+```
+
+### 3. 参数验证错误
+
+```javascript
+if (!requiredParam) {
+  return Response.json(
+    { error: "缺少必需参数" },
+    { status: 400 }
+  );
+}
+```
+
+## 错误消息指南
+
+### ✅ 好的错误消息
+- "API 接口未找到。请检查 Base URL 配置是否正确。当前配置: https://api.example.com"
+- "API Key 无效或已过期，请检查配置。"
+- "缺少必需参数：modelRuntime"
+
+### ❌ 不好的错误消息
+- "Error"
+- "Failed"
+- "404 Not Found"（未翻译）
+- "Something went wrong"
+
+## 日志记录
+
+- 使用 `console.error` 记录详细错误信息（包含堆栈）
+- 用户可见的错误消息应该是友好的中文提示
+- 开发环境可以包含技术细节，生产环境只显示用户友好的消息
+
+## 参考实现
+
+参考 [app/api/chat/route.js](mdc:app/api/chat/route.js) 中的错误处理实现。

@@ -5,20 +5,105 @@ import { streamText, convertToModelMessages, generateText, createUIMessageStream
 import { z } from "zod/v3";
 // resolveChatModel：根据前端传来的 runtime 配置解析出可直接调用的模型参数
 import { resolveChatModel } from "@/lib/server-models";
+// 系统提示词：从统一的 prompts 模块导入
+import { getSystemMessage } from "@/lib/prompts";
 // Next.js Route Handler 的最长执行时间（秒），避免 Vercel 上接口超时
 const maxDuration = 60;
 /**
  * POST /api/chat
- * 负责从请求体中读取对话上下文 + 图形 XML + 模型配置，
- * 构造系统提示后调用 LLM 并将结果以流事件形式推送给前端。
+ * FlowPilot 图表生成 API 路由
+ * 
+ * 此路由是应用的核心 API 端点，负责根据用户输入生成符合标准的 draw.io 图表 XML 代码或 SVG。
+ * 
+ * 主要功能：
+ * - 支持文本输入和图片输入（多模态）
+ * - 支持两种配置方式：客户端配置和服务器端配置（通过访问密码）
+ * - 支持续写功能：当生成的代码被截断时，可以继续完成剩余部分
+ * - 使用流式响应（SSE）实时返回生成结果，提供更好的用户体验
+ * 
+ * 支持的配置方式：
+ * 1. **客户端配置**：客户端在请求体中提供完整的模型配置信息
+ * 2. **服务器端配置**：客户端通过 `x-access-password` 请求头提供访问密码，
+ *    服务器使用环境变量中的配置（适用于共享部署场景）
+ * 
+ * 支持的输入类型：
+ * - **文本输入**：纯文本描述，支持所有图表类型
+ * - **图片输入**：图片 + 文本描述，需要模型支持视觉能力（vision）
+ * 
+ * @param {Request} req - Next.js 请求对象
+ * @returns {Promise<Response>} 返回流式响应（SSE）或 JSON 错误响应
  */
 async function POST(req) {
   try {
+    // ========== 解析请求参数 ==========
+    // 从请求体中解析所有参数
+    const { messages, xml, modelRuntime, enableStreaming, renderMode, isContinuation } = await req.json();
+    
+    // 从请求头获取访问密码（用于服务器端配置模式）
+    // 如果提供了访问密码，将使用服务器环境变量中的配置，而不是客户端配置
+    const accessPassword = req.headers.get('x-access-password');
+    
+    // ========== 配置处理逻辑 ==========
+    // 支持两种配置模式：客户端配置和服务器端配置
+    let finalModelRuntime = modelRuntime;
+    
+    // 如果提供了访问密码，使用服务器端配置模式
+    if (accessPassword) {
+      // 从环境变量获取服务器配置的访问密码
+      // ACCESS_PASSWORD 应在 .env.local 或部署环境中配置
+      const envPassword = process.env.ACCESS_PASSWORD;
+      
+      // 检查服务器是否配置了访问密码
+      if (!envPassword) {
+        return Response.json(
+          { error: "服务器未配置访问密码" },
+          { status: 400 } // 400 Bad Request: 服务器配置错误
+        );
+      }
+      
+      // 验证访问密码是否正确
+      if (accessPassword !== envPassword) {
+        return Response.json(
+          { error: "访问密码错误" },
+          { status: 401 } // 401 Unauthorized: 未授权访问
+        );
+      }
+      
+      // 使用服务器端环境变量中的模型配置
+      // 这种方式适用于共享部署，用户只需提供密码即可使用服务器配置的模型
+      finalModelRuntime = {
+        baseUrl: process.env.SERVER_LLM_BASE_URL,
+        apiKey: process.env.SERVER_LLM_API_KEY,
+        modelId: process.env.SERVER_LLM_MODEL,
+        provider: process.env.SERVER_LLM_PROVIDER || "openai"
+      };
+      
+      // 验证服务器端配置是否完整
+      // baseUrl、apiKey 和 modelId 是必需的，缺少任意一个都无法调用模型 API
+      if (!finalModelRuntime.baseUrl || !finalModelRuntime.apiKey || !finalModelRuntime.modelId) {
+        return Response.json(
+          { error: "服务器模型配置不完整，请检查环境变量" },
+          { status: 500 } // 500 Internal Server Error: 服务器配置不完整
+        );
+      }
+    } else {
+      // 客户端配置模式：验证必需的参数
+      // 如果未提供访问密码，则必须提供客户端配置
+      if (!modelRuntime) {
+        return Response.json(
+          { error: "缺少模型配置。请提供 modelRuntime 或使用 x-access-password 请求头。" },
+          { status: 400 } // 400 Bad Request: 缺少必需参数
+        );
+      }
+    }
+    
+    // ========== 错误处理函数 ==========
     // 将底层错误翻译成更友好的中文提示，便于前端直接展示
+    // 注意：errorHandler 需要在 finalModelRuntime 定义之后创建，以便访问正确的配置信息
     let errorHandler = function(error) {
       console.error("Stream error:", error);
       if (error == null) {
-        return "unknown error";
+        return "未知错误";
       }
       if (typeof error === "string") {
         return error;
@@ -26,8 +111,8 @@ async function POST(req) {
       if (error instanceof Error) {
         const errorMessage = error.message;
         if (errorMessage.includes("404") || errorMessage.includes("Not Found")) {
-          // 这一句的意思是：API 接口未找到。请检查 Base URL 配置是否正确。当前配置: xxx（如果 modelRuntime?.baseUrl 是 undefined，则显示“未知”），用于提示用户可能是 Base URL 配置错误导致的 404。
-          return `API 接口未找到。请检查 Base URL 配置是否正确。当前配置: ${modelRuntime?.baseUrl || "未知"}`;
+          // 这一句的意思是：API 接口未找到。请检查 Base URL 配置是否正确。当前配置: xxx（如果 finalModelRuntime?.baseUrl 是 undefined，则显示"未知"），用于提示用户可能是 Base URL 配置错误导致的 404。
+          return `API 接口未找到。请检查 Base URL 配置是否正确。当前配置: ${finalModelRuntime?.baseUrl || "未知"}`;
         }
         if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
           return "API Key 无效或已过期，请检查配置。";
@@ -39,90 +124,69 @@ async function POST(req) {
       }
       return JSON.stringify(error);
     };
-    // 请求体包含对话消息、当前 XML、模型参数以及渲染偏好
-    const { messages, xml, modelRuntime, enableStreaming, renderMode } = await req.json();
-    if (!modelRuntime) {
-      return Response.json(
-        { error: "Missing model runtime configuration." },
-        { status: 400 }
-      );
-    }
+    
     // 若未显式指定 renderMode，默认为 draw.io XML 输出
     const outputMode = renderMode === "svg" ? "svg" : "drawio";
     // Next.js 会为 Request 注入 AbortSignal，这里透传给下游模型调用
     const abortSignal = req.signal;
-    // draw.io 渲染模式下的系统提示，约束模型输出合法 XML 工具调用
-    const drawioSystemMessage = `
-You are FlowPilot, a draw.io layout lead. All answers must be tool calls (display_diagram or edit_diagram); never paste XML as plain text.
-
-Priorities (strict order):
-1) Zero XML syntax errors.
-2) Single-viewport layout with no overlaps/occlusion.
-3) Preserve existing semantics; FlowPilot Brief additions are preferences only—if user/brief conflicts with safety, keep XML validity and layout tidy first.
-
-Non-negotiable XML rules:
-- Root must start with <mxCell id="0"/> then <mxCell id="1" parent="0"/>.
-- Escape &, <, >, ", ' inside values.
-- Styles: key=value pairs separated by semicolons; NO spaces around =; always end with a semicolon.
-- Self-closing tags include space before /> .
-- Every mxCell (except id="0") needs parent; every mxGeometry needs as="geometry".
-- Unique numeric ids from 2 upward; never reuse.
-- Edges: edge="1", source, target, mxGeometry relative="1" as="geometry", prefer edgeStyle=orthogonalEdgeStyle; add waypoints instead of crossing nodes.
-
-Layout recipe (avoid clutter and blocking):
-- Keep all elements within x 0-800, y 0-600; start around x=40, y=40; align to 24px grid.
-- Maintain spacing: siblings 56-96px vertically, 48-80px horizontally; containers padding >=24px; swimlane gaps >=64px.
-- No overlaps: leave 12-16px breathing room between nodes and labels; keep connectors outside shapes/text.
-- Favor orthogonal connectors with minimal crossings; reroute around nodes and keep labels on straight segments.
-- Highlight 1 clear main path if helpful but never cover text; keep arrows readable, rounded=1, endArrow=block.
-
-Built-in style hints:
-- Use official cloud icons when the user mentions AWS/Azure/GCP (e.g., shape=mxgraph.aws4.compute.ec2_instance, mxgraph.azure.compute.virtual_machine, mxgraph.gcp2017.compute.compute_engine).
-- Use standard infra icons (mxgraph.basic.* or mxgraph.cisco.*) to add clarity, but do not sacrifice spacing.
-- Preserve existing color themes; polish alignment rather than rewriting content.
-
-Tool policy:
-- If only tweaking labels/positions, prefer edit_diagram with minimal search/replace lines. If structure is messy or XML is empty, regenerate with display_diagram.
-- Do not stream partial XML; supply the final, validated <root> block in one call.
-
-Preflight checklist before ANY tool call:
-- Root cells 0 and 1 exist.
-- All special characters escaped; no quotes inside quotes.
-- Styles end with semicolons; every tag properly closed with space before /> when self-closing.
-- Geometry present for every vertex/edge; parents set; ids unique; edge sources/targets filled.
-- Coordinates fit 0-800 x 0-600; no overlaps or hidden labels/connectors.
-`;
-    // SVG 渲染模式下的系统提示，要求流程只返回 display_svg 结果
-    const svgSystemMessage = `
-You are FlowPilot SVG Studio. Output exactly one complete SVG via the display_svg tool---never return draw.io XML or plain text.
-
-Baseline (always):
-- Single 0-800 x 0-600 viewport, centered content, >=24px canvas padding. Limit to 2-3 colors (neutral base + one accent), 8px corner radius, 1.6px strokes, aligned to a 24px grid with unobstructed labels.
-- Absolutely no <script>, event handlers, external fonts/assets/URLs. Use safe inline styles only. Avoid heavy blur or shadows.
-- Layout hygiene: siblings spaced 32-56px, text never overlaps shapes or edges, guides may be dashed but must not cover lettering.
-
-Delight (lightweight):
-- One restrained highlight allowed (soft gradient bar, diagonal slice, or small sticker). Keep readability; no neon floods or color clutter.
-
-Rules:
-- Return a self-contained <svg> with width/height or viewBox sized for ~800x600; keep every element inside the viewport.
-- Keep text on short lines and aligned to the grid; abbreviate gently if needed without dropping key meaning.
-- Aim for premium polish: balanced whitespace, crisp typography, clean gradients or subtle shadows, and high text contrast.
-- If the user references existing XML/shapes, reinterpret visually but respond with SVG only.
-- Call display_svg exactly once with the final SVG---no streaming or partial fragments.`;
-    // 根据 outputMode 在两套系统提示间切换
-    const systemMessage = outputMode === "svg" ? svgSystemMessage : drawioSystemMessage;
+    
+    // ========== 选择系统提示词 ==========
+    // 根据 isContinuation 标志和 outputMode 选择不同的系统提示词：
+    // - 正常生成：使用标准系统提示（完整的图表生成规范）
+    // - 续写请求：使用续写系统提示（专门用于续写被截断的代码）
+    // 从统一的 prompts 模块获取系统提示词
+    const systemMessage = getSystemMessage(outputMode, isContinuation || false);
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return Response.json(
         { error: "Missing messages payload." },
         { status: 400 }
       );
     }
-    // 取出用户最新一条消息，用于生成 “当前图 + 用户输入” 的提示
+    // 取出用户最新一条消息，用于生成 "当前图 + 用户输入" 的提示
     const lastMessage = messages[messages.length - 1];
     const lastMessageText = lastMessage.parts?.find((part) => part.type === "text")?.text || "";
     const safeUserText = typeof lastMessageText === "string" && lastMessageText.trim().length > 0 ? lastMessageText : "（用户未提供文字内容，可能仅上传了附件）";
     const fileParts = lastMessage.parts?.filter((part) => part.type === "file") || [];
+    
+    // ========== 多模态输入验证 ==========
+    // 如果用户提供了图片附件，检查模型是否支持视觉能力（vision）
+    if (fileParts.length > 0) {
+      const modelId = finalModelRuntime.modelId?.toLowerCase() || "";
+      // 检查模型是否支持 vision
+      // 支持 vision 的模型包括：
+      // - OpenAI: gpt-4o, gpt-4-turbo, gpt-4-vision-preview
+      // - Anthropic: claude-3 系列（claude-3-opus, claude-3-sonnet, claude-3-haiku 等）
+      // - Google: gemini-pro-vision, gemini-1.5-pro
+      // - 其他: 包含 'vision' 或 'vl' 关键词的模型
+      const supportsVision =
+        modelId.includes("vision") ||           // 通用 vision 关键词
+        modelId.includes("gpt-4o") ||           // GPT-4o 系列
+        modelId.includes("gpt-4-turbo") ||      // GPT-4 Turbo 系列
+        modelId.includes("gpt-4-vision") ||     // GPT-4 Vision 系列
+        modelId.includes("claude-3") ||         // Claude 3 系列
+        modelId.includes("claude-sonnet") ||    // Claude Sonnet 系列
+        modelId.includes("claude-opus") ||      // Claude Opus 系列
+        modelId.includes("claude-haiku") ||     // Claude Haiku 系列
+        modelId.includes("gemini") ||           // Gemini 系列（通常支持 vision）
+        modelId.includes("vl");                 // Vision Language 模型关键词
+      
+      // 如果模型不支持 vision，返回错误提示
+      if (!supportsVision) {
+        return Response.json(
+          { 
+            error: "当前模型不支持图片输入，请使用支持 vision 的模型（如 gpt-4o, gpt-4-turbo, gpt-4-vision-preview, claude-3-opus, claude-3-sonnet, gemini-pro-vision 等）" 
+          },
+          { status: 400 } // 400 Bad Request: 模型不支持该功能
+        );
+      }
+      
+      // 调试日志：记录 vision 支持情况
+      console.log("[DEBUG] Vision support check:", {
+        modelId: finalModelRuntime.modelId,
+        supportsVision: supportsVision,
+        imageCount: fileParts.length
+      });
+    }
     const formattedTextContent = `
 Current diagram XML:
 """xml
@@ -193,14 +257,18 @@ Render mode: ${outputMode === "svg" ? "svg-only" : "drawio-xml"}`;
       }
     }
     // 根据当前 runtime 解析出真正的模型 ID、baseUrl 与 provider 元信息
-    const resolvedModel = resolveChatModel(modelRuntime);
+    // 注意：这里使用 finalModelRuntime（可能是客户端配置或服务器端配置）
+    const resolvedModel = resolveChatModel(finalModelRuntime);
+    // 调试日志：记录配置和消息信息
     console.log("Enhanced messages:", enhancedMessages, "model:", resolvedModel.id);
     console.log("Model runtime config:", {
-      baseUrl: modelRuntime.baseUrl,
-      modelId: modelRuntime.modelId,
-      hasApiKey: !!modelRuntime.apiKey,
+      baseUrl: finalModelRuntime.baseUrl,
+      modelId: finalModelRuntime.modelId,
+      hasApiKey: !!finalModelRuntime.apiKey,
       enableStreaming: enableStreaming ?? true,
-      renderMode: outputMode
+      renderMode: outputMode,
+      isContinuation: isContinuation || false,
+      isServerConfig: !!accessPassword
     });
     // 记录耗时，用于日志 & metadata；并统一配置模型调用参数
     const startTime = Date.now();
@@ -446,18 +514,24 @@ IMPORTANT: Keep edits concise:
       });
     }
   } catch (error) {
-    // 顶层兜底：任何未捕获异常都写入日志，并返回 500
+    // ========== 顶层错误处理 ==========
+    // 捕获所有在流式响应创建之前发生的错误，例如：
+    // - 请求体 JSON 解析失败
+    // - 配置验证错误
+    // - 其他未预期的异常
+    // 
+    // 注意：流式响应内部的错误已在流创建时处理，这里只处理流创建之前的错误
     console.error("Error in chat route:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? error.stack : void 0;
     console.error("Error details:", { errorMessage, errorDetails });
     return Response.json(
       {
-        error: "Internal server error",
+        error: "内部服务器错误",
         message: errorMessage,
-        ...{ details: errorDetails }
+        ...(process.env.NODE_ENV === 'development' && { details: errorDetails })
       },
-      { status: 500 }
+      { status: 500 } // 500 Internal Server Error: 服务器内部错误
     );
   }
 }

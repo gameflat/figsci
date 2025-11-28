@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Presentation, Workflow } from "lucide-react";
+import { Sparkles, FileCode2, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLocale } from "@/contexts/locale-context";
@@ -23,11 +23,11 @@ export function WorkspaceNav({ className }) {
             icon: Workflow,
         },
         {
-            id: "ppt",
-            href: "/ppt",
-            label: t("nav.pptStudio"),
-            description: "AI 幻灯片实验室",
-            icon: Presentation,
+            id: "xml",
+            href: "/xml",
+            label: t("nav.xmlCode"),
+            description: "draw.io mxGraph XML 预览",
+            icon: FileCode2,
             badge: t("common.experimental") || "实验功能",
         },
     ];

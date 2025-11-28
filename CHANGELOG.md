@@ -31,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mind maps
   - Customer journey maps
   - Gantt charts
-- PPT generation (Beta)
 - Comprehensive documentation
 
 ### Changed
@@ -49,7 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - More diagram templates
-- Enhanced PPT generation
 - Diagram export improvements
 - Additional LLM provider integrations
 - Plugin system for custom extensions

@@ -6,9 +6,12 @@ import React, {
     useRef,
     useState,
     useCallback,
+    useEffect,
 } from "react";
 import { extractDiagramXML } from "../lib/utils";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates.js";
+
+const LAST_XML_STORAGE_KEY = "flowpilot.diagram.latestXml";
 
 /**
  * @typedef {import("react-drawio").DrawIoEmbedRef} DrawIoEmbedRef
@@ -39,7 +42,28 @@ const DiagramContext = createContext(undefined);
  * @param {{ children: React.ReactNode }} props
  */
 export function DiagramProvider({ children }) {
-    const [chartXML, setChartXML] = useState("");
+    const [chartXML, setChartXML] = useState(() => {
+        if (typeof window === "undefined") {
+            return "";
+        }
+        try {
+            return window.localStorage.getItem(LAST_XML_STORAGE_KEY) || "";
+        } catch {
+            return "";
+        }
+    });
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const stored = window.localStorage.getItem(LAST_XML_STORAGE_KEY);
+            if (stored && stored !== chartXML) {
+                setChartXML(stored);
+            }
+        } catch {
+            // ignore
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [latestSvg, setLatestSvg] = useState("");
     const [diagramHistory, setDiagramHistory] = useState([]);
     const [activeVersionIndex, setActiveVersionIndex] = useState(-1);
@@ -74,7 +98,11 @@ export function DiagramProvider({ children }) {
             }
             loadDiagramTimeoutRef.current = null;
         }, 150); // 150ms 防抖，平衡流畅度和性能
-    }, []);
+
+        if (chart && chart !== chartXML) {
+            setChartXML(chart);
+        }
+    }, [chartXML]);
 
     const handleDiagramExport = (data) => {
         const shouldSaveHistory = saveHistoryRef.current;
@@ -119,6 +147,20 @@ export function DiagramProvider({ children }) {
         }
     };
 
+    // 持久化最新 XML，便于跨页面访问
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            if (chartXML && chartXML.trim()) {
+                window.localStorage.setItem(LAST_XML_STORAGE_KEY, chartXML);
+            } else {
+                window.localStorage.removeItem(LAST_XML_STORAGE_KEY);
+            }
+        } catch (error) {
+            console.warn("保存画布 XML 到本地失败：", error);
+        }
+    }, [chartXML]);
+
     const clearDiagram = () => {
         loadDiagram(EMPTY_MXFILE);
         setChartXML(EMPTY_MXFILE);
@@ -141,8 +183,15 @@ export function DiagramProvider({ children }) {
     const fetchDiagramXml = (options = {}) => {
         return new Promise((resolve, reject) => {
             if (!drawioRef.current) {
-                saveHistoryRef.current = true;
-                reject(new Error("DrawIO 尚未初始化，暂时无法导出画布。"));
+                if (chartXML && chartXML.trim()) {
+                    resolve(chartXML);
+                } else {
+                    reject(
+                        new Error(
+                            "当前没有可导出的画布实例，请先在画图工作室中生成或编辑图表。"
+                        )
+                    );
+                }
                 return;
             }
             resolverRef.current = resolve;

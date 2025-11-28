@@ -61,6 +61,7 @@ import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
 import { useModelRegistry } from "@/hooks/use-model-registry";
 import { ModelConfigDialog } from "@/components/model-config-dialog";
 import { TemplateGallery } from "@/components/template-gallery";
+import Link from "next/link";
 function ChatPanelOptimized({
   onCollapse,
   isCollapsible = false,
@@ -1016,21 +1017,21 @@ ${input}` : input;
                     <div className="flex w-full items-center justify-between gap-1.5">
                         <div className="flex items-center gap-1.5">
                             <div className="flex items-center gap-1 rounded-full bg-slate-100 p-0.5">
-                                <a
+                                <Link
     href="/"
     className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 shadow-sm"
   >
                                     画图工作室
-                                </a>
-                                <a
-    href="/ppt"
+                                </Link>
+                                <Link
+    href="/xml"
     className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-900"
   >
-                                    PPT 工作室
+                                    XML 代码
                                     <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-600">
-                                        实验功能
+                                        实时预览
                                     </span>
-                                </a>
+                                </Link>
                             </div>
                         </div>
                         <div className="flex items-center gap-1.5">

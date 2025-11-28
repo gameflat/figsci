@@ -1,123 +1,319 @@
+/* -*- coding: utf-8 -*- */
+/**
+ * FlowPilot 全局样式文件
+ * 
+ * 此文件定义了整个应用的主题系统，包括：
+ * - Tailwind CSS v4 配置
+ * - 颜色系统（使用 OKLCH 颜色空间，支持更好的颜色感知一致性）
+ * - 深色模式支持
+ * - 设计令牌（Design Tokens）定义
+ */
+
+/* Tailwind CSS v4：导入核心 Tailwind CSS 功能 */
 @import "tailwindcss";
 
+/* Tailwind CSS 动画插件：提供预定义的动画效果（如 fade-in, slide-in 等） */
 @plugin "tailwindcss-animate";
 
+/* 自定义变体：定义深色模式的选择器
+ * 当元素或其父元素有 .dark 类时，应用深色模式样式
+ */
 @custom-variant dark (&:is(.dark *));
 
+/* @theme inline：在 CSS 文件中内联定义 Tailwind 主题配置
+ * 这些变量会被 Tailwind 识别并生成对应的工具类（如 bg-background, text-foreground 等）
+ */
 @theme inline {
+  /* ========== 颜色系统 ========== */
+  /* 基础颜色：背景和前景色（文本颜色） */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
+  
+  /* 字体系统：引用 Next.js 布局中定义的字体变量 */
+  --font-sans: var(--font-geist-sans);  /* 无衬线字体（Geist Sans） */
+  --font-mono: var(--font-geist-mono);  /* 等宽字体（Geist Mono） */
+  
+  /* ========== 侧边栏（Sidebar）颜色系统 ========== */
+  /* 侧边栏相关的颜色定义，用于导航栏和侧边栏组件 */
+  --color-sidebar-ring: var(--sidebar-ring);              /* 侧边栏焦点环颜色 */
+  --color-sidebar-border: var(--sidebar-border);          /* 侧边栏边框颜色 */
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);  /* 侧边栏强调色前景 */
+  --color-sidebar-accent: var(--sidebar-accent);          /* 侧边栏强调色 */
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);  /* 侧边栏主色前景 */
+  --color-sidebar-primary: var(--sidebar-primary);        /* 侧边栏主色 */
+  --color-sidebar-foreground: var(--sidebar-foreground);  /* 侧边栏前景色（文本） */
+  --color-sidebar: var(--sidebar);                        /* 侧边栏背景色 */
+  
+  /* ========== 图表颜色系统 ========== */
+  /* 用于数据可视化图表的颜色调色板（5 种颜色） */
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* ========== UI 组件颜色系统 ========== */
+  --color-ring: var(--ring);                    /* 焦点环颜色（用于 focus 状态） */
+  --color-input: var(--input);                  /* 输入框背景色 */
+  --color-border: var(--border);                /* 通用边框颜色 */
+  --color-destructive: var(--destructive);      /* 危险/错误颜色（如删除按钮） */
+  --color-accent-foreground: var(--accent-foreground);  /* 强调色前景 */
+  --color-accent: var(--accent);                /* 强调色（用于高亮元素） */
+  --color-muted-foreground: var(--muted-foreground);    /* 静音色前景（次要文本） */
+  --color-muted: var(--muted);                  /* 静音色背景（次要背景） */
+  --color-secondary-foreground: var(--secondary-foreground);  /* 次要色前景 */
+  --color-secondary: var(--secondary);          /* 次要色（用于次要按钮等） */
+  --color-primary-foreground: var(--primary-foreground);  /* 主色前景（主按钮文字） */
+  --color-primary: var(--primary);              /* 主色（用于主按钮、链接等） */
+  --color-popover-foreground: var(--popover-foreground);  /* 弹出层前景色 */
+  --color-popover: var(--popover);              /* 弹出层背景色 */
+  --color-card-foreground: var(--card-foreground);  /* 卡片前景色 */
+  --color-card: var(--card);                    /* 卡片背景色 */
+  
+  /* ========== 圆角系统 ========== */
+  /* 基于基础 radius 变量计算的不同尺寸圆角
+   * 用于保持设计系统的一致性
+   */
+  --radius-sm: calc(var(--radius) - 4px);   /* 小圆角（比基础值小 4px） */
+  --radius-md: calc(var(--radius) - 2px);   /* 中等圆角（比基础值小 2px） */
+  --radius-lg: var(--radius);               /* 大圆角（基础值，10px） */
+  --radius-xl: calc(var(--radius) + 4px);   /* 超大圆角（比基础值大 4px） */
 }
 
+/**
+ * :root - 浅色模式（默认）颜色定义
+ * 
+ * 使用 OKLCH 颜色空间定义所有颜色值：
+ * - OKLCH 格式：oklch(lightness chroma hue)
+ *   - lightness: 0-1，亮度值（0=黑色，1=白色）
+ *   - chroma: 0-0.4，色度值（0=无彩色/灰度，值越大越鲜艳）
+ *   - hue: 0-360，色相角度（0/360=红，120=绿，240=蓝）
+ * 
+ * OKLCH 的优势：
+ * - 更好的感知一致性：相同 lightness 值的颜色在人眼看来亮度相同
+ * - 更准确的深色模式转换：可以保持色相和色度，只调整亮度
+ * - 更好的可访问性：更容易确保对比度符合 WCAG 标准
+ */
 :root {
+  /* ========== 基础设计令牌 ========== */
+  /* 圆角基础值：0.625rem = 10px，用于所有需要圆角的元素 */
   --radius: 0.625rem;
+  
+  /* ========== 基础颜色 ========== */
+  /* 背景色：纯白色（lightness=1, chroma=0 表示无彩色） */
   --background: oklch(1 0 0);
+  /* 前景色（文本颜色）：深灰色（lightness=0.145，接近黑色） */
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  
+  /* ========== 卡片组件颜色 ========== */
+  --card: oklch(1 0 0);                    /* 卡片背景：白色 */
+  --card-foreground: oklch(0.145 0 0);     /* 卡片文本：深灰色 */
+  
+  /* ========== 弹出层（Popover）颜色 ========== */
+  --popover: oklch(1 0 0);                 /* 弹出层背景：白色 */
+  --popover-foreground: oklch(0.145 0 0);  /* 弹出层文本：深灰色 */
+  
+  /* ========== 主色系统 ========== */
+  /* 主色：深灰色（用于主按钮、链接等主要交互元素） */
   --primary: oklch(0.205 0 0);
+  /* 主色前景：浅色（用于主色背景上的文本，确保对比度） */
   --primary-foreground: oklch(0.985 0 0);
+  
+  /* ========== 次要色系统 ========== */
+  /* 次要色：极浅灰色（用于次要按钮、次要背景） */
   --secondary: oklch(0.97 0 0);
+  /* 次要色前景：深灰色（用于次要色背景上的文本） */
   --secondary-foreground: oklch(0.205 0 0);
+  
+  /* ========== 静音色系统 ========== */
+  /* 静音色：极浅灰色（用于次要背景、禁用状态） */
   --muted: oklch(0.97 0 0);
+  /* 静音色前景：中等灰色（用于次要文本、占位符文本） */
   --muted-foreground: oklch(0.556 0 0);
+  
+  /* ========== 强调色系统 ========== */
+  /* 强调色：极浅灰色（用于高亮元素、悬停状态） */
   --accent: oklch(0.97 0 0);
+  /* 强调色前景：深灰色（用于强调色背景上的文本） */
   --accent-foreground: oklch(0.205 0 0);
+  
+  /* ========== 危险/错误色 ========== */
+  /* 危险色：红色系（hue=27.325，chroma=0.245 表示中等饱和度）
+   * 用于删除按钮、错误提示等需要警示的场景
+   */
   --destructive: oklch(0.577 0.245 27.325);
+  
+  /* ========== 边框和输入框颜色 ========== */
+  /* 边框颜色：浅灰色（lightness=0.922，非常浅的灰色） */
   --border: oklch(0.922 0 0);
+  /* 输入框背景：浅灰色（与边框颜色相同，保持视觉一致性） */
   --input: oklch(0.922 0 0);
+  /* 焦点环颜色：中等灰色（用于 focus 状态的轮廓） */
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  
+  /* ========== 图表颜色调色板 ========== */
+  /* 5 种不同的颜色，用于数据可视化图表
+   * 使用不同的色相（hue）和色度（chroma）值，确保在图表中易于区分
+   */
+  --chart-1: oklch(0.646 0.222 41.116);   /* 橙红色系（hue≈41°） */
+  --chart-2: oklch(0.6 0.118 184.704);     /* 蓝绿色系（hue≈185°） */
+  --chart-3: oklch(0.398 0.07 227.392);    /* 蓝紫色系（hue≈227°） */
+  --chart-4: oklch(0.828 0.189 84.429);    /* 黄绿色系（hue≈84°） */
+  --chart-5: oklch(0.769 0.188 70.08);     /* 黄橙色系（hue≈70°） */
+  
+  /* ========== 侧边栏颜色系统 ========== */
+  /* 侧边栏背景：极浅灰色（接近白色） */
   --sidebar: oklch(0.985 0 0);
+  /* 侧边栏文本：深灰色 */
   --sidebar-foreground: oklch(0.145 0 0);
+  /* 侧边栏主色：深灰色（用于侧边栏中的主要元素，如当前选中项） */
   --sidebar-primary: oklch(0.205 0 0);
+  /* 侧边栏主色前景：浅色（用于主色背景上的文本） */
   --sidebar-primary-foreground: oklch(0.985 0 0);
+  /* 侧边栏强调色：极浅灰色（用于悬停状态） */
   --sidebar-accent: oklch(0.97 0 0);
+  /* 侧边栏强调色前景：深灰色 */
   --sidebar-accent-foreground: oklch(0.205 0 0);
+  /* 侧边栏边框：浅灰色 */
   --sidebar-border: oklch(0.922 0 0);
+  /* 侧边栏焦点环：中等灰色 */
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/**
+ * .dark - 深色模式颜色定义
+ * 
+ * 当元素或其父元素有 .dark 类时，应用这些颜色值
+ * 深色模式的设计原则：
+ * - 背景色变暗（从白色变为深色）
+ * - 前景色变亮（从深色变为浅色）
+ * - 保持色相和色度不变，只调整亮度（OKLCH 的优势）
+ * - 使用半透明边框（opacity）来创建微妙的边界效果
+ */
 .dark {
+  /* ========== 基础颜色（深色模式）========== */
+  /* 背景色：深灰色（从浅色模式的白色变为深色） */
   --background: oklch(0.145 0 0);
+  /* 前景色（文本）：浅色（从深色模式的深色变为浅色） */
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  
+  /* ========== 卡片组件颜色（深色模式）========== */
+  --card: oklch(0.205 0 0);                /* 卡片背景：深灰色（比背景稍亮） */
+  --card-foreground: oklch(0.985 0 0);      /* 卡片文本：浅色 */
+  
+  /* ========== 弹出层颜色（深色模式）========== */
+  --popover: oklch(0.205 0 0);              /* 弹出层背景：深灰色 */
+  --popover-foreground: oklch(0.985 0 0);   /* 弹出层文本：浅色 */
+  
+  /* ========== 主色系统（深色模式）========== */
+  /* 主色：浅色（在深色背景下，主色需要是浅色才能突出） */
   --primary: oklch(0.922 0 0);
+  /* 主色前景：深色（用于浅色主色背景上的文本） */
   --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  
+  /* ========== 次要色系统（深色模式）========== */
+  --secondary: oklch(0.269 0 0);            /* 次要色：中等深灰色 */
+  --secondary-foreground: oklch(0.985 0 0); /* 次要色前景：浅色 */
+  
+  /* ========== 静音色系统（深色模式）========== */
+  --muted: oklch(0.269 0 0);                /* 静音色：中等深灰色 */
+  --muted-foreground: oklch(0.708 0 0);     /* 静音色前景：中等灰色（比浅色模式更亮） */
+  
+  /* ========== 强调色系统（深色模式）========== */
+  --accent: oklch(0.269 0 0);                /* 强调色：中等深灰色 */
+  --accent-foreground: oklch(0.985 0 0);    /* 强调色前景：浅色 */
+  
+  /* ========== 危险/错误色（深色模式）========== */
+  /* 危险色：更亮的红色（lightness 从 0.577 提升到 0.704，保持色相和色度）
+   * 在深色背景下需要更亮的颜色才能保持可见性
+   */
   --destructive: oklch(0.704 0.191 22.216);
+  
+  /* ========== 边框和输入框颜色（深色模式）========== */
+  /* 边框颜色：使用半透明白色（10% 不透明度）创建微妙的边界效果
+   * 在深色背景下，使用半透明比纯色更自然
+   */
   --border: oklch(1 0 0 / 10%);
+  /* 输入框背景：使用半透明白色（15% 不透明度），比边框稍亮 */
   --input: oklch(1 0 0 / 15%);
+  /* 焦点环：中等灰色（在深色背景下需要更亮的焦点环） */
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
+  
+  /* ========== 图表颜色调色板（深色模式）========== */
+  /* 深色模式下的图表颜色：调整亮度以适配深色背景
+   * 保持色相和色度，只调整亮度，确保颜色在深色背景下仍然清晰可见
+   */
+  --chart-1: oklch(0.488 0.243 264.376);   /* 蓝紫色系（亮度降低以适配深色背景） */
+  --chart-2: oklch(0.696 0.17 162.48);     /* 蓝绿色系 */
+  --chart-3: oklch(0.769 0.188 70.08);     /* 黄橙色系 */
+  --chart-4: oklch(0.627 0.265 303.9);     /* 紫红色系 */
+  --chart-5: oklch(0.645 0.246 16.439);    /* 橙红色系 */
+  
+  /* ========== 侧边栏颜色系统（深色模式）========== */
+  --sidebar: oklch(0.205 0 0);              /* 侧边栏背景：深灰色 */
+  --sidebar-foreground: oklch(0.985 0 0);    /* 侧边栏文本：浅色 */
+  /* 侧边栏主色：使用蓝紫色（带色度），在深色模式下更突出 */
   --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);  /* 侧边栏主色前景：浅色 */
+  --sidebar-accent: oklch(0.269 0 0);       /* 侧边栏强调色：中等深灰色 */
+  --sidebar-accent-foreground: oklch(0.985 0 0);   /* 侧边栏强调色前景：浅色 */
+  /* 侧边栏边框：使用半透明白色（10% 不透明度） */
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.556 0 0);         /* 侧边栏焦点环：中等灰色 */
 }
 
+/**
+ * @layer base - Tailwind CSS 基础层
+ * 
+ * 基础层用于定义全局的默认样式，优先级最低
+ * 这些样式会被组件层和工具层覆盖
+ */
 @layer base {
+  /**
+   * 全局元素样式
+   * 为所有元素应用默认的边框和轮廓样式
+   */
   * {
+    /* border-border：使用 --color-border 变量作为默认边框颜色
+     * outline-ring/50：使用 --color-ring 变量作为焦点轮廓颜色，50% 不透明度
+     * 这些样式确保所有元素在 focus 状态时有一致的视觉反馈
+     */
     @apply border-border outline-ring/50;
   }
+  
+  /**
+   * body 元素样式
+   * 为整个页面应用默认的背景色和文本颜色
+   */
   body {
+    /* bg-background：使用 --color-background 变量作为页面背景色
+     * text-foreground：使用 --color-foreground 变量作为默认文本颜色
+     * 这些样式会根据 :root 或 .dark 类自动切换（浅色/深色模式）
+     */
     @apply bg-background text-foreground;
+
+    font-family: Arial, Helvetica, sans-serif;
   }
+}
+
+/* ========== 实用工具类 ========== */
+
+/**
+ * 隐藏滚动条工具类
+ * 
+ * 用于隐藏元素的滚动条，同时保持滚动功能
+ * 适用于需要在视觉上隐藏滚动条但保留滚动能力的场景
+ * 
+ * 使用方法：
+ * <div className="scrollbar-hide overflow-auto">
+ *   <!-- 内容 -->
+ * </div>
+ * 
+ * 注意：
+ * - 只隐藏滚动条外观，滚动功能依然可用
+ * - 使用 WebKit 浏览器私有前缀，主要支持 Chrome、Safari、Edge 等基于 WebKit 的浏览器
+ * - 对于 Firefox，滚动条会正常显示（Firefox 使用 -moz-scrollbar 前缀）
+ */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

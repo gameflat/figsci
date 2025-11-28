@@ -1,0 +1,82 @@
+---
+alwaysApply: true
+description: FlowPilot 项目结构和架构指南
+---
+
+# FlowPilot 项目结构指南
+
+## 项目概述
+
+FlowPilot 是一个基于 Next.js 的 AI 驱动图表创建工具，提供"边聊边画"的交互体验。
+
+## 目录结构
+
+### `/app` - Next.js App Router
+- `/api` - API 路由处理
+  - `/chat` - 聊天和图表生成的主要接口 [app/api/chat/route.js](mdc:app/api/chat/route.js)
+  - `/diagram-repair` - 图表修复功能
+  - `/model-compare` - 模型对比功能
+  - `/ppt` - PPT 生成相关接口
+- `/page.jsx` - 主页面
+- `/ppt/page.jsx` - PPT 工作室页面
+
+### `/components` - React 组件
+- UI 组件库（基于 Radix UI）
+- 业务组件（聊天面板、图表展示等）
+- 工具组件（模型选择器、配置对话框等）
+
+### `/contexts` - React Context
+- `conversation-context.jsx` - 对话状态管理
+- `diagram-context.jsx` - 图表状态管理
+- `svg-editor-context.jsx` - SVG 编辑器状态
+- `ppt-studio-context.jsx` - PPT 工作室状态
+- `locale-context.jsx` - 国际化
+
+### `/features` - 功能模块
+- `/chat-panel` - 聊天面板功能
+- `/ppt-studio` - PPT 工作室功能
+
+### `/lib` - 工具库
+- `server-models.js` - 服务端模型解析和配置
+- `diagram-validation.js` - 图表验证
+- `svg.js` - SVG 处理工具
+
+### `/hooks` - 自定义 React Hooks
+- `use-chat-state.js` - 聊天状态管理
+- `use-drawio-fallback.js` - Draw.io 降级处理
+- `use-model-registry.js` - 模型注册表
+
+## 核心技术栈
+
+- **框架**: Next.js 15 (App Router)
+- **UI**: React 19, Radix UI, Tailwind CSS
+- **AI**: Vercel AI SDK (`ai` 包)
+- **图表**: react-drawio, draw.io XML
+- **验证**: Zod v3
+
+## 关键文件
+
+### API 路由
+- [app/api/chat/route.js](mdc:app/api/chat/route.js) - 主要的聊天和图表生成接口
+
+### 模型配置
+- `lib/server-models.js` - 服务端模型解析
+- `lib/env-models.js` - 环境变量中的模型配置
+
+### 状态管理
+- `contexts/conversation-context.jsx` - 对话上下文
+- `contexts/diagram-context.jsx` - 图表上下文
+
+## 开发规范
+
+1. **代码注释**: 所有注释使用中文，参考 [.cursor/rules/code-comments.mdc](mdc:.cursor/rules/code-comments.mdc)
+2. **API 路由**: 遵循 Next.js API 路由规范，参考 [.cursor/rules/api-routes.mdc](mdc:.cursor/rules/api-routes.mdc)
+3. **错误处理**: 统一的错误处理模式，参考 [.cursor/rules/error-handling.mdc](mdc:.cursor/rules/error-handling.mdc)
+
+## 渲染模式
+
+项目支持两种渲染模式：
+- **drawio**: Draw.io XML 格式（默认）
+- **svg**: SVG 格式
+
+渲染模式在 API 请求的 `renderMode` 参数中指定。

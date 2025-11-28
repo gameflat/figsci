@@ -1,0 +1,103 @@
+---
+globs: app/api/**/*.js
+description: Next.js API 路由最佳实践和规范
+---
+
+# Next.js API 路由规范
+
+## 文件结构
+
+所有 API 路由文件应遵循以下结构：
+
+```javascript
+// 1. 导入语句（带注释说明用途）
+import { ... } from "...";
+
+// 2. 配置常量
+const maxDuration = 60; // Next.js Route Handler 的最长执行时间（秒）
+
+// 3. 路由处理函数（带 JSDoc 注释）
+/**
+ * HTTP_METHOD /api/route
+ * 功能描述
+ */
+async function METHOD(req) {
+  try {
+    // 处理逻辑
+  } catch (error) {
+    // 错误处理
+  }
+}
+
+// 4. 导出
+export { METHOD, maxDuration };
+```
+
+## 错误处理
+
+### 1. 统一错误处理函数
+```javascript
+// 将底层错误翻译成更友好的中文提示，便于前端直接展示
+let errorHandler = function(error) {
+  // 处理各种错误类型，返回用户友好的中文消息
+};
+```
+
+### 2. HTTP 状态码
+- `400`: 客户端请求错误（缺少必需参数、格式错误等）
+- `401`: 未授权（API Key 无效）
+- `403`: 权限不足
+- `404`: 资源未找到
+- `500`: 服务器内部错误
+
+### 3. 错误响应格式
+```javascript
+return Response.json(
+  {
+    error: "错误类型",
+    message: "详细错误信息（中文）",
+    ...(process.env.NODE_ENV === 'development' && { details: error.stack })
+  },
+  { status: 500 }
+);
+```
+
+## 请求验证
+
+始终验证请求参数：
+
+```javascript
+const { param1, param2 } = await req.json();
+
+if (!param1) {
+  return Response.json(
+    { error: "缺少必需参数 param1" },
+    { status: 400 }
+  );
+}
+```
+
+## 流式响应
+
+对于需要流式返回的场景（如 AI 生成），使用 AI SDK：
+
+```javascript
+import { streamText, createUIMessageStreamResponse } from "ai";
+
+const result = await streamText({
+  model: resolvedModel.model,
+  messages: enhancedMessages,
+  // ... 其他配置
+});
+
+return result.toUIMessageStreamResponse({
+  onError: errorHandler,
+  onFinish: async ({ responseMessage }) => {
+    // 处理完成后的逻辑（如记录 token 使用量）
+  }
+});
+```
+
+## 参考实现
+
+参考 [app/api/chat/route.js](mdc:app/api/chat/route.js) 作为标准实现示例。

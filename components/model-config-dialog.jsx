@@ -22,6 +22,8 @@ import {
     Hash,
     ServerCog,
     ShieldCheck,
+    Download,
+    Loader2,
 } from "lucide-react";
 
 // Simple Switch component
@@ -145,6 +147,11 @@ export function ModelConfigDialog({
     const [drafts, setDrafts] = useState([]);
     const [revealedKeys, setRevealedKeys] = useState({});
     const [errors, setErrors] = useState({});
+    // 加载可用模型相关状态
+    const [loadingModels, setLoadingModels] = useState(false);
+    const [availableModels, setAvailableModels] = useState([]);
+    const [modelSelectDialogOpen, setModelSelectDialogOpen] = useState(false);
+    const [currentEndpointId, setCurrentEndpointId] = useState(null);
 
     useEffect(() => {
         if (open) {
@@ -230,6 +237,119 @@ export function ModelConfigDialog({
                 };
             })
         );
+    };
+
+    /**
+     * 根据 Base URL 判断提供商类型
+     * @param {string} baseUrl - API 基础 URL
+     * @returns {'openai' | 'anthropic'} 提供商类型
+     */
+    const deriveProviderType = (baseUrl) => {
+        if (!baseUrl) {
+            return 'openai'; // 默认使用 OpenAI 兼容协议
+        }
+        try {
+            const hostname = new URL(baseUrl).hostname.toLowerCase();
+            if (hostname.includes('anthropic') || hostname.includes('claude')) {
+                return 'anthropic';
+            }
+            return 'openai'; // 默认使用 OpenAI 兼容协议
+        } catch {
+            return 'openai';
+        }
+    };
+
+    /**
+     * 加载可用模型列表
+     * @param {string} endpointId - 接口 ID
+     */
+    const handleLoadAvailableModels = async (endpointId) => {
+        const endpoint = drafts.find((e) => e.id === endpointId);
+        if (!endpoint) return;
+
+        // 验证必需字段
+        if (!endpoint.baseUrl?.trim() || !endpoint.apiKey?.trim()) {
+            alert('请先填写 Base URL 和 API Key');
+            return;
+        }
+
+        setLoadingModels(true);
+        setCurrentEndpointId(endpointId);
+
+        try {
+            // 判断提供商类型
+            const providerType = deriveProviderType(endpoint.baseUrl);
+
+            // 调用 API 获取模型列表
+            const params = new URLSearchParams({
+                type: providerType,
+                baseUrl: endpoint.baseUrl.trim(),
+                apiKey: endpoint.apiKey.trim(),
+            });
+
+            const response = await fetch(`/api/models?${params.toString()}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || '获取模型列表失败');
+            }
+
+            // 过滤掉已经添加的模型
+            const existingModelIds = new Set(
+                endpoint.models.map((m) => m.modelId).filter(Boolean)
+            );
+            const available = (data.models || []).filter(
+                (model) => !existingModelIds.has(model.id)
+            );
+
+            if (available.length === 0) {
+                alert('没有可用的新模型，所有模型都已添加');
+                return;
+            }
+
+            setAvailableModels(available);
+            setModelSelectDialogOpen(true);
+        } catch (error) {
+            console.error('加载模型列表失败:', error);
+            alert(`加载模型列表失败: ${error.message}`);
+        } finally {
+            setLoadingModels(false);
+        }
+    };
+
+    /**
+     * 从可用模型列表中选择并添加模型
+     * @param {string} modelId - 模型 ID
+     */
+    const handleSelectModel = (modelId) => {
+        if (!currentEndpointId) return;
+
+        const selectedModel = availableModels.find((m) => m.id === modelId);
+        if (!selectedModel) return;
+
+        // 添加选中的模型到当前接口
+        setDrafts((prev) =>
+            prev.map((endpoint) =>
+                endpoint.id === currentEndpointId
+                    ? {
+                          ...endpoint,
+                          models: [
+                              ...endpoint.models,
+                              {
+                                  ...createEmptyModel(),
+                                  modelId: selectedModel.id,
+                                  label: selectedModel.name || selectedModel.id,
+                              },
+                          ],
+                      }
+                    : endpoint
+            )
+        );
+
+        // 关闭对话框并重置状态
+        setModelSelectDialogOpen(false);
+        setAvailableModels([]);
+        setCurrentEndpointId(null);
     };
 
     const handleSave = () => {
@@ -482,17 +602,37 @@ export function ModelConfigDialog({
                                         <div className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
                                             模型列表
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 rounded-full text-slate-500 hover:text-slate-800"
-                                            onClick={() => handleAddModel(endpoint.id)}
-                                            title="添加模型"
-                                        >
-                                            <Plus className="mr-1.5 h-4 w-4" />
-                                            添加模型
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            {/* 加载可用模型按钮 */}
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 rounded-full text-slate-500 hover:text-slate-800"
+                                                onClick={() => handleLoadAvailableModels(endpoint.id)}
+                                                disabled={loadingModels || !endpoint.baseUrl?.trim() || !endpoint.apiKey?.trim()}
+                                                title="从配置的 LLM 提供商加载可用模型列表"
+                                            >
+                                                {loadingModels && currentEndpointId === endpoint.id ? (
+                                                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Download className="mr-1.5 h-4 w-4" />
+                                                )}
+                                                加载可用模型
+                                            </Button>
+                                            {/* 添加模型按钮 */}
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 rounded-full text-slate-500 hover:text-slate-800"
+                                                onClick={() => handleAddModel(endpoint.id)}
+                                                title="添加模型"
+                                            >
+                                                <Plus className="mr-1.5 h-4 w-4" />
+                                                添加模型
+                                            </Button>
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         {endpoint.models.map((model) =>
@@ -548,6 +688,57 @@ export function ModelConfigDialog({
                     </div>
                 </DialogFooter>
             </DialogContent>
+
+            {/* 模型选择对话框 */}
+            <Dialog open={modelSelectDialogOpen} onOpenChange={setModelSelectDialogOpen}>
+                <DialogContent className="max-h-[80vh] overflow-hidden rounded-3xl bg-white/95 p-0 sm:max-w-2xl">
+                    <DialogHeader className="border-b border-slate-100 px-6 py-4">
+                        <DialogTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                            <Download className="h-5 w-5 text-slate-500" />
+                            选择要添加的模型
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-slate-500">
+                            从可用模型列表中选择要添加到当前接口的模型
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex max-h-[60vh] flex-col overflow-y-auto px-6 py-4">
+                        {availableModels.length === 0 ? (
+                            <div className="py-8 text-center text-sm text-slate-500">
+                                没有可用的模型
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {availableModels.map((model) => (
+                                    <button
+                                        key={model.id}
+                                        type="button"
+                                        onClick={() => handleSelectModel(model.id)}
+                                        className="w-full rounded-xl border border-slate-200 bg-white/80 p-4 text-left transition hover:border-blue-300 hover:bg-blue-50/50"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="font-medium text-slate-900">
+                                                    {model.name || model.id}
+                                                </div>
+                                                {model.name && model.name !== model.id && (
+                                                    <div className="mt-1 text-xs text-slate-500">
+                                                        {model.id}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <Plus className="h-5 w-5 text-slate-400" />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="border-t border-slate-100 px-6 py-4">
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 }
