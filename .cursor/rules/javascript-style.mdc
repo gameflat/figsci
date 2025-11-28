@@ -1,0 +1,227 @@
+---
+description: JavaScript 和 React 代码风格规范
+globs: *.js,*.jsx
+---
+
+# JavaScript/React 代码风格规范
+
+本项目使用 **JavaScript**（非 TypeScript），遵循以下编码规范：
+
+## React 组件规范
+
+### 客户端组件
+
+所有需要客户端交互的组件必须使用 `'use client'` 指令：
+
+```javascript
+'use client';
+
+import { useState } from 'react';
+
+export default function MyComponent() {
+  // ...
+}
+```
+
+### 组件导出
+
+- **默认导出**: 用于页面组件和主要组件
+- **命名导出**: 用于工具组件和可复用组件
+
+```javascript
+// 默认导出（主要组件）
+export default function Chat() {
+  // ...
+}
+
+// 命名导出（工具组件）
+export function Button() {
+  // ...
+}
+```
+
+### Hooks 使用
+
+```javascript
+import { useState, useEffect, useRef } from 'react';
+
+export default function Component() {
+  const [state, setState] = useState(initialValue);
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    // 副作用逻辑
+    return () => {
+      // 清理函数
+    };
+  }, [dependencies]);
+}
+```
+
+## 异步操作处理
+
+### API 调用
+
+```javascript
+const handleSubmit = async () => {
+  try {
+    setIsLoading(true);
+    const response = await fetch('/api/endpoint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      throw new Error('请求失败');
+    }
+    
+    const result = await response.json();
+    // 处理结果
+  } catch (error) {
+    console.error('Error:', error);
+    setError(error.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+### 流式响应处理
+
+```javascript
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let buffer = '';
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  
+  buffer += decoder.decode(value, { stream: true });
+  const lines = buffer.split('\n');
+  buffer = lines.pop() || '';
+  
+  for (const line of lines) {
+    // 处理每行数据
+  }
+}
+```
+
+## 错误处理
+
+### 前端错误处理
+
+```javascript
+try {
+  // 业务逻辑
+} catch (error) {
+  if (error.name === 'AbortError') {
+    // 用户取消操作，静默处理
+    return;
+  }
+  
+  if (error.message === 'Failed to fetch') {
+    setApiError('网络连接失败，请检查网络连接和API配置');
+  } else {
+    setApiError(error.message || '操作失败');
+  }
+}
+```
+
+### API 路由错误处理
+
+```javascript
+export async function POST(request) {
+  try {
+    // 业务逻辑
+  } catch (error) {
+    console.error('Error in route:', error);
+    return NextResponse.json(
+      { error: '操作失败' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## 状态管理
+
+### 本地状态
+
+使用 `useState` 管理组件内部状态：
+
+```javascript
+const [config, setConfig] = useState(null);
+const [isOpen, setIsOpen] = useState(false);
+```
+
+### 跨组件状态
+
+使用 React Context 或通过 props 传递：
+
+参考 [contexts/conversation-context.jsx](mdc:contexts/conversation-context.jsx) 查看 Context 使用示例。
+
+### 本地存储
+
+```javascript
+// 读取
+const config = localStorage.getItem('smart-excalidraw-config');
+if (config) {
+  setConfig(JSON.parse(config));
+}
+
+// 写入
+localStorage.setItem('smart-excalidraw-config', JSON.stringify(config));
+
+// 监听存储变化（跨标签页同步）
+useEffect(() => {
+  const handleStorageChange = (e) => {
+    if (e.key === 'smart-excalidraw-config') {
+      // 处理变化
+    }
+  };
+  window.addEventListener('storage', handleStorageChange);
+  return () => window.removeEventListener('storage', handleStorageChange);
+}, []);
+```
+
+## 导入规范
+
+### 路径别名
+
+使用 `@/` 别名导入项目文件：
+
+```javascript
+import { getConfig } from '@/lib/config';
+import Chat from '@/components/Chat';
+```
+
+### 第三方库导入
+
+```javascript
+import { NextResponse } from 'next/server';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+```
+
+### 动态导入
+
+对于大组件或需要避免 SSR 的组件，使用动态导入：
+
+```javascript
+const DrawioCanvas = dynamic(() => import('@/components/DrawioCanvas'), {
+  ssr: false,
+});
+```
+
+## 命名规范
+
+- **变量/函数**: camelCase (`handleSubmit`, `isLoading`)
+- **组件**: PascalCase (`Chat`, `CodeEditor`)
+- **常量**: UPPER_SNAKE_CASE (`ACCESS_PASSWORD`, `LEGACY_CONFIG_KEY`)
+- **私有函数**: camelCase，可加下划线前缀表示私有 (`_internalFunction`)
+
+## 注释要求
+
+所有代码应包含**详细的中文注释**，参考 [.cursor/rules/code-comments.mdc](mdc:.cursor/rules/code-comments.mdc)。

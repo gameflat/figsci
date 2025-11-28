@@ -1,0 +1,84 @@
+---
+alwaysApply: true
+---
+
+# 项目结构指南
+
+这是一个 **Next.js 16** 项目，使用 **JavaScript**（非 TypeScript）和 **App Router** 架构。
+
+## 核心目录结构
+
+```
+/
+├── app/                    # Next.js App Router 目录
+│   ├── api/               # API 路由
+│   │   ├── auth/         # 认证相关路由
+│   │   ├── generate/     # 代码生成路由
+│   │   ├── configs/      # 配置管理路由
+│   │   └── models/       # 模型列表路由
+│   ├── layout.js         # 根布局组件
+│   └── page.js           # 主页面（客户端组件）
+├── components/            # React 组件
+│   ├── ui/               # 可复用的 UI 组件
+│   ├── Chat.jsx          # 聊天输入组件
+│   ├── CodeEditor.jsx    # 代码编辑器组件
+│   └── ...
+├── lib/                   # 工具库和业务逻辑
+│   ├── llm-client.js     # LLM API 客户端
+│   ├── config-manager.js # 配置管理
+│   ├── prompts.js        # 系统提示词
+│   └── ...
+├── contexts/              # React Context
+└── public/                # 静态资源
+```
+
+## 关键文件说明
+
+### 入口文件
+- [app/page.js](mdc:app/page.js) - 主应用页面，包含所有主要状态管理
+- [app/layout.js](mdc:app/layout.js) - 根布局，配置全局样式和元数据
+
+### API 路由
+- [app/api/generate/route.js](mdc:app/api/generate/route.js) - LLM 代码生成端点
+- [app/api/auth/validate/route.js](mdc:app/api/auth/validate/route.js) - 密码验证端点
+
+### 核心库
+- [lib/llm-client.js](mdc:lib/llm-client.js) - LLM API 调用封装
+- [lib/prompts.js](mdc:lib/prompts.js) - 系统提示词定义（550+ 行）
+- [lib/config-manager.js](mdc:lib/config-manager.js) - 多配置管理系统
+
+## 技术栈
+
+- **框架**: Next.js 16.0.1 (App Router)
+- **React**: 19.2.0
+- **样式**: Tailwind CSS 4
+- **编辑器**: Monaco Editor (@monaco-editor/react)
+- **绘图**: Excalidraw (@excalidraw/excalidraw)
+- **语言**: JavaScript (非 TypeScript)
+
+## 代码风格
+
+1. **客户端组件**: 使用 `'use client'` 指令
+2. **导入路径**: 使用 `@/` 别名（配置在 [jsconfig.json](mdc:jsconfig.json)）
+3. **组件命名**: 使用 PascalCase（如 `Chat.jsx`）
+4. **文件扩展名**: `.js` 用于普通 JS 文件，`.jsx` 用于 React 组件
+
+## 环境变量
+
+项目需要以下环境变量（用于服务器端配置）：
+- `ACCESS_PASSWORD` - 访问密码
+- `SERVER_LLM_TYPE` - 服务器端 LLM 类型
+- `SERVER_LLM_BASE_URL` - LLM API 基础 URL
+- `SERVER_LLM_API_KEY` - LLM API 密钥
+- `SERVER_LLM_MODEL` - LLM 模型名称
+
+## 本地存储键名
+
+- `smart-excalidraw-active-config` - 当前激活的配置
+- `smart-excalidraw-configs` - 所有配置列表
+- `smart-excalidraw-use-password` - 是否使用密码访问
+- `smart-excalidraw-access-password` - 访问密码
+
+## 图表生成规范
+
+项目专注于生成符合**顶级学术会议标准**的 draw.io 图表，遵循严格的学术绘图规范（详见 [lib/prompts.js](mdc:lib/prompts.js)）。

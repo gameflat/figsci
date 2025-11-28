@@ -1,0 +1,78 @@
+---
+description: 代码注释规范和中文文档编写指南
+globs: *.js,*.jsx
+---
+
+# 代码注释规范
+
+本项目要求所有代码使用**详细的中文注释**，遵循以下规范：
+
+## 文件头部注释
+
+每个文件应在开头包含文件级别的注释，说明文件的用途、功能和关键信息。
+
+```javascript
+/**
+ * 访问密码验证 API 路由
+ * 
+ * 此路由用于验证客户端提交的访问密码是否与服务器配置的密码匹配。
+ * 主要用于保护应用的访问权限，确保只有拥有正确密码的用户才能使用应用。
+ * 
+ * @file app/api/auth/validate/route.js
+ * @description Next.js API 路由处理器，处理 POST 请求进行密码验证
+ */
+```
+
+## 函数注释
+
+所有导出的函数和重要的私有函数都应该包含详细的 JSDoc 注释：
+
+```javascript
+/**
+ * 处理密码验证的 POST 请求
+ * 
+ * 接收客户端发送的密码，与环境变量中配置的访问密码进行比对，
+ * 返回验证结果。支持以下响应：
+ * - 200: 密码验证成功
+ * - 400: 服务器未配置访问密码（配置错误）
+ * - 401: 密码错误（验证失败）
+ * - 500: 服务器内部错误（请求解析失败等）
+ * 
+ * @param {Request} request - Next.js 请求对象，包含客户端提交的数据
+ * @returns {Promise<NextResponse>} 返回包含验证结果的 JSON 响应
+ * 
+ * @example
+ * // 请求体示例
+ * {
+ *   "password": "user_provided_password"
+ * }
+ */
+```
+
+## 行内注释
+
+对关键逻辑、复杂的业务规则、状态码含义等进行详细说明：
+
+```javascript
+// 从环境变量中获取服务器配置的访问密码
+// ACCESS_PASSWORD 应在 .env.local 或部署环境中配置
+const accessPassword = process.env.ACCESS_PASSWORD;
+
+// 401 Unauthorized: 表示客户端未通过身份验证
+return NextResponse.json(
+  { valid: false, message: '密码错误' },
+  { status: 401 }
+);
+```
+
+## 注释要求
+
+1. **使用中文**：所有注释和文档都应使用中文
+2. **详细说明**：解释"为什么"和"做什么"，不仅仅是"是什么"
+3. **包含示例**：对于复杂的 API 或函数，提供使用示例
+4. **说明错误情况**：解释各种错误状态码和异常情况的处理
+5. **环境变量说明**：明确说明需要哪些环境变量及其用途
+
+## 参考示例
+
+参考 [app/api/auth/validate/route.js](mdc:app/api/auth/validate/route.js) 作为注释规范的参考实现。

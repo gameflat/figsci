@@ -1,24 +1,87 @@
+/**
+ * 全局样式文件
+ * 
+ * 此文件定义应用的全局 CSS 样式和主题配置。
+ * 使用 Tailwind CSS v4 的新特性进行样式管理，包括：
+ * - Tailwind CSS 导入和配置
+ * - CSS 自定义属性（变量）定义
+ * - Tailwind 主题扩展
+ * - 全局 body 样式
+ * - 实用工具类
+ * 
+ * 文件路径：app/globals.css
+ * 用途：Next.js 应用的全局样式配置文件
+ */
+
+/* ========== Tailwind CSS 导入 ========== */
+/* 导入 Tailwind CSS v4 的核心样式
+ * 这是 Tailwind CSS 4 的新语法，使用 @import 直接导入
+ * 旧版本的 @tailwind base/components/utilities 指令已被替代 */
 @import "tailwindcss";
 
+/* ========== CSS 自定义属性（变量）定义 ========== */
+/* 在 :root 选择器中定义全局 CSS 变量
+ * 这些变量可以在整个应用中使用，用于统一主题配置 */
 :root {
+  /* 背景色：纯白色，用于页面主背景 */
   --background: #ffffff;
+  
+  /* 前景色（文本颜色）：深灰色，用于主要文本内容
+   * #171717 是一个接近黑色的深灰色，提供良好的可读性 */
   --foreground: #171717;
 }
 
+/* ========== Tailwind 主题扩展 ========== */
+/* @theme inline 是 Tailwind CSS v4 的新特性
+ * 允许在 CSS 文件中直接定义 Tailwind 主题变量
+ * 这些变量会被 Tailwind 识别并可以在工具类中使用（如 bg-background, text-foreground） */
 @theme inline {
+  /* 将 CSS 变量映射到 Tailwind 颜色系统
+   * 这样就可以使用 Tailwind 工具类，如 bg-background, text-foreground */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  
+  /* 字体族映射：将 Next.js 字体变量映射到 Tailwind 字体系统
+   * --font-geist-sans 和 --font-geist-mono 在 app/layout.js 中通过 next/font/google 定义
+   * 映射后可以使用 Tailwind 工具类，如 font-sans, font-mono */
+  --font-sans: var(--font-geist-sans);   /* 无衬线字体（Geist Sans）*/
+  --font-mono: var(--font-geist-mono);   /* 等宽字体（Geist Mono）*/
 }
 
+/* ========== 全局 Body 样式 ========== */
+/* 定义 body 元素的全局样式
+ * 这些样式会应用到整个应用的根元素 */
 body {
+  /* 背景色：使用 CSS 变量，确保主题一致性 */
   background: var(--background);
+  
+  /* 文本颜色：使用 CSS 变量，确保主题一致性 */
   color: var(--foreground);
+  
+  /* 字体族：使用系统字体栈
+   * 注意：这里使用 Arial, Helvetica, sans-serif 而不是上面定义的 Geist 字体
+   * 可能是为了确保在学术图表生成中使用标准字体（符合学术论文规范）*/
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Hide scrollbar utility class */
+/* ========== 实用工具类 ========== */
+
+/**
+ * 隐藏滚动条工具类
+ * 
+ * 用于隐藏元素的滚动条，同时保持滚动功能
+ * 适用于需要在视觉上隐藏滚动条但保留滚动能力的场景
+ * 
+ * 使用方法：
+ * <div className="scrollbar-hide overflow-auto">
+ *   <!-- 内容 -->
+ * </div>
+ * 
+ * 注意：
+ * - 只隐藏滚动条外观，滚动功能依然可用
+ * - 使用 WebKit 浏览器私有前缀，主要支持 Chrome、Safari、Edge 等基于 WebKit 的浏览器
+ * - 对于 Firefox，滚动条会正常显示（Firefox 使用 -moz-scrollbar 前缀）
+ */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }

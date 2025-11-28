@@ -1,0 +1,129 @@
+---
+description: Next.js API 路由编写规范和最佳实践
+globs: app/api/**/*.js
+---
+
+# Next.js API 路由规范
+
+本项目使用 Next.js App Router 的 API 路由，遵循以下规范：
+
+## 文件结构
+
+API 路由应位于 `app/api/[route-name]/route.js`，导出对应的 HTTP 方法处理函数（如 `POST`, `GET` 等）。
+
+## 标准响应格式
+
+### 成功响应
+
+```javascript
+// 200 状态码（默认）
+return NextResponse.json({ 
+  valid: true, 
+  message: '操作成功' 
+});
+
+// 或使用自定义状态码
+return NextResponse.json({ 
+  data: result 
+}, { status: 200 });
+```
+
+### 错误响应
+
+```javascript
+// 400 Bad Request - 请求参数错误
+return NextResponse.json(
+  { valid: false, message: '服务器未配置访问密码' },
+  { status: 400 }
+);
+
+// 401 Unauthorized - 未授权/密码错误
+return NextResponse.json(
+  { valid: false, message: '密码错误' },
+  { status: 401 }
+);
+
+// 500 Internal Server Error - 服务器内部错误
+return NextResponse.json(
+  { valid: false, message: '验证失败' },
+  { status: 500 }
+);
+```
+
+## 错误处理模式
+
+所有 API 路由都应使用 try-catch 进行错误处理：
+
+```javascript
+export async function POST(request) {
+  try {
+    // 业务逻辑
+    const data = await request.json();
+    // ... 处理逻辑
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    // 捕获所有可能的错误
+    console.error('Error in route:', error);
+    return NextResponse.json(
+      { valid: false, message: '操作失败' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## 环境变量访问
+
+```javascript
+// 从环境变量读取配置
+const accessPassword = process.env.ACCESS_PASSWORD;
+
+// 检查环境变量是否配置
+if (!accessPassword) {
+  return NextResponse.json(
+    { error: '服务器未配置访问密码' },
+    { status: 400 }
+  );
+}
+```
+
+## 请求头处理
+
+```javascript
+// 获取自定义请求头
+const accessPassword = request.headers.get('x-access-password');
+
+// 验证请求头
+if (accessPassword !== envPassword) {
+  return NextResponse.json(
+    { error: '访问密码错误' },
+    { status: 401 }
+  );
+}
+```
+
+## 请求体解析
+
+```javascript
+// 从请求体中解析 JSON 数据
+const { password, config, userInput } = await request.json();
+
+// 验证必需参数
+if (!password || !config) {
+  return NextResponse.json(
+    { error: 'Missing required parameters' },
+    { status: 400 }
+  );
+}
+```
+
+## 响应消息语言
+
+所有返回给客户端的消息应使用**中文**，保持与前端 UI 一致。
+
+## 参考示例
+
+- [app/api/auth/validate/route.js](mdc:app/api/auth/validate/route.js) - 密码验证路由
+- [app/api/generate/route.js](mdc:app/api/generate/route.js) - 代码生成路由
+- [app/api/configs/route.js](mdc:app/api/configs/route.js) - 配置管理路由
