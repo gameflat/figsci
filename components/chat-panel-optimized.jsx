@@ -1065,27 +1065,6 @@ ${input}` : input;
                             </div>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <a
-    href="https://github.com/cos43/flowpilot"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/80 text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-white"
-    aria-label="在 GitHub 查看源码"
-  >
-                                <FaGithub className="h-4 w-4" />
-                            </a>
-                            <button
-    type="button"
-    onClick={() => {
-      setContactCopyState("idle");
-      setIsContactDialogOpen(true);
-    }}
-    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-violet-200 bg-white/80 text-violet-600 shadow-sm transition hover:border-violet-300 hover:bg-white"
-    aria-label="交流联系"
-    title="交流联系"
-  >
-                                <Handshake className="h-4 w-4" />
-                            </button>
                             {isCollapsible && <button
     type="button"
     onClick={onCollapse}
