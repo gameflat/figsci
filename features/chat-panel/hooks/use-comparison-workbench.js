@@ -11,7 +11,6 @@ function useComparisonWorkbench({
   switchBranch,
   onFetchChart,
   files,
-  briefContext,
   input,
   status,
   tryApplyRoot,
@@ -601,16 +600,11 @@ function useComparisonWorkbench({
         };
       }
     );
-    const enrichedInput = briefContext.prompt.length > 0 ? `${briefContext.prompt}
-
-${input}` : input;
     const originBranchId = activeBranchId;
     const branchSeedMessages = cloneMessages(activeBranch?.messages ?? []);
     const anchorMessageId = userMessageId ?? null;
     const requestId = createComparisonEntry({
-      prompt: enrichedInput,
-      // 立即保存提示词，确保在任何状态下都能看到
-      badges: briefContext.badges,
+      prompt: input,
       models: modelsMeta,
       anchorMessageId
     });
@@ -636,9 +630,8 @@ ${input}` : input;
           // 自定义模型：传递 runtime 配置
           return { ...base, runtime: model.runtime };
         }),
-        prompt: enrichedInput,
+        prompt: input,
         xml: chartXml,
-        brief: briefContext.prompt,
         renderMode
       };
       if (attachments.length > 0) {
@@ -743,7 +736,6 @@ ${input}` : input;
     activeBranch,
     activeBranchId,
     beginComparisonRequest,
-    briefContext,
     comparisonConfig.models,
     createComparisonBranchesForResults,
     createComparisonEntry,
@@ -819,8 +811,7 @@ ${input}` : input;
               runtime: model.runtime
             })),
             prompt: entry.prompt,
-            xml: chartXml,
-            brief: briefContext.prompt
+            xml: chartXml
           }),
           signal: controller.signal
         });
@@ -890,7 +881,6 @@ ${input}` : input;
       activeBranch,
       activeBranchId,
       beginComparisonRequest,
-      briefContext,
       clearComparisonPreview,
       createComparisonBranchesForResults,
       ensureBranchSelectionSettled,

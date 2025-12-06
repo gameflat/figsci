@@ -1,4 +1,4 @@
-import { FileText, Settings, Zap } from "lucide-react";
+import { FileText, Zap } from "lucide-react";
 const Figsci_AI_CALIBRATION_PROMPT = `### Figsci \u6821\u51C6\u8231 \xB7 AI \u91CD\u6392\u6307\u4EE4
 \u6211\u4EEC\u9700\u8981\u5728\u4E0D\u6539\u53D8\u8282\u70B9\u8BED\u4E49\u7684\u524D\u63D0\u4E0B\uFF0C\u5229\u7528\u5F53\u524D draw.io XML \u5BF9\u56FE\u8868\u505A\u4E00\u6B21\u300C\u7248\u5F0F\u91CD\u6392\u300D\u3002\u76EE\u6807\uFF1A\u4FDD\u6301\u5355\u9875\u5C55\u793A (x:0-800, y:0-600)\uFF0C\u8BA9\u4E3B\u6D41\u7A0B\u66F4\u7A81\u51FA\u3001\u6CF3\u9053/\u5206\u533A\u66F4\u89C4\u6574\uFF0C\u7BAD\u5934\u95F4\u8DDD\u66F4\u5E72\u51C0\u3002
 
@@ -16,11 +16,6 @@ const Figsci_AI_CALIBRATION_PROMPT = `### Figsci \u6821\u51C6\u8231 \xB7 AI \u91
 
 \u8BF7\u6839\u636E\u4E0A\u8FF0\u8981\u6C42\u8FD4\u56DE\u6700\u7EC8 XML\uFF0C\u53EA\u80FD\u901A\u8FC7\u5408\u9002\u7684\u5DE5\u5177\u8C03\u7528\u8F93\u51FA\uFF0C\u52FF\u5728\u6587\u672C\u4E2D\u7C98\u8D34 XML\u3002`;
 const TOOLBAR_ACTIONS = {
-  brief: {
-    label: "\u914D\u7F6E",
-    icon: Settings,
-    description: "\u8C03\u6574 Figsci Brief \u504F\u597D"
-  },
   calibration: {
     label: "\u6821\u51C6",
     icon: Zap,
@@ -32,7 +27,7 @@ const TOOLBAR_ACTIONS = {
     description: "\u8C03\u7528\u7075\u611F\u4E0E\u8FF0\u804C\u6A21\u677F"
   }
 };
-const TOOLBAR_PANELS = ["brief", "calibration", "actions"];
+const TOOLBAR_PANELS = ["calibration", "actions"];
 const QUICK_ACTIONS = [
   {
     id: "aws-refresh",
@@ -116,12 +111,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#fde68a",
       to: "#f97316"
     },
-    brief: {
-      intent: "draft",
-      tone: "sketch",
-      focus: ["hierarchy"],
-      diagramTypes: ["journey", "mindmap"]
-    }
   },
   {
     id: "enterprise-architecture-grid",
@@ -135,12 +124,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#93c5fd",
       to: "#1d4ed8"
     },
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["component", "deployment"]
-    }
   },
   {
     id: "customer-success-gallery",
@@ -154,12 +137,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#a5f3fc",
       to: "#14b8a6"
     },
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["clarity"],
-      diagramTypes: ["journey", "activity"]
-    }
   },
   {
     id: "incident-response-loop",
@@ -173,12 +150,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#c084fc",
       to: "#7c3aed"
     },
-    brief: {
-      intent: "polish",
-      tone: "balanced",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity", "state"]
-    }
   }
 ];
 export {

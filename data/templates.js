@@ -37,12 +37,6 @@ const DIAGRAM_TEMPLATES = [
 - \u51B3\u7B56\u70B9\uFF1A\u80CC\u666F\u8C03\u67E5\u901A\u8FC7/\u5931\u8D25\u3001\u8BBE\u5907\u51C6\u5907\u597D \u662F/\u5426
 - \u4F7F\u7528\u67D4\u548C\u7684\u84DD/\u7EFF\u8272\u8C03\uFF0C\u6E05\u6670\u7684\u65F6\u95F4\u7EBF\u6307\u793A
 - \u4FDD\u6301\u6574\u6D01\u4E13\u4E1A\uFF0C\u9002\u5F53\u7684\u95F4\u8DDD`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 2. API Request/Response Flow
   {
@@ -88,12 +82,6 @@ const DIAGRAM_TEMPLATES = [
 - \u6DFB\u52A0\u9519\u8BEF\u8DEF\u5F84\uFF1A\u65E0\u6548\u4EE4\u724C (401)\u3001\u670D\u52A1\u8D85\u65F6 (504)
 - \u5305\u542B\u8BF7\u6C42/\u54CD\u5E94\u5934\u3001\u5EF6\u8FDF\u6307\u793A\u5668
 - \u4F7F\u7528\u5E26\u6709\u751F\u547D\u7EBF\u7684\u65F6\u5E8F\u56FE\u98CE\u683C`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["sequence"]
-    }
   },
   // 3. Business Decision Tree
   {
@@ -136,12 +124,6 @@ const DIAGRAM_TEMPLATES = [
 - \u4F7F\u7528\u77E9\u5F62\u51B3\u7B56\u8282\u70B9\uFF0C\u83F1\u5F62\u8868\u793A\u95EE\u9898
 - \u7ED3\u679C\u989C\u8272\u7F16\u7801\uFF1A\u7EFF\u8272 (\u8FDB\u884C)\u3001\u7EA2\u8272 (\u653E\u5F03)\u3001\u9EC4\u8272 (\u590D\u5BA1)
 - \u6DFB\u52A0\u6E05\u6670\u7684\u6807\u7B7E\u548C\u51B3\u7B56\u6807\u51C6`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 4. Customer Journey Map
   {
@@ -168,12 +150,6 @@ const DIAGRAM_TEMPLATES = [
 - \u5728\u6240\u6709\u9636\u6BB5\u6DFB\u52A0\u60C5\u7EEA\u66F2\u7EBF
 - \u4F7F\u7528\u65F6\u95F4\u7EBF\u53EF\u89C6\u5316\uFF0C\u53CB\u597D\u7684\u56FE\u6807
 - \u4FDD\u6301\u591A\u5F69\u4F46\u4E13\u4E1A`,
-    brief: {
-      intent: "draft",
-      tone: "playful",
-      focus: ["flow", "hierarchy"],
-      diagramTypes: ["journey"]
-    }
   },
   // 5. Agile Sprint Workflow
   {
@@ -201,12 +177,6 @@ const DIAGRAM_TEMPLATES = [
 - \u6CF3\u9053\uFF1APO\u3001Scrum Master\u3001\u5F00\u53D1\u56E2\u961F\u3001QA
 - \u5305\u542B\u901F\u5EA6\u8DDF\u8E2A\u3001\u71C3\u5C3D\u56FE\u53C2\u8003
 - \u4F7F\u7528\u8FED\u4EE3\u6D41\u7A0B\u53EF\u89C6\u5316`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["flow", "hierarchy"],
-      diagramTypes: ["activity"]
-    }
   },
   // 6. Bug Triage Process
   {
@@ -238,12 +208,6 @@ const DIAGRAM_TEMPLATES = [
 - \u5173\u95ED\uFF1A\u5728\u751F\u4EA7\u73AF\u5883\u9A8C\u8BC1 \u2192 \u66F4\u65B0\u5DE5\u5355 \u2192 \u901A\u77E5\u62A5\u544A\u4EBA
 - \u6CF3\u9053\uFF1A\u62A5\u544A\u4EBA\u3001QA \u8D1F\u8D23\u4EBA\u3001\u5DE5\u7A0B\u3001DevOps
 - \u6309\u4F18\u5148\u7EA7\u989C\u8272\u7F16\u7801`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 7. Git Branching Strategy
   {
@@ -276,12 +240,6 @@ const DIAGRAM_TEMPLATES = [
 - \u4F7F\u7528\u4E0D\u540C\u989C\u8272\u533A\u5206\u5206\u652F\u7C7B\u578B\uFF0C\u663E\u793A\u5408\u5E76\u65B9\u5411
 - \u4E3A\u6BCF\u79CD\u5206\u652F\u7C7B\u578B\u6DFB\u52A0\u6E05\u6670\u6807\u7B7E
 - \u5305\u542B\u65F6\u95F4\u7EBF/\u987A\u5E8F\u6307\u793A\u5668`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "hierarchy"],
-      diagramTypes: ["activity"]
-    }
   },
   // 8. Approval Workflow
   {
@@ -310,12 +268,6 @@ const DIAGRAM_TEMPLATES = [
 - \u4E3A\u7D27\u6025\u8BF7\u6C42\u6DFB\u52A0\u5E76\u884C\u8DEF\u5F84
 - \u989C\u8272\u7F16\u7801\uFF1A\u7EFF\u8272\u8868\u793A\u6279\u51C6\uFF0C\u7EA2\u8272\u8868\u793A\u62D2\u7EDD\uFF0C\u9EC4\u8272\u8868\u793A\u5F85\u5B9A
 - \u5305\u542B\u6E05\u6670\u7684\u51B3\u7B56\u6807\u51C6\u548C\u5BA1\u6279\u9650\u989D`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 9. CI/CD Pipeline
   {
@@ -352,12 +304,6 @@ const DIAGRAM_TEMPLATES = [
 - \u5C3D\u53EF\u80FD\u663E\u793A\u5E76\u884C\u6267\u884C
 - \u4E3A\u6BCF\u4E2A\u5DE5\u5177\u6DFB\u52A0\u56FE\u6807\uFF08Jenkins, Docker, K8s \u7B49\uFF09
 - \u6309\u72B6\u6001\u989C\u8272\u7F16\u7801\u9636\u6BB5`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 10. Organizational Chart
   {
@@ -384,12 +330,6 @@ const DIAGRAM_TEMPLATES = [
 - \u6309\u90E8\u95E8\u989C\u8272\u7F16\u7801\uFF0C\u663E\u793A\u6BCF\u4E2A\u56E2\u961F\u7684\u4EBA\u6570
 - \u6DFB\u52A0\u6E05\u6670\u7684\u6C47\u62A5\u7EBF
 - \u4FDD\u6301\u4E13\u4E1A\u548C\u5E73\u8861`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "clarity"],
-      diagramTypes: ["component"]
-    }
   },
   // 11. Mind Map (Brainstorming)
   {
@@ -430,12 +370,6 @@ const DIAGRAM_TEMPLATES = [
 - \u4F7F\u7528\u6709\u673A\u5F62\u72B6\uFF0C\u591A\u6837\u7684\u989C\u8272\uFF0C\u6709\u8DA3\u7684\u56FE\u6807
 - \u4E3A\u9AD8\u4F18\u5148\u7EA7\u70B9\u5B50\u6DFB\u52A0\u201C\u70ED\u95E8\u201D\u6307\u793A\u5668
 - \u5305\u542B\u8DE8\u5206\u652F\u76F8\u5173\u70B9\u5B50\u4E4B\u95F4\u7684\u8FDE\u63A5`,
-    brief: {
-      intent: "draft",
-      tone: "playful",
-      focus: ["hierarchy", "flow"],
-      diagramTypes: ["mindmap"]
-    }
   },
   // 12. Product Development Lifecycle
   {
@@ -471,12 +405,6 @@ const DIAGRAM_TEMPLATES = [
 - \u5305\u542B\u4ECE\u6BCF\u4E2A\u9636\u6BB5\u56DE\u5230\u53D1\u73B0\u9636\u6BB5\u7684\u53CD\u9988\u5FAA\u73AF
 - \u6DFB\u52A0\u51B3\u7B56\u95E8\u7981\u548C\u8D28\u91CF\u68C0\u67E5\u70B9
 - \u6309\u9636\u6BB5\u7C7B\u578B\u989C\u8272\u7F16\u7801`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["flow", "hierarchy"],
-      diagramTypes: ["activity"]
-    }
   },
   // 13. Microservices Communication
   {
@@ -508,12 +436,6 @@ const DIAGRAM_TEMPLATES = [
 - \u5305\u542B\u670D\u52A1\u6CE8\u518C\u3001\u8D1F\u8F7D\u5747\u8861\u3001\u65AD\u8DEF\u5668\u6A21\u5F0F
 - \u6309\u901A\u4FE1\u7C7B\u578B\u989C\u8272\u7F16\u7801
 - \u6DFB\u52A0\u5EF6\u8FDF\u6307\u793A\u5668`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "hierarchy"],
-      diagramTypes: ["component"]
-    }
   },
   // 14. User Story Mapping
   {
@@ -545,12 +467,6 @@ const DIAGRAM_TEMPLATES = [
   - Future\uFF08\u5E95\u884C\uFF0C\u6700\u597D\u6709\uFF09
 - \u4F7F\u7528\u4FBF\u5229\u8D34\u98CE\u683C\uFF0C\u6309\u4F18\u5148\u7EA7\u989C\u8272\u7F16\u7801
 - \u4FDD\u6301\u7EC4\u7EC7\u6709\u5E8F\uFF0C\u6613\u4E8E\u626B\u63CF`,
-    brief: {
-      intent: "draft",
-      tone: "playful",
-      focus: ["hierarchy", "flow"],
-      diagramTypes: ["mindmap"]
-    }
   },
   // 15. Incident Response Runbook
   {
@@ -590,12 +506,6 @@ const DIAGRAM_TEMPLATES = [
 - \u6CF3\u9053\uFF1A\u5F85\u547D\u4EBA\u5458\u3001\u4E8B\u4EF6\u6307\u6325\u5B98\u3001\u5DE5\u7A0B\u3001\u6C9F\u901A\u3001\u9886\u5BFC\u5C42
 - \u5305\u542B\u5347\u7EA7\u8DEF\u5F84\u3001\u6C9F\u901A\u6A21\u677F
 - \u6309\u4E25\u91CD\u7A0B\u5EA6\u989C\u8272\u7F16\u7801`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 16. Network Architecture
   {
@@ -634,12 +544,6 @@ const DIAGRAM_TEMPLATES = [
 - \u663E\u793A IP \u8303\u56F4\u3001\u5B89\u5168\u7EC4\u3001\u6D41\u91CF\u7BAD\u5934
 - \u5305\u542B\u5907\u4EFD/\u5BB9\u707E\u7AD9\u70B9\u8FDE\u63A5
 - \u4F7F\u7528\u4E13\u4E1A\u7684\u7F51\u7EDC\u56FE\u7B26\u53F7`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "clarity"],
-      diagramTypes: ["deployment"]
-    }
   },
   // 17. Feature Release Process
   {
@@ -673,12 +577,6 @@ const DIAGRAM_TEMPLATES = [
 - \u6CF3\u9053\uFF1APM\u3001\u5DE5\u7A0B\u3001QA\u3001DevOps\u3001\u652F\u6301
 - \u5305\u542B\u56DE\u6EDA\u7A0B\u5E8F
 - \u6DFB\u52A0\u76D1\u63A7\u68C0\u67E5\u70B9`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 18. SWOT to Action Plan
   {
@@ -707,12 +605,6 @@ const DIAGRAM_TEMPLATES = [
 - \u6DFB\u52A0\u4F18\u5148\u7EA7\u6307\u793A\u5668\uFF08\u9AD8/\u4E2D/\u4F4E\uFF09
 - \u4FDD\u6301\u6218\u7565\u6027\u548C\u53EF\u64CD\u4F5C\u6027
 - \u5305\u542B\u65F6\u95F4\u7EBF\u4F30\u8BA1`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "clarity"],
-      diagramTypes: ["mindmap"]
-    }
   },
   // 19. A/B Test Planning
   {
@@ -747,12 +639,6 @@ const DIAGRAM_TEMPLATES = [
   - \u51B3\u7B56\uFF1A\u53D1\u5E03\u83B7\u80DC\u8005 / \u7EE7\u7EED\u6D4B\u8BD5 / \u8FED\u4EE3
 - \u63A8\u51FA\uFF1A\u9010\u6B65\u90E8\u7F72\u83B7\u80DC\u8005
 - \u5305\u542B\u8FB9\u7F18\u60C5\u51B5\u7684\u51B3\u7B56\u6811\uFF08\u4F8B\u5982\uFF0C\u6CA1\u6709\u660E\u663E\u7684\u83B7\u80DC\u8005\uFF0C\u8D1F\u9762\u7ED3\u679C\uFF09`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["clarity", "hierarchy"],
-      diagramTypes: ["activity"]
-    }
   },
   // 20. Database Schema Design
   {
@@ -786,12 +672,6 @@ const DIAGRAM_TEMPLATES = [
 - \u663E\u793A PK/FK\u3001\u6570\u636E\u7C7B\u578B\u3001\u7D22\u5F15\u3001\u7EA6\u675F
 - \u4F7F\u7528\u6807\u51C6 ERD \u7B26\u53F7
 - \u6DFB\u52A0\u57FA\u6570\u6807\u7B7E`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "clarity"],
-      diagramTypes: ["component"]
-    }
   },
   // 21. Security Audit Flow
   {
@@ -829,12 +709,6 @@ const DIAGRAM_TEMPLATES = [
   - \u521B\u5EFA\u884C\u52A8\u8BA1\u5212 \u2192 \u5206\u914D\u8D1F\u8D23\u4EBA \u2192 \u8BBE\u5B9A\u622A\u6B62\u65E5\u671F
   - \u540E\u7EED\u5BA1\u8BA1 \u2192 \u9A8C\u8BC1\u5173\u95ED
 - \u6CF3\u9053\uFF1A\u5BA1\u8BA1\u5458\u3001IT/\u5B89\u5168\u56E2\u961F\u3001\u7BA1\u7406\u5C42`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 22. Access Control Matrix
   {
@@ -872,12 +746,6 @@ const DIAGRAM_TEMPLATES = [
   - \u63D0\u5347\u6743\u9650\u8BF7\u6C42 \u2192 \u7ECF\u7406\u6279\u51C6 \u2192 \u9650\u65F6\u6388\u6743
   - \u663E\u793A\u89D2\u8272\u4E4B\u95F4\u7684\u7EE7\u627F\u5173\u7CFB
 - \u989C\u8272\u7F16\u7801\uFF1A\u7EFF\u8272\uFF08\u5141\u8BB8\uFF09\u3001\u7EA2\u8272\uFF08\u62D2\u7EDD\uFF09\u3001\u9EC4\u8272\uFF08\u9700\u8981\u6279\u51C6\uFF09`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "clarity"],
-      diagramTypes: ["component"]
-    }
   },
   // 23. Workshop Facilitation
   {
@@ -912,12 +780,6 @@ const DIAGRAM_TEMPLATES = [
   - \u56DE\u987E\u5173\u952E\u51B3\u7B56 \u2192 \u5206\u4EAB\u6210\u679C \u2192 \u5B89\u6392\u540E\u7EED\u8DDF\u8FDB
 - \u5305\u542B\u5F15\u5BFC\u8005\u63D0\u793A\u3001\u65F6\u95F4\u63D0\u793A\u3001\u5907\u7528\u6D3B\u52A8
 - \u663E\u793A\u865A\u62DF\u4E0E\u9762\u5BF9\u9762\u53D8\u5316\u7684\u5E76\u884C\u8F68\u9053`,
-    brief: {
-      intent: "draft",
-      tone: "playful",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   },
   // 24. Strategic Canvas
   {
@@ -950,12 +812,6 @@ const DIAGRAM_TEMPLATES = [
 - \u5305\u542B\u6BCF\u4E2A\u8C61\u9650\u7684 KPI
 - \u4F7F\u7528\u4F01\u4E1A\u914D\u8272\u65B9\u6848\uFF0C\u6E05\u6670\u7684\u5C42\u7EA7
 - \u4E3A\u9AD8\u98CE\u9669/\u9AD8\u56DE\u62A5\u4E3E\u63AA\u6DFB\u52A0\u201C\u6218\u7565\u62BC\u6CE8\u201D\u9AD8\u4EAE`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "clarity"],
-      diagramTypes: ["mindmap"]
-    }
   },
   // 25. Design System Workflow
   {
@@ -991,12 +847,6 @@ const DIAGRAM_TEMPLATES = [
   - \u672A\u627E\u5230\uFF1A\u63D0\u4EA4\u8BF7\u6C42 \u6216 \u6784\u5EFA\u81EA\u5B9A\u4E49\uFF08\u9700\u8BC4\u5BA1\uFF09
 - \u6CF3\u9053\uFF1A\u8BBE\u8BA1\u56E2\u961F\u3001\u5DE5\u7A0B\u3001\u4EA7\u54C1\u56E2\u961F
 - \u663E\u793A\u6539\u8FDB\u7684\u53CD\u9988\u5FAA\u73AF`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["hierarchy", "flow"],
-      diagramTypes: ["component"]
-    }
   },
   // 26. Analytics Dashboard Flow
   {
@@ -1030,12 +880,6 @@ const DIAGRAM_TEMPLATES = [
   - \u7F13\u5B58\u672A\u547D\u4E2D\uFF1A\u67E5\u8BE2\u6570\u636E\u5E93 \u2192 \u8F6C\u6362\u6570\u636E \u2192 \u66F4\u65B0\u7F13\u5B58 \u2192 \u8FD4\u56DE
 - \u5305\u542B\u5EF6\u8FDF SLA\u3001\u5237\u65B0\u7B56\u7565\u3001\u4E0B\u94BB\u8DEF\u5F84
 - \u6DFB\u52A0\u6570\u636E\u8D28\u91CF\u68C0\u67E5\u70B9`,
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "hierarchy"],
-      diagramTypes: ["component"]
-    }
   },
   // 27. Meeting Decision Flow
   {
@@ -1063,12 +907,6 @@ const DIAGRAM_TEMPLATES = [
 - \u4F7F\u7528\u6CF3\u9053\u8868\u793A\u89D2\u8272\uFF1A\u5F15\u5BFC\u8005\u3001\u53C2\u4E0E\u8005\u3001\u884C\u52A8\u8D1F\u8D23\u4EBA
 - \u5305\u542B\u51B3\u7B56\u6807\u51C6\u548C\u6295\u7968\u673A\u5236
 - \u6DFB\u52A0\u540E\u7EED\u8DDF\u8E2A\u5FAA\u73AF`,
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity"]
-    }
   }
 ];
 function getTemplateById(id) {
