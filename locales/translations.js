@@ -3,7 +3,7 @@
 export const zhTranslations = {
   // 通用
   common: {
-    title: "FlowPilot 智能流程图",
+    title: "Figsci 智能流程图",
     description: "将 draw.io 与对话式 AI 助手结合的智能制图工作台。",
     loading: "加载中...",
     error: "错误",
@@ -42,14 +42,14 @@ export const zhTranslations = {
   nav: {
     workspace: "画图工作室",
     xmlCode: "XML 代码",
-    multimodalLab: "FlowPilot 多模态实验室",
+    multimodalLab: "Figsci 多模态实验室",
   },
 
   // 工作区
   workspace: {
     focusCanvas: "专注画布",
     showChat: "显示聊天",
-    mobileWarning: "FlowPilot Studio 在桌面端体验更佳",
+    mobileWarning: "Figsci Studio 在桌面端体验更佳",
     mobileHint: "请使用更大尺寸的屏幕，以便同时查看 draw.io 编辑器与智能助手。",
   },
 
@@ -156,9 +156,9 @@ export const zhTranslations = {
     embedCode: "嵌入代码",
   },
 
-  // FlowPilot Brief
+  // Figsci Brief
   brief: {
-    title: "FlowPilot Brief",
+    title: "Figsci Brief",
     subtitle: "智能图表配置",
     description: "通过简单配置，让 AI 更好地理解你的需求",
     intent: "意图",
@@ -407,7 +407,7 @@ export const zhTranslations = {
 export const enTranslations = {
   // Common
   common: {
-    title: "FlowPilot Smart Flowchart",
+    title: "Figsci Smart Flowchart",
     description: "Intelligent diagramming workbench combining draw.io with conversational AI assistant.",
     loading: "Loading...",
     error: "Error",
@@ -446,14 +446,14 @@ export const enTranslations = {
   nav: {
     workspace: "Workspace",
     xmlCode: "XML Code",
-    multimodalLab: "FlowPilot Multimodal Lab",
+    multimodalLab: "Figsci Multimodal Lab",
   },
 
   // Workspace
   workspace: {
     focusCanvas: "Focus Canvas",
     showChat: "Show Chat",
-    mobileWarning: "FlowPilot Studio works best on desktop",
+    mobileWarning: "Figsci Studio works best on desktop",
     mobileHint: "Please use a larger screen to view the draw.io editor and AI assistant simultaneously.",
   },
 
@@ -560,9 +560,9 @@ export const enTranslations = {
     embedCode: "Embed Code",
   },
 
-  // FlowPilot Brief
+  // Figsci Brief
   brief: {
-    title: "FlowPilot Brief",
+    title: "Figsci Brief",
     subtitle: "Intelligent Diagram Configuration",
     description: "Help AI better understand your needs through simple configuration",
     intent: "Intent",

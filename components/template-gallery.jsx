@@ -27,7 +27,7 @@ const CATEGORIES = [
   { id: "creative", label: "创意工坊", icon: "🎨", count: 0 },
 ];
 
-const RECENT_KEY = "flowpilot_recent_templates";
+const RECENT_KEY = "Figsci_recent_templates";
 
 /**
  * @param {TemplateGalleryProps} props

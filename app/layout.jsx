@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
 /**
- * FlowPilot 根布局组件
+ * Figsci 根布局组件
  * 
  * 这是 Next.js App Router 的根布局文件，定义了整个应用的基础结构：
  * - 字体配置（Geist Sans 和 Geist Mono）
@@ -67,7 +67,7 @@ const geistMono = Geist_Mono({
  *                                  包含中英文双语描述，提高国际化友好度
  */
 export const metadata = {
-  title: "FlowPilot | 智能流程图",
+  title: "Figsci | 智能流程图",
   description: "将 draw.io 与对话式 AI 助手结合的智能制图工作台 | Intelligent diagramming workbench combining draw.io with conversational AI assistant."
 };
 

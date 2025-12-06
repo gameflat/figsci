@@ -1,4 +1,4 @@
-# FlowPilot Studio Architecture
+# Figsci Studio Architecture
 
 ## 1. Layered Overview
 
@@ -57,7 +57,7 @@ The original `ChatPanelOptimized` (≈2000 LOC) mixed transport logic, compariso
 - `ToolPanelSidebar` – Shared shell for side panels (brief, calibration, templates) keeping markup out of the main file.
 
 ### Utilities & Constants
-- `constants.ts` – Hosts FlowPilot calibration prompt, toolbar metadata, and curated quick actions so designers can tweak content without touching component logic.
+- `constants.ts` – Hosts Figsci calibration prompt, toolbar metadata, and curated quick actions so designers can tweak content without touching component logic.
 - `utils/messages.ts` & `utils/attachments.ts` – Side-effect helpers for cloning chat history and serializing user uploads.
 
 ### Entry Component (`components/chat-panel-optimized.tsx`)

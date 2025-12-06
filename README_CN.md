@@ -1,4 +1,4 @@
-# FlowPilot
+# Figsci
 
 <div align="center">
 
@@ -14,9 +14,9 @@
 
 </div>
 
-## 🎯 FlowPilot 是什么？
+## 🎯 Figsci 是什么？
 
-**FlowPilot** 是一款基于大语言模型的流程图工具，主打"边聊边画"的体验。通过自然语言对话，实时生成专业的 draw.io 图表。
+**Figsci** 是一款基于大语言模型的流程图工具，主打"边聊边画"的体验。通过自然语言对话，实时生成专业的 draw.io 图表。
 
 > 基于 [next-ai-draw-io](https://github.com/DayuanJiang/next-ai-draw-io) vibe coding 完成
 
@@ -43,13 +43,13 @@
 
 ### 功能 2：风格复制
 
-> 上传参考图，FlowPilot 将复制其风格
+> 上传参考图，Figsci 将复制其风格
 
 | 原始参考图 | AI 生成同风格图表 |
 |-----------|------------------|
 | ![原图](./public/image7.png) | ![复制风格](./public/image8.png) |
 
-### 功能 3：FlowPilot Brief - 风格配置
+### 功能 3：Figsci Brief - 风格配置
 
 > 一次配置图表偏好，应用到所有生成
 
@@ -77,7 +77,7 @@
 
 ### 实际生成案例展示
 
-> FlowPilot 生成的各种流程图、时序图和系统架构图
+> Figsci 生成的各种流程图、时序图和系统架构图
 
 <div align="center">
 
@@ -91,7 +91,7 @@
 ### 架构图示例
 ![架构图](./public/architecture.png)
 
-*这张图也是用 FlowPilot 生成的！*
+*这张图也是用 Figsci 生成的！*
 
 ## 🚀 快速开始
 
@@ -105,8 +105,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/flowpilot.git
-cd flowpilot
+git clone https://github.com/yourusername/Figsci.git
+cd Figsci
 
 # 安装依赖
 pnpm install
@@ -206,7 +206,7 @@ pnpm start
 
 ## 📚 支持的大模型
 
-FlowPilot 原生支持多个大模型服务商：
+Figsci 原生支持多个大模型服务商：
 
 | 服务商 | 模型 | 说明 |
 |-------|------|------|
@@ -221,9 +221,9 @@ FlowPilot 原生支持多个大模型服务商：
 - [架构指南](./docs/architecture.md) - 系统架构和设计决策
 - [国际化指南](./docs/i18n-guide.md) - 多语言实现说明
 
-## 🎨 FlowPilot Brief 提示词说明
+## 🎨 Figsci Brief 提示词说明
 
-FlowPilot 在每次调用大模型前都会把「Brief」里配置的提示词拼接进系统 Prompt，以下是可选配置项：
+Figsci 在每次调用大模型前都会把「Brief」里配置的提示词拼接进系统 Prompt，以下是可选配置项：
 
 ### 任务模式
 
@@ -302,10 +302,10 @@ FlowPilot 在每次调用大模型前都会把「Brief」里配置的提示词�
 
 ## ⭐ Star History
 
-如果 FlowPilot 对你有帮助，请给个 Star！
+如果 Figsci 对你有帮助，请给个 Star！
 
 ---
 
 <div align="center">
-用 ❤️ 打造 by FlowPilot Team
+用 ❤️ 打造 by Figsci Team
 </div>

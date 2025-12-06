@@ -30,7 +30,7 @@ import {
  */
 
 /**
- * @typedef {Object} FlowPilotBriefState
+ * @typedef {Object} FigsciBriefState
  * @property {BriefModeId} [mode]
  * @property {BriefIntentId} intent
  * @property {BriefToneId} tone
@@ -70,13 +70,13 @@ const BRIEF_MODE_OPTIONS = [
     },
 ];
 
-export const FLOWPILOT_FREEFORM_GUARDRAILS = [
+export const Figsci_FREEFORM_GUARDRAILS = [
     "保持画面干净美观，优先单屏阅读，不要堆叠或线路缠绕。",
     "输出语法必须正确，连线完整、标签清晰，避免损坏的 XML/SVG。",
     "完全依据用户输入自由选择图型与布局，不擅自添加业务假设。",
 ];
 
-export const FLOWPILOT_FREEFORM_PROMPT = `默认出图守则（不附加 FlowBrief 偏好）：
+export const Figsci_FREEFORM_PROMPT = `默认出图守则（不附加 FlowBrief 偏好）：
 - Keep the canvas clean, readable, and balanced; avoid cluttered crossings.
 - Ensure syntax validity and connected arrows/labels; no broken XML/SVG/mermaid.
 - Choose whichever diagram type/layout best fits the user's text without adding extra assumptions.`;
@@ -223,16 +223,16 @@ export const DIAGRAM_TYPE_OPTIONS = [
 ];
 
 /**
- * @typedef {Object} FlowPilotBriefProps
- * @property {FlowPilotBriefState} state
- * @property {(state: Partial<FlowPilotBriefState>) => void} onChange
+ * @typedef {Object} FigsciBriefProps
+ * @property {FigsciBriefState} state
+ * @property {(state: Partial<FigsciBriefState>) => void} onChange
  * @property {boolean} [disabled]
  */
 
 /**
- * @param {FlowPilotBriefProps} props
+ * @param {FigsciBriefProps} props
  */
-export function FlowPilotBrief({
+export function FigsciBrief({
     state,
     onChange,
     disabled = false,
@@ -274,7 +274,7 @@ export function FlowPilotBrief({
             <div className="mb-3 flex flex-col gap-1">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <Sparkles className="h-4 w-4 text-amber-500" />
-                    FlowPilot Brief
+                    Figsci Brief
                 </div>
             </div>
 
@@ -333,7 +333,7 @@ export function FlowPilotBrief({
                         仅保留基础规范，确保结果清晰、整洁、语法正确。
                     </p>
                     <div className="flex flex-col gap-2">
-                        {FLOWPILOT_FREEFORM_GUARDRAILS.map((item, index) => (
+                        {Figsci_FREEFORM_GUARDRAILS.map((item, index) => (
                             <div
                                 key={item}
                                 className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700"
@@ -544,18 +544,18 @@ export function FlowPilotBrief({
 }
 
 /**
- * @typedef {Object} FlowPilotBriefDialogProps
- * @property {FlowPilotBriefState} state
- * @property {(state: Partial<FlowPilotBriefState>) => void} onChange
+ * @typedef {Object} FigsciBriefDialogProps
+ * @property {FigsciBriefState} state
+ * @property {(state: Partial<FigsciBriefState>) => void} onChange
  * @property {boolean} [disabled]
  * @property {boolean} open
  * @property {(open: boolean) => void} onOpenChange
  */
 
 /**
- * @param {FlowPilotBriefDialogProps} props
+ * @param {FigsciBriefDialogProps} props
  */
-export function FlowPilotBriefDialog({
+export function FigsciBriefDialog({
     state,
     onChange,
     disabled = false,
@@ -573,12 +573,12 @@ export function FlowPilotBriefDialog({
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
-                    <DialogTitle>FlowPilot Brief 偏好配置</DialogTitle>
+                    <DialogTitle>Figsci Brief 偏好配置</DialogTitle>
                     <DialogDescription>
                         设定任务目标、视觉风格与设计重点，或切换到自由模式仅保留少量默认守则。
                     </DialogDescription>
                 </DialogHeader>
-                <FlowPilotBrief state={state} onChange={onChange} disabled={disabled} />
+                <FigsciBrief state={state} onChange={onChange} disabled={disabled} />
                 <DialogFooter>
                     <Button
                         type="button"
@@ -594,17 +594,17 @@ export function FlowPilotBriefDialog({
 }
 
 /**
- * @typedef {Object} FlowPilotBriefLauncherProps
- * @property {FlowPilotBriefState} state
- * @property {(state: Partial<FlowPilotBriefState>) => void} onChange
+ * @typedef {Object} FigsciBriefLauncherProps
+ * @property {FigsciBriefState} state
+ * @property {(state: Partial<FigsciBriefState>) => void} onChange
  * @property {boolean} [disabled]
  * @property {string[]} badges
  */
 
 /**
- * @param {FlowPilotBriefLauncherProps} props
+ * @param {FigsciBriefLauncherProps} props
  */
-export function FlowPilotBriefLauncher({
+export function FigsciBriefLauncher({
     state,
     onChange,
     disabled,
@@ -686,7 +686,7 @@ export function FlowPilotBriefLauncher({
                 </div>
                 {renderSummaryBadges()}
             </div>
-            <FlowPilotBriefDialog
+            <FigsciBriefDialog
                 state={state}
                 onChange={onChange}
                 disabled={disabled}

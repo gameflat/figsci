@@ -37,7 +37,7 @@ export function QuickActionBar({
     onSelect,
     variant = "card",
     title = "快速示例",
-    subtitle = "FlowPilot 专用",
+    subtitle = "Figsci 专用",
 }) {
     const containerClass =
         variant === "card"

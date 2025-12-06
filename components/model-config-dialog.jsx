@@ -409,7 +409,7 @@ export function ModelConfigDialog({
                         </label>
                         <input
                             type="text"
-                            placeholder="FlowPilot · 报表模型"
+                            placeholder="Figsci · 报表模型"
                             value={model.label}
                             onChange={(event) =>
                                 handleModelChange(endpointId, model.id, {

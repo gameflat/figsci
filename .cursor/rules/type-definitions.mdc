@@ -1,0 +1,318 @@
+---
+globs: types/**/*.js,types/**/*.d.ts,hooks/**/*.js,contexts/**/*.jsx
+description: 类型定义规范和 JSDoc 类型注释指南
+---
+
+# 类型定义规范
+
+## 基本原则
+
+1. **所有函数、组件、Hook 必须使用 JSDoc 类型注释**
+2. **复杂类型使用 `@typedef` 定义**，提高可读性和复用性
+3. **类型定义应该清晰、完整**，包含所有属性和方法
+4. **优先使用 JSDoc 类型**，项目同时支持 TypeScript 类型文件
+
+## JSDoc 类型注释
+
+### 1. 基本类型
+
+```javascript
+/**
+ * @param {string} name - 名称
+ * @param {number} age - 年龄
+ * @param {boolean} [isActive=true] - 是否激活（可选，带默认值）
+ * @returns {string} 格式化后的字符串
+ */
+function formatUser(name, age, isActive = true) {
+  // 实现
+}
+```
+
+### 2. 对象类型
+
+```javascript
+/**
+ * @param {Object} user - 用户对象
+ * @param {string} user.name - 用户名
+ * @param {number} user.age - 年龄
+ * @returns {void}
+ */
+function processUser(user) {
+  // 实现
+}
+
+// ✅ 更好的方式：使用 @typedef
+/**
+ * @typedef {Object} User
+ * @property {string} name - 用户名
+ * @property {number} age - 年龄
+ * @property {boolean} [isActive] - 是否激活（可选）
+ */
+
+/**
+ * @param {User} user - 用户对象
+ * @returns {void}
+ */
+function processUser(user) {
+  // 实现
+}
+```
+
+### 3. 数组类型
+
+```javascript
+/**
+ * @param {string[]} items - 字符串数组
+ * @returns {number} 数组长度
+ */
+function getLength(items) {
+  return items.length;
+}
+
+/**
+ * @param {User[]} users - 用户数组
+ * @returns {User[]} 过滤后的用户数组
+ */
+function filterActiveUsers(users) {
+  return users.filter(u => u.isActive);
+}
+```
+
+### 4. 函数类型
+
+```javascript
+/**
+ * @typedef {Function} EventHandler
+ * @param {Event} event - 事件对象
+ * @returns {void}
+ */
+
+/**
+ * @param {EventHandler} handler - 事件处理函数
+ */
+function addEventListener(handler) {
+  // 实现
+}
+
+// ✅ 使用箭头函数类型
+/**
+ * @typedef {(value: string) => void} StringCallback
+ */
+
+/**
+ * @param {StringCallback} callback - 字符串回调函数
+ */
+function processString(callback) {
+  // 实现
+}
+```
+
+### 5. 联合类型
+
+```javascript
+/**
+ * @param {"primary" | "secondary" | "danger"} variant - 按钮变体
+ * @returns {JSX.Element}
+ */
+function Button({ variant }) {
+  // 实现
+}
+
+/**
+ * @typedef {"drawio" | "svg"} RenderMode
+ */
+```
+
+### 6. 泛型和导入类型
+
+```javascript
+/**
+ * @typedef {import("ai").UIMessage} Message
+ */
+
+/**
+ * @typedef {Object} ConversationBranch
+ * @property {string} id
+ * @property {Message[]} messages
+ */
+```
+
+### 7. 可选属性和默认值
+
+```javascript
+/**
+ * @typedef {Object} Config
+ * @property {string} baseUrl - 基础 URL（必需）
+ * @property {string} [apiKey] - API 密钥（可选）
+ * @property {number} [timeout=5000] - 超时时间（可选，默认 5000）
+ */
+```
+
+## Context 类型定义
+
+### 1. Context 值类型
+
+```javascript
+/**
+ * @typedef {Object} ConversationContextValue
+ * @property {Record<string, ConversationBranch>} branches - 所有分支
+ * @property {ConversationBranch[]} branchList - 分支列表
+ * @property {string} activeBranchId - 当前活动分支 ID
+ * @property {ConversationBranch} activeBranch - 当前活动分支
+ * @property {(input?: CreateBranchInput) => ConversationBranch | null} createBranch
+ * @property {(branchId: string) => ConversationBranch | null} switchBranch
+ */
+
+/** @type {React.Context<ConversationContextValue | undefined>} */
+const ConversationContext = createContext(undefined);
+```
+
+### 2. Context Hook 类型
+
+```javascript
+/**
+ * 使用对话上下文
+ * 
+ * @returns {ConversationContextValue}
+ * @throws {Error} 如果不在 Provider 内使用
+ */
+export function useConversation() {
+  const context = useContext(ConversationContext);
+  if (!context) {
+    throw new Error("useConversation must be used within ConversationProvider");
+  }
+  return context;
+}
+```
+
+## 组件 Props 类型
+
+### 1. 组件 Props 定义
+
+```javascript
+/**
+ * @typedef {Object} ButtonProps
+ * @property {React.ReactNode} children - 按钮内容
+ * @property {"primary" | "secondary"} [variant="primary"] - 按钮样式
+ * @property {boolean} [disabled=false] - 是否禁用
+ * @property {() => void} [onClick] - 点击事件处理
+ */
+
+/**
+ * 按钮组件
+ * 
+ * @param {ButtonProps} props
+ * @returns {JSX.Element}
+ */
+export function Button({ children, variant = "primary", disabled = false, onClick }) {
+  // 实现
+}
+```
+
+### 2. 内联 Props 类型
+
+```javascript
+/**
+ * @param {{
+ *   checked: boolean;
+ *   onCheckedChange: (checked: boolean) => void;
+ *   disabled?: boolean;
+ * }} props
+ */
+function Switch({ checked, onCheckedChange, disabled }) {
+  // 实现
+}
+```
+
+## Hook 类型定义
+
+### 1. Hook 返回值类型
+
+```javascript
+/**
+ * @typedef {Object} ChatState
+ * @property {boolean} isConversationStarted
+ * @property {number} messageCount
+ * @property {boolean} isCompactMode
+ */
+
+/**
+ * @returns {ChatState & {
+ *   startConversation: () => void;
+ *   incrementMessageCount: () => void;
+ *   clearConversation: () => void;
+ * }}
+ */
+export function useChatState() {
+  // 实现
+}
+```
+
+### 2. Hook 参数类型
+
+```javascript
+/**
+ * @typedef {Object} UseDiagramOrchestratorParams
+ * @property {string | null} chartXML - 当前图表 XML
+ * @property {(xml: string) => void} onDisplayChart - 显示图表回调
+ * @property {(xml: string | null) => void} updateActiveBranchDiagram - 更新分支图表
+ */
+
+/**
+ * @param {UseDiagramOrchestratorParams} params
+ * @returns {Object}
+ */
+export function useDiagramOrchestrator({ chartXML, onDisplayChart, updateActiveBranchDiagram }) {
+  // 实现
+}
+```
+
+## TypeScript 类型文件
+
+项目同时支持 TypeScript 类型定义文件（`.d.ts` 和 `.ts`）：
+
+### 1. 类型定义文件
+
+```typescript
+// types/model-config.d.ts
+export interface ModelEndpointConfig {
+  id: string;
+  baseUrl: string;
+  apiKey: string;
+  models: EndpointModelConfig[];
+}
+
+export interface EndpointModelConfig {
+  id: string;
+  modelId: string;
+  label: string;
+}
+```
+
+### 2. 在 JSDoc 中引用 TypeScript 类型
+
+```javascript
+/**
+ * @param {import("@/types/model-config").ModelEndpointConfig[]} endpoints
+ * @returns {void}
+ */
+function processEndpoints(endpoints) {
+  // 实现
+}
+```
+
+## 参考实现
+
+参考以下文件作为标准实现示例：
+- [contexts/conversation-context.jsx](mdc:contexts/conversation-context.jsx) - Context 类型定义
+- [hooks/use-model-registry.js](mdc:hooks/use-model-registry.js) - Hook 类型定义
+- [types/model-config.d.ts](mdc:types/model-config.d.ts) - TypeScript 类型定义
+- [components/model-config-dialog.jsx](mdc:components/model-config-dialog.jsx) - 组件 Props 类型
+
+## 避免的实践
+
+- ❌ 缺少类型注释（所有公共 API 必须有类型）
+- ❌ 使用 `any` 类型（应该使用具体类型或 `unknown`）
+- ❌ 类型定义不完整（应该包含所有属性和方法）
+- ❌ 重复定义类型（应该使用 `@typedef` 复用）
+- ❌ 类型注释与实际实现不一致

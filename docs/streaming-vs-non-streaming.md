@@ -1,8 +1,8 @@
-# FlowPilot 流式与非流式响应使用指南
+# Figsci 流式与非流式响应使用指南
 
 ## 📖 概述
 
-FlowPilot 支持两种 AI 响应模式：
+Figsci 支持两种 AI 响应模式：
 - **流式（Streaming）**：实时逐字输出，用户体验更流畅
 - **非流式（Non-Streaming）**：等待完整响应后一次性显示
 

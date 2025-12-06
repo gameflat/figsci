@@ -14,7 +14,7 @@ import { zhTranslations, enTranslations } from "@/locales/translations";
 const LocaleContext = createContext(undefined);
 
 // 本地存储 key
-const LOCALE_STORAGE_KEY = "flowpilot-locale";
+const LOCALE_STORAGE_KEY = "Figsci-locale";
 
 /**
  * @param {{ children: React.ReactNode }} props

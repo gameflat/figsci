@@ -96,7 +96,7 @@ export function ModelComparisonConfigDialog({
                         配置对比模型
                     </DialogTitle>
                     <DialogDescription className="text-sm text-slate-500">
-                        选择 2-5 个已配置的模型。FlowPilot 会将同一条提示词同步发送给所有模型，用于对比风格和布局差异。
+                        选择 2-5 个已配置的模型。Figsci 会将同一条提示词同步发送给所有模型，用于对比风格和布局差异。
                     </DialogDescription>
                 </DialogHeader>
 

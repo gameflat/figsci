@@ -11,7 +11,7 @@ import { getSystemMessage } from "@/lib/prompts";
 const maxDuration = 60;
 /**
  * POST /api/chat
- * FlowPilot 图表生成 API 路由
+ * Figsci 图表生成 API 路由
  * 
  * 此路由是应用的核心 API 端点，负责根据用户输入生成符合标准的 draw.io 图表 XML 代码或 SVG。
  * 

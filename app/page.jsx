@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
 /**
- * FlowPilot 主页面组件
+ * Figsci 主页面组件
  * 
  * 这是应用的主页面，集成了以下功能：
  * - Draw.io 图表编辑器（drawio 模式）

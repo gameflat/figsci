@@ -300,9 +300,9 @@ export function ChatInputOptimized({
 
                 <div
                     ref={controlBarRef}
-                    className="flex flex-nowrap items-center justify-between gap-2 px-3 pt-1 pb-1.5 overflow-x-auto scrollbar-hide"
+                    className="flex flex-nowrap items-center gap-2 px-3 pt-1 pb-1.5 overflow-hidden"
                 >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                         <ButtonWithTooltip
                             type="button"
                             variant="ghost"
@@ -332,7 +332,7 @@ export function ChatInputOptimized({
                         </ButtonWithTooltip>
                     </div>
 
-                    <div className="flex flex-nowrap items-center gap-2">
+                    <div className="flex flex-nowrap items-center gap-2 flex-1 min-w-0 justify-end">
                         <RenderModeToggle
                             value={renderMode}
                             onChange={onRenderModeChange}
@@ -351,7 +351,7 @@ export function ChatInputOptimized({
                             />
                         )}
                         {comparisonEnabled ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                                 {isBusy ? (
                                     <Button
                                         type="button"
@@ -364,7 +364,7 @@ export function ChatInputOptimized({
                                     </Button>
                                 ) : (
                                     <>
-                                        <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+                                        <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm flex-shrink-0">
 
                                         <Button
                                             type="button"
@@ -409,7 +409,7 @@ export function ChatInputOptimized({
                                                 !input.trim() ||
                                                 interactionLocked
                                             }
-                                            className="h-[30px] min-w-[30px] gap-2 rounded-full bg-slate-900 text-white text-[11px] shadow-sm transition hover:bg-slate-900/90 disabled:opacity-60"
+                                            className="h-[30px] w-[30px] gap-2 rounded-full bg-slate-900 text-white text-[11px] shadow-sm transition hover:bg-slate-900/90 disabled:opacity-60 flex-shrink-0"
                                             size="sm"
                                             aria-label="发送消息"
                                         >

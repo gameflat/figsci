@@ -1,17 +1,17 @@
 {
-    "name": "flowpilot",
+    "name": "Figsci",
     "version": "1.0.0",
     "description": "AI-powered diagram creation tool with chat-while-you-draw experience",
-    "author": "FlowPilot Contributors",
+    "author": "Figsci Contributors",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/yourusername/flowpilot.git"
+        "url": "https://github.com/yourusername/Figsci.git"
     },
     "bugs": {
-        "url": "https://github.com/yourusername/flowpilot/issues"
+        "url": "https://github.com/yourusername/Figsci/issues"
     },
-    "homepage": "https://github.com/yourusername/flowpilot#readme",
+    "homepage": "https://github.com/yourusername/Figsci#readme",
     "keywords": [
         "ai",
         "diagram",

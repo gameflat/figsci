@@ -1,0 +1,280 @@
+---
+alwaysApply: true
+description: React 状态管理规范和 Context/Hooks 使用模式
+---
+
+# 状态管理规范
+
+## 基本原则
+
+1. **使用 React Context 管理全局状态**，使用 Hooks 管理局部状态
+2. **Context 应该提供清晰的 API**，避免暴露内部实现细节
+3. **自定义 Hooks 应该封装可复用的状态逻辑**
+4. **所有状态管理代码必须使用 JSDoc 类型注释**
+
+## Context 使用模式
+
+### 1. Context 定义结构
+
+```javascript
+"use client";
+
+import { createContext, useContext, useState, useCallback } from "react";
+
+/**
+ * @typedef {Object} ContextValue
+ * @property {string} value - 状态值
+ * @property {(newValue: string) => void} setValue - 更新函数
+ * @property {() => void} reset - 重置函数
+ */
+
+/** @type {React.Context<ContextValue | undefined>} */
+const MyContext = createContext(undefined);
+
+/**
+ * Context Provider 组件
+ * 
+ * @param {{ children: React.ReactNode }} props
+ */
+export function MyProvider({ children }) {
+  const [value, setValue] = useState("initial");
+  
+  const reset = useCallback(() => {
+    setValue("initial");
+  }, []);
+  
+  const contextValue = useMemo(() => ({
+    value,
+    setValue,
+    reset,
+  }), [value, reset]);
+  
+  return (
+    <MyContext.Provider value={contextValue}>
+      {children}
+    </MyContext.Provider>
+  );
+}
+
+/**
+ * 使用 Context 的 Hook
+ * 
+ * @returns {ContextValue}
+ * @throws {Error} 如果不在 Provider 内使用
+ */
+export function useMyContext() {
+  const context = useContext(MyContext);
+  if (!context) {
+    throw new Error("useMyContext must be used within MyProvider");
+  }
+  return context;
+}
+```
+
+### 2. Context 类型定义
+
+使用 `@typedef` 定义完整的 Context 值类型：
+
+```javascript
+/**
+ * @typedef {Object} ConversationContextValue
+ * @property {Record<string, ConversationBranch>} branches - 所有分支
+ * @property {ConversationBranch[]} branchList - 分支列表
+ * @property {string} activeBranchId - 当前活动分支 ID
+ * @property {ConversationBranch} activeBranch - 当前活动分支
+ * @property {(input?: CreateBranchInput) => ConversationBranch | null} createBranch - 创建分支
+ * @property {(branchId: string) => ConversationBranch | null} switchBranch - 切换分支
+ */
+```
+
+### 3. Context Provider 实现
+
+```javascript
+/**
+ * @param {{ children: React.ReactNode }} props
+ */
+export function ConversationProvider({ children }) {
+  // 使用函数初始化复杂状态
+  const [branches, setBranches] = useState(() => {
+    const root = createRootBranch();
+    return { [root.id]: root };
+  });
+  
+  // 使用 useMemo 优化 context 值
+  const contextValue = useMemo(() => ({
+    branches,
+    branchList: Object.values(branches),
+    activeBranchId,
+    activeBranch: branches[activeBranchId],
+    createBranch,
+    switchBranch,
+  }), [branches, activeBranchId, createBranch, switchBranch]);
+  
+  return (
+    <ConversationContext.Provider value={contextValue}>
+      {children}
+    </ConversationContext.Provider>
+  );
+}
+```
+
+## 自定义 Hooks
+
+### 1. Hook 定义格式
+
+```javascript
+/**
+ * Hook 功能描述
+ * 
+ * @returns {HookReturnType}
+ */
+export function useCustomHook() {
+  const [state, setState] = useState(initialState);
+  
+  const action = useCallback(() => {
+    // 操作逻辑
+  }, [dependencies]);
+  
+  return {
+    state,
+    action,
+  };
+}
+```
+
+### 2. Hook 类型定义
+
+```javascript
+/**
+ * @typedef {Object} ChatState
+ * @property {boolean} isConversationStarted - 对话是否已开始
+ * @property {number} messageCount - 消息数量
+ * @property {boolean} isCompactMode - 是否紧凑模式
+ */
+
+/**
+ * @returns {ChatState & {
+ *   startConversation: () => void;
+ *   incrementMessageCount: () => void;
+ *   clearConversation: () => void;
+ * }}
+ */
+export function useChatState() {
+  // 实现
+}
+```
+
+### 3. Hook 返回值
+
+```javascript
+// ✅ 返回对象，便于解构
+return {
+  ...state,
+  actions,
+  helpers,
+};
+
+// ✅ 使用 useMemo 优化返回值（如果包含复杂对象）
+return useMemo(() => ({
+  ...state,
+  actions,
+}), [state, actions]);
+```
+
+## 状态更新模式
+
+### 1. 使用函数式更新
+
+```javascript
+// ✅ 当新状态依赖于旧状态时，使用函数式更新
+setState(prev => ({
+  ...prev,
+  count: prev.count + 1,
+}));
+
+// ✅ 对于复杂状态，使用函数式更新
+setBranches(prev => ({
+  ...prev,
+  [newBranch.id]: newBranch,
+}));
+```
+
+### 2. 使用 useCallback 优化更新函数
+
+```javascript
+// ✅ 将更新函数包装在 useCallback 中
+const updateValue = useCallback((newValue) => {
+  setState(prev => ({
+    ...prev,
+    value: newValue,
+  }));
+}, []);
+
+// ✅ 如果依赖其他状态，在依赖数组中声明
+const updateWithDependency = useCallback((newValue) => {
+  setState(prev => ({
+    ...prev,
+    value: newValue + dependency,
+  }));
+}, [dependency]);
+```
+
+### 3. 批量更新
+
+```javascript
+// ✅ 在同一个事件处理中，React 会自动批量更新
+const handleMultipleUpdates = useCallback(() => {
+  setValue1("new1");
+  setValue2("new2");
+  setValue3("new3");
+  // React 会将这三个更新合并为一次重新渲染
+}, []);
+```
+
+## 性能优化
+
+### 1. 使用 useMemo 优化派生状态
+
+```javascript
+// ✅ 对于从其他状态计算得出的值，使用 useMemo
+const filteredItems = useMemo(() => {
+  return items.filter(item => item.category === selectedCategory);
+}, [items, selectedCategory]);
+
+// ✅ 对于对象和数组，使用 useMemo 避免不必要的重新创建
+const contextValue = useMemo(() => ({
+  value,
+  setValue,
+  action,
+}), [value, setValue, action]);
+```
+
+### 2. 使用 useCallback 优化函数引用
+
+```javascript
+// ✅ 传递给子组件的函数，使用 useCallback
+const handleClick = useCallback(() => {
+  // 处理逻辑
+}, [dependencies]);
+
+// ✅ Context 中提供的函数，使用 useCallback
+const createBranch = useCallback((input) => {
+  // 创建逻辑
+}, [dependencies]);
+```
+
+## 参考实现
+
+参考以下文件作为标准实现示例：
+- [contexts/conversation-context.jsx](mdc:contexts/conversation-context.jsx) - Context 实现示例
+- [contexts/diagram-context.jsx](mdc:contexts/diagram-context.jsx) - 图表状态管理
+- [hooks/use-chat-state.js](mdc:hooks/use-chat-state.js) - 简单 Hook 示例
+- [hooks/use-model-registry.js](mdc:hooks/use-model-registry.js) - 复杂 Hook 示例
+
+## 避免的实践
+
+- ❌ 在 Context 中存储大量数据（考虑使用状态管理库）
+- ❌ 在 Context 中直接暴露 setState（应该提供封装的方法）
+- ❌ 缺少错误检查（Context Hook 应该检查是否在 Provider 内）
+- ❌ 在 Hook 中直接修改外部状态（应该通过返回值提供方法）
+- ❌ 忘记在依赖数组中声明依赖项

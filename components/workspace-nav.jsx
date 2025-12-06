@@ -19,7 +19,7 @@ export function WorkspaceNav({ className }) {
             id: "diagram",
             href: "/",
             label: t("nav.workspace"),
-            description: "FlowPilot Studio",
+            description: "Figsci Studio",
             icon: Workflow,
         },
         {
@@ -42,7 +42,7 @@ export function WorkspaceNav({ className }) {
             <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2 text font-semibold text-slate-700">
                     <Sparkles className="h-4 w-4 text-blue-600" />
-                    FlowPilot Studio
+                    Figsci Studio
                 </div>
                 <div className="flex items-center gap-3">
                     <nav className="flex items-center gap-2">

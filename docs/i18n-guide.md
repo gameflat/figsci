@@ -2,7 +2,7 @@
 
 ## 概述
 
-FlowPilot 现已支持中文和英文双语切换，用户可以通过导航栏的语言切换按钮轻松切换界面语言。
+Figsci 现已支持中文和英文双语切换，用户可以通过导航栏的语言切换按钮轻松切换界面语言。
 
 ## 技术实现
 
@@ -144,7 +144,7 @@ newPage: {
 
 ## 语言偏好持久化
 
-用户的语言选择会自动保存到 localStorage，键名为 `flowpilot-locale`。下次访问时会自动恢复用户的语言偏好。
+用户的语言选择会自动保存到 localStorage，键名为 `Figsci-locale`。下次访问时会自动恢复用户的语言偏好。
 
 ## 性能优化
 
@@ -165,4 +165,4 @@ newPage: {
 
 1. 确认 `LocaleProvider` 已在应用的根组件中正确包裹
 2. 检查浏览器控制台是否有错误
-3. 清除 localStorage 中的 `flowpilot-locale` 键，重新测试
+3. 清除 localStorage 中的 `Figsci-locale` 键，重新测试

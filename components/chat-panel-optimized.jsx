@@ -35,15 +35,15 @@ import { buildSvgRootXml } from "@/lib/svg";
 import { QuickActionBar } from "@/components/quick-action-bar";
 import { FlowShowcaseGallery } from "./flow-showcase-gallery";
 import {
-  FlowPilotBriefLauncher,
-  FlowPilotBriefDialog,
+  FigsciBriefLauncher,
+  FigsciBriefDialog,
   DEFAULT_BRIEF_STATE,
   FOCUS_OPTIONS,
   INTENT_OPTIONS,
   TONE_OPTIONS,
   DIAGRAM_TYPE_OPTIONS,
-  FLOWPILOT_FREEFORM_PROMPT
-} from "./flowpilot-brief";
+  Figsci_FREEFORM_PROMPT
+} from "./figsci-brief";
 import { ReportBlueprintTray } from "./report-blueprint-tray";
 import { CalibrationConsole } from "./calibration-console";
 import { useChatState } from "@/hooks/use-chat-state";
@@ -52,7 +52,7 @@ import { ModelComparisonConfigDialog } from "@/components/model-comparison-confi
 import { IntelligenceToolbar } from "@/features/chat-panel/components/intelligence-toolbar";
 import { ToolPanelSidebar } from "@/features/chat-panel/components/tool-panel-sidebar";
 import {
-  FLOWPILOT_AI_CALIBRATION_PROMPT,
+  Figsci_AI_CALIBRATION_PROMPT,
   FLOW_SHOWCASE_PRESETS,
   QUICK_ACTIONS
 } from "@/features/chat-panel/constants";
@@ -265,7 +265,7 @@ function ChatPanelOptimized({
   const briefContext = useMemo(() => {
     if (briefMode === "free") {
       return {
-        prompt: FLOWPILOT_FREEFORM_PROMPT,
+        prompt: Figsci_FREEFORM_PROMPT,
         badges: [
           "自由·AI 自主选型",
           "默认·干净美观"
@@ -309,7 +309,7 @@ function ChatPanelOptimized({
         (item) => badges.push(`图型·${item.title}`)
       );
     }
-    const prompt = segments.length > 0 ? `### FlowPilot Brief\\n${segments.map((segment) => `- ${segment}`).join("\\n")}` : "";
+    const prompt = segments.length > 0 ? `### Figsci Brief\\n${segments.map((segment) => `- ${segment}`).join("\\n")}` : "";
     return { prompt, badges, mode: briefMode };
   }, [briefMode, briefState]);
   const briefDisplayBadges = briefContext.badges.length > 0 ? briefContext.badges : briefMode === "free" ? [
@@ -735,7 +735,7 @@ ${input}` : input;
           {
             type: "text",
             // 用户看到的是简化版本
-            text: userVisibleMessage + "\n\n---\n\n" + FLOWPILOT_AI_CALIBRATION_PROMPT
+            text: userVisibleMessage + "\n\n---\n\n" + Figsci_AI_CALIBRATION_PROMPT
           }
         ]
       },
@@ -946,7 +946,7 @@ ${input}` : input;
   const renderToolPanel = () => {
     if (!activeToolPanel) return null;
     if (activeToolPanel === "brief") {
-      return <FlowPilotBriefLauncher
+      return <FigsciBriefLauncher
         state={briefState}
         onChange={(next) => setBriefState((prev) => ({ ...prev, ...next }))}
         disabled={status === "streaming"}
@@ -1081,7 +1081,7 @@ ${input}` : input;
                     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
                         {!selectedModel && <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-2 text-sm text-amber-900">
                                 <div>
-                                    FlowPilot 需要至少配置一个模型接口才能开始生成，请先填写 Base URL、API Key 与模型 ID。
+                                    Figsci 需要至少配置一个模型接口才能开始生成，请先填写 Base URL、API Key 与模型 ID。
                                 </div>
                                 <Button
     type="button"
@@ -1165,37 +1165,6 @@ ${input}` : input;
 
                 <div className="absolute bottom-3 left-0 right-0 z-10 w-full px-3">
                     <div className="flex w-full flex-col gap-1.5">
-                        {briefDisplayBadges.length > 0 && <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-slate-200/60 bg-white/80 px-3 py-1.5 text-[11px] text-slate-500 shadow-lg backdrop-blur-md transition-all hover:bg-white/90">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/5 px-2 py-0.5 font-semibold uppercase tracking-[0.25em] text-slate-600">
-                                    <Sparkles className="h-3 w-3 text-amber-500" />
-                                    Brief
-                                </span>
-                                <div
-    className="flex min-w-0 max-w-[300px] items-center gap-1 overflow-hidden whitespace-nowrap pr-1"
-    title={briefDisplayBadges.join(" · ")}
-  >
-                                    {briefDisplayBadges.map((badge, index) => <span
-    key={`${badge}-${index}`}
-    className={cn(
-      "shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-      briefTagTone(badge)
-    )}
-  >
-                                            {badge}
-                                        </span>)}
-                                </div>
-                                <button
-    type="button"
-    onClick={handleOpenBriefPanel}
-    disabled={status === "streaming"}
-    className={cn(
-      "shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 transition hover:border-slate-400",
-      status === "streaming" && "cursor-not-allowed opacity-50 hover:border-slate-200"
-    )}
-  >
-                                    调整
-                                </button>
-                            </div>}
                         <div className="rounded-2xl shadow-xl">
                             <ChatInputOptimized
     input={input}
@@ -1295,7 +1264,7 @@ ${input}` : input;
                     <DialogHeader>
                         <DialogTitle>交流联系</DialogTitle>
                         <DialogDescription>
-                            如果你在使用 FlowPilot 或图表创作时遇到问题、希望一起探讨方案，
+                            如果你在使用 Figsci 或图表创作时遇到问题、希望一起探讨方案，
                             欢迎通过微信联系我。
                         </DialogDescription>
                     </DialogHeader>
@@ -1330,7 +1299,7 @@ ${input}` : input;
                     </div>
                 </DialogContent>
             </Dialog>
-            <FlowPilotBriefDialog
+            <FigsciBriefDialog
     open={isBriefDialogOpen}
     onOpenChange={setIsBriefDialogOpen}
     state={briefState}

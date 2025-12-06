@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Conversational diagram generation with AI
 - Real-time draw.io diagram preview
 - Style replication from reference images
-- Configurable drawing preferences (FlowPilot Brief)
+- Configurable drawing preferences (Figsci Brief)
 - Multi-model comparison (up to 5 models)
 - Support for multiple LLM providers:
   - OpenAI (GPT-4, GPT-3.5)
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation
 
 ### Changed
-- Renamed project from "next-ai-draw-io" to "FlowPilot"
+- Renamed project from "next-ai-draw-io" to "Figsci"
 - Updated model provider naming for better generalization
 - Improved environment variable configuration
 
@@ -54,4 +54,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-For more details about each release, see the [releases page](https://github.com/yourusername/flowpilot/releases).
+For more details about each release, see the [releases page](https://github.com/yourusername/Figsci/releases).

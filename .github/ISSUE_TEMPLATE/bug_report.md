@@ -26,7 +26,7 @@ If applicable, add screenshots to help explain your problem.
  - OS: [e.g. macOS, Windows, Linux]
  - Browser: [e.g. Chrome, Safari, Firefox]
  - Node Version: [e.g. 18.17.0]
- - FlowPilot Version: [e.g. 1.0.0]
+ - Figsci Version: [e.g. 1.0.0]
 
 **LLM Provider:**
  - Provider: [e.g. OpenAI, Claude, Gemini]

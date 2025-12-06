@@ -62,7 +62,7 @@ function XmlCodePanel() {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = "flowpilot-diagram.xml";
+        anchor.download = "Figsci-diagram.xml";
         anchor.click();
         URL.revokeObjectURL(url);
     };
@@ -100,7 +100,7 @@ function XmlCodePanel() {
                             XML 代码实时预览
                         </h2>
                         <p className="text-sm text-slate-500">
-                            FlowPilot 会将 draw.io 画布中的最新 mxGraph XML
+                            Figsci 会将 draw.io 画布中的最新 mxGraph XML
                             同步到此处，方便调试、复制或集成其他系统。
                         </p>
                     </div>

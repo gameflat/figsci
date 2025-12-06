@@ -1,5 +1,5 @@
 import { FileText, Settings, Zap } from "lucide-react";
-const FLOWPILOT_AI_CALIBRATION_PROMPT = `### FlowPilot \u6821\u51C6\u8231 \xB7 AI \u91CD\u6392\u6307\u4EE4
+const Figsci_AI_CALIBRATION_PROMPT = `### Figsci \u6821\u51C6\u8231 \xB7 AI \u91CD\u6392\u6307\u4EE4
 \u6211\u4EEC\u9700\u8981\u5728\u4E0D\u6539\u53D8\u8282\u70B9\u8BED\u4E49\u7684\u524D\u63D0\u4E0B\uFF0C\u5229\u7528\u5F53\u524D draw.io XML \u5BF9\u56FE\u8868\u505A\u4E00\u6B21\u300C\u7248\u5F0F\u91CD\u6392\u300D\u3002\u76EE\u6807\uFF1A\u4FDD\u6301\u5355\u9875\u5C55\u793A (x:0-800, y:0-600)\uFF0C\u8BA9\u4E3B\u6D41\u7A0B\u66F4\u7A81\u51FA\u3001\u6CF3\u9053/\u5206\u533A\u66F4\u89C4\u6574\uFF0C\u7BAD\u5934\u95F4\u8DDD\u66F4\u5E72\u51C0\u3002
 
 \u786C\u6027\u8981\u6C42\uFF1A
@@ -19,7 +19,7 @@ const TOOLBAR_ACTIONS = {
   brief: {
     label: "\u914D\u7F6E",
     icon: Settings,
-    description: "\u8C03\u6574 FlowPilot Brief \u504F\u597D"
+    description: "\u8C03\u6574 Figsci Brief \u504F\u597D"
   },
   calibration: {
     label: "\u6821\u51C6",
@@ -182,7 +182,7 @@ const FLOW_SHOWCASE_PRESETS = [
   }
 ];
 export {
-  FLOWPILOT_AI_CALIBRATION_PROMPT,
+  Figsci_AI_CALIBRATION_PROMPT,
   FLOW_SHOWCASE_PRESETS,
   QUICK_ACTIONS,
   TOOLBAR_ACTIONS,

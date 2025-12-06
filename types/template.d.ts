@@ -53,7 +53,7 @@
  * @property {string} icon
  * @property {TemplateGradient} gradient
  * @property {string} prompt
- * @property {import("@/components/flowpilot-brief").FlowPilotBriefState} brief
+ * @property {import("@/components/figsci-brief").FigsciBriefState} brief
  * @property {string} estimatedTime
  * @property {number} [usageCount]
  * @property {string} [createdAt]

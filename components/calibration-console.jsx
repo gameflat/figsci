@@ -47,7 +47,7 @@ export function CalibrationConsole({
                 <div>
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                         <Sparkles className="h-4 w-4 text-amber-500" />
-                        FlowPilot 校准舱
+                        Figsci 校准舱
                     </div>
                     <p className="text-sm text-slate-500 mt-1">
                         {helperText}

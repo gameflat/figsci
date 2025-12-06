@@ -1,0 +1,247 @@
+---
+alwaysApply: true
+description: 文件命名规范和代码组织约定
+---
+
+# 文件命名规范
+
+## 基本原则
+
+1. **使用 kebab-case（短横线命名）** 作为文件名的标准格式
+2. **文件名应该清晰表达文件内容**，便于快速识别
+3. **遵循项目既定的命名约定**，保持一致性
+
+## 文件命名约定
+
+### 1. React 组件文件
+
+```bash
+# ✅ 组件文件使用 kebab-case，扩展名为 .jsx
+components/
+  chat-panel-optimized.jsx
+  model-config-dialog.jsx
+  template-gallery.jsx
+  workspace-nav.jsx
+
+# ✅ UI 基础组件也使用 kebab-case
+components/ui/
+  button.jsx
+  dialog.jsx
+  input.jsx
+```
+
+### 2. Context 文件
+
+```bash
+# ✅ Context 文件使用 kebab-case，以 -context.jsx 结尾
+contexts/
+  conversation-context.jsx
+  diagram-context.jsx
+  svg-editor-context.jsx
+  locale-context.jsx
+```
+
+### 3. Hook 文件
+
+```bash
+# ✅ Hook 文件使用 kebab-case，以 use- 开头，扩展名为 .js
+hooks/
+  use-chat-state.js
+  use-drawio-fallback.js
+  use-model-registry.js
+  use-drawio-diagnostics.js
+```
+
+### 4. API 路由文件
+
+```bash
+# ✅ Next.js API 路由使用 route.js
+app/api/
+  chat/route.js
+  diagram-repair/route.js
+  model-compare/route.js
+  models/route.js
+```
+
+### 5. 工具库文件
+
+```bash
+# ✅ 工具库文件使用 kebab-case，扩展名为 .js
+lib/
+  server-models.js
+  diagram-validation.js
+  diagram-repair-client.js
+  env-models.js
+  prompts.js
+  svg.js
+  utils.js
+```
+
+### 6. 类型定义文件
+
+```bash
+# ✅ TypeScript 类型文件使用 kebab-case
+types/
+  model-config.d.ts
+  model-config.js
+  template.d.ts
+  template.js
+  comparison.d.ts
+  comparison.js
+```
+
+### 7. 功能模块文件
+
+```bash
+# ✅ 功能模块内部文件使用 kebab-case
+features/
+  chat-panel/
+    components/
+      intelligence-toolbar.jsx
+      tool-panel-sidebar.jsx
+    hooks/
+      use-comparison-workbench.js
+      use-diagram-orchestrator.js
+    utils/
+      attachments.js
+      messages.js
+    constants.js
+    types.js
+```
+
+### 8. 页面文件
+
+```bash
+# ✅ Next.js 页面文件使用 page.jsx
+app/
+  page.jsx
+  xml/page.jsx
+  ppt/page.jsx
+```
+
+## 组件导出命名
+
+### 1. 组件名称
+
+```javascript
+// ✅ 组件名称使用 PascalCase，与文件名对应
+// 文件：chat-panel-optimized.jsx
+export function ChatPanelOptimized() {
+  // ...
+}
+
+// 文件：model-config-dialog.jsx
+export function ModelConfigDialog() {
+  // ...
+}
+```
+
+### 2. Hook 名称
+
+```javascript
+// ✅ Hook 名称使用 camelCase，以 use 开头
+// 文件：use-chat-state.js
+export function useChatState() {
+  // ...
+}
+
+// 文件：use-model-registry.js
+export function useModelRegistry() {
+  // ...
+}
+```
+
+### 3. Context 名称
+
+```javascript
+// ✅ Context Provider 使用 PascalCase
+// 文件：conversation-context.jsx
+export function ConversationProvider() {
+  // ...
+}
+
+// ✅ Context Hook 使用 camelCase，以 use 开头
+export function useConversationManager() {
+  // ...
+}
+```
+
+## 目录结构约定
+
+### 1. 功能模块组织
+
+```bash
+# ✅ 功能模块应该包含完整的子目录结构
+features/
+  chat-panel/
+    components/     # 功能特定的组件
+    hooks/         # 功能特定的 Hooks
+    utils/         # 功能特定的工具函数
+    constants.js   # 功能特定的常量
+    types.js       # 功能特定的类型定义
+```
+
+### 2. 共享资源组织
+
+```bash
+# ✅ 共享资源按类型组织
+components/        # 可复用的 UI 组件
+contexts/          # 全局状态管理
+hooks/             # 可复用的 Hooks
+lib/               # 工具库和工具函数
+types/             # 全局类型定义
+```
+
+## 特殊文件命名
+
+### 1. 备份文件
+
+```bash
+# ✅ 备份文件使用 .bak 或 .backup 后缀
+components/
+  model-config-dialog.tsx.backup
+  svg-studio.jsx.bak
+  svg-studio.jsx.bak2
+```
+
+### 2. 配置文件
+
+```bash
+# ✅ 配置文件使用标准名称
+components.json
+package.json
+next.config.mjs
+postcss.config.mjs
+jsconfig.json
+tsconfig.json
+```
+
+### 3. 文档文件
+
+```bash
+# ✅ 文档文件使用 kebab-case，扩展名为 .md
+docs/
+  architecture.md
+  i18n-guide.md
+  quick-reference.md
+README.md
+README_CN.md
+CHANGELOG.md
+CONTRIBUTING.md
+```
+
+## 避免的命名
+
+- ❌ 使用 camelCase 作为文件名（如 `chatPanel.jsx`）
+- ❌ 使用 PascalCase 作为文件名（如 `ChatPanel.jsx`）
+- ❌ 使用下划线命名（如 `chat_panel.jsx`）
+- ❌ 文件名过于简短或模糊（如 `utils.js`，应该更具体）
+- ❌ 文件名与导出名称不一致（文件名和导出应该对应）
+
+## 参考示例
+
+参考项目中的实际文件命名：
+- [components/chat-panel-optimized.jsx](mdc:components/chat-panel-optimized.jsx)
+- [contexts/conversation-context.jsx](mdc:contexts/conversation-context.jsx)
+- [hooks/use-chat-state.js](mdc:hooks/use-chat-state.js)
+- [app/api/chat/route.js](mdc:app/api/chat/route.js)

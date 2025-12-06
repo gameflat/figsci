@@ -10,7 +10,7 @@ import { MODEL_COMPARE_SYSTEM_PROMPT_XML, MODEL_COMPARE_SYSTEM_PROMPT_SVG } from
  * 构建用户提示，将用户指令、当前 XML 和 Brief 组织成结构化的提示文本
  * @param {string} prompt - 用户的最新指令
  * @param {string} xml - 当前画布上的 XML（可选）
- * @param {string} brief - FlowPilot Brief 内容（可选）
+ * @param {string} brief - Figsci Brief 内容（可选）
  * @param {string} [renderMode="drawio"] - 渲染模式："drawio" 或 "svg"
  * @returns {string} 格式化后的用户提示文本
  */
@@ -147,7 +147,7 @@ async function exportDiagramPreview(xml) {
  * - models: 模型配置数组（必需），每个模型包含 id、label、runtime
  * - prompt: 用户指令（必需）
  * - xml: 当前画布 XML（可选）
- * - brief: FlowPilot Brief 内容（可选）
+ * - brief: Figsci Brief 内容（可选）
  * - attachments: 附件数组（可选）
  * - renderMode: 渲染模式，"drawio" 或 "svg"（默认 "drawio"）
  * 

@@ -16,7 +16,7 @@ const DIAGRAM_TEMPLATES = [
     estimatedTime: "5 \u5206\u949F",
     usageCount: 1247,
     rating: 4.8,
-    author: "FlowPilot \u56E2\u961F",
+    author: "Figsci \u56E2\u961F",
     useCases: [
       "\u4EBA\u529B\u8D44\u6E90\u90E8\u95E8\u6807\u51C6\u5316\u5165\u804C\u6D41\u7A0B",
       "\u8DE8\u90E8\u95E8\u534F\u4F5C\u5165\u804C\u9879\u76EE\u7BA1\u7406",

@@ -1,13 +1,13 @@
 ---
 alwaysApply: true
-description: FlowPilot 项目结构和架构指南
+description: Figsci 项目结构和架构指南
 ---
 
-# FlowPilot 项目结构指南
+# Figsci 项目结构指南
 
 ## 项目概述
 
-FlowPilot 是一个基于 Next.js 的 AI 驱动图表创建工具，提供"边聊边画"的交互体验。
+Figsci 是一个基于 Next.js 的 AI 驱动图表创建工具，提供"边聊边画"的交互体验。
 
 ## 目录结构
 

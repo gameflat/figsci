@@ -1,11 +1,11 @@
-# Contributing to FlowPilot
+# Contributing to Figsci
 
-Thank you for your interest in contributing to FlowPilot! We welcome contributions from the community.
+Thank you for your interest in contributing to Figsci! We welcome contributions from the community.
 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/yourusername/flowpilot.git`
+2. Clone your fork: `git clone https://github.com/yourusername/Figsci.git`
 3. Create a new branch: `git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes locally
@@ -74,4 +74,4 @@ Feel free to open an issue for any questions or discussions.
 
 ## License
 
-By contributing to FlowPilot, you agree that your contributions will be licensed under the MIT License.
+By contributing to Figsci, you agree that your contributions will be licensed under the MIT License.

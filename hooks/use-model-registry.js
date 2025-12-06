@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { nanoid } from "nanoid";
 import { getDefaultEndpoints } from "@/lib/env-models.js";
 
-const STORAGE_KEY = "flowpilot.modelRegistry.v1";
+const STORAGE_KEY = "Figsci.modelRegistry.v1";
 
 /**
  * @param {string} baseUrl
