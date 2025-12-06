@@ -175,8 +175,34 @@ function ChatPanelOptimized({
     selectedModelKey,
     selectedModel,
     selectModel,
-    saveEndpoints
+    saveEndpoints,
+    isSelectedSystemModel
   } = useModelRegistry();
+  
+  // 生成请求体中的模型配置
+  // 系统模型：发送 useSystemModel + systemModelId
+  // 自定义模型：发送完整的 modelRuntime
+  const buildModelRequestBody = useCallback(
+    (model) => {
+      if (!model) {
+        return {};
+      }
+      
+      if (model.isSystemModel) {
+        // 系统模型：只发送模型标识，服务端从环境变量获取配置
+        return {
+          useSystemModel: true,
+          systemModelId: model.modelId,
+        };
+      }
+      
+      // 自定义模型：发送完整配置
+      return {
+        modelRuntime: model,
+      };
+    },
+    []
+  );
   const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
   const hasPromptedModelSetup = useRef(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
@@ -560,7 +586,7 @@ function ChatPanelOptimized({
         {
           body: {
             xml: chartXml,
-            modelRuntime: selectedModel,
+            ...buildModelRequestBody(selectedModel),
             enableStreaming: streamingFlag,
             renderMode
           }
@@ -569,7 +595,7 @@ function ChatPanelOptimized({
     } catch (error2) {
       console.error("重试生成失败：", error2);
     }
-  }, [status, stop, messages, setMessages, sendMessage, onFetchChart, selectedModel, renderMode]);
+  }, [status, stop, messages, setMessages, sendMessage, onFetchChart, selectedModel, renderMode, buildModelRequestBody]);
   const handleCopyWechat = useCallback(async () => {
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -678,7 +704,7 @@ ${input}` : input;
           {
             body: {
               xml: chartXml,
-              modelRuntime: selectedModel,
+              ...buildModelRequestBody(selectedModel),
               enableStreaming: streamingFlag,
               renderMode
             }
@@ -742,7 +768,7 @@ ${input}` : input;
       {
         body: {
           xml: chartXml,
-          modelRuntime: selectedModel,
+          ...buildModelRequestBody(selectedModel),
           enableStreaming: streamingFlag,
           renderMode
         }

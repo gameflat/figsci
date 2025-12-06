@@ -8,7 +8,7 @@ import React, {
     useCallback,
 } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Check, Database, Zap, FileText } from "lucide-react";
+import { ChevronDown, Check, Database, Zap, FileText, Shield, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -142,12 +142,29 @@ export function ModelSelector({
 
     const groupedModels = useMemo(() => {
         const map = new Map();
-        models.forEach((model) => {
+        // 分离系统模型和自定义模型
+        const systemModels = models.filter((m) => m.isSystemModel);
+        const customModels = models.filter((m) => !m.isSystemModel);
+        
+        // 先添加系统模型组
+        if (systemModels.length > 0) {
+            map.set("system", {
+                endpointId: "system",
+                endpointName: "系统内置",
+                providerHint: "免配置",
+                isSystem: true,
+                items: systemModels,
+            });
+        }
+        
+        // 再添加自定义模型组
+        customModels.forEach((model) => {
             if (!map.has(model.endpointId)) {
                 map.set(model.endpointId, {
                     endpointId: model.endpointId,
                     endpointName: model.endpointName,
                     providerHint: model.providerHint,
+                    isSystem: false,
                     items: [],
                 });
             }
@@ -197,7 +214,11 @@ export function ModelSelector({
                 <span className="flex items-center gap-2 truncate">
                     {!selectedModel && <Database className="h-3.5 w-3.5" />}
                     {selectedModel && (
-                        isStreaming ? (
+                        selectedModel.isSystemModel ? (
+                            <span title="系统内置模型">
+                                <Shield className="h-3.5 w-3.5 text-emerald-500" />
+                            </span>
+                        ) : isStreaming ? (
                             <span title="流式输出">
                                 <Zap className="h-3.5 w-3.5 text-blue-500" />
                             </span>
@@ -254,9 +275,22 @@ export function ModelSelector({
                                 <div className="max-h-80 overflow-y-auto py-2">
                                     {groupedModels.map((group) => (
                                         <div key={group.endpointId} className="py-1">
-                                            <div className="px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
-                                                {group.endpointName}
-                                                <span className="ml-1 text-[10px] uppercase text-slate-300">
+                                            <div className={cn(
+                                                "px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.3em]",
+                                                group.isSystem ? "text-emerald-600" : "text-slate-400"
+                                            )}>
+                                                <span className="flex items-center gap-1.5">
+                                                    {group.isSystem ? (
+                                                        <Shield className="h-3 w-3" />
+                                                    ) : (
+                                                        <User className="h-3 w-3" />
+                                                    )}
+                                                    {group.endpointName}
+                                                </span>
+                                                <span className={cn(
+                                                    "ml-1 text-[10px] uppercase",
+                                                    group.isSystem ? "text-emerald-400" : "text-slate-300"
+                                                )}>
                                                     {group.providerHint}
                                                 </span>
                                             </div>
@@ -266,7 +300,8 @@ export function ModelSelector({
                                                     className={cn(
                                                         "flex w-full flex-col items-start gap-2 px-4 py-2 text-left text-sm transition hover:bg-slate-50",
                                                         selectedModelKey === model.key &&
-                                                            "bg-slate-900/5"
+                                                            "bg-slate-900/5",
+                                                        model.isSystemModel && "border-l-2 border-emerald-200"
                                                     )}
                                                 >
                                                     <button
@@ -283,7 +318,11 @@ export function ModelSelector({
                                                         className="flex w-full items-center justify-between"
                                                     >
                                                         <div className="flex items-center gap-2">
-                                                            {model.isStreaming ? (
+                                                            {model.isSystemModel ? (
+                                                                <span title="系统内置模型" className="flex items-center">
+                                                                    <Shield className="h-3.5 w-3.5 text-emerald-500" />
+                                                                </span>
+                                                            ) : model.isStreaming ? (
                                                                 <span title="流式输出">
                                                                     <Zap className="h-3.5 w-3.5 text-blue-500" />
                                                                 </span>
@@ -295,6 +334,11 @@ export function ModelSelector({
                                                             <span className="font-medium text-slate-900">
                                                                 {model.label || model.modelId}
                                                             </span>
+                                                            {model.isSystemModel && (
+                                                                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                                                                    免配置
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         {selectedModelKey === model.key && (
                                                             <Check className="h-4 w-4 text-slate-900" />
@@ -303,8 +347,14 @@ export function ModelSelector({
                                                     <div className="ml-5 text-xs font-mono text-slate-400">
                                                         {model.modelId}
                                                     </div>
-                                                    {/* 流式输出开关 */}
-                                                    {onModelStreamingChange && (
+                                                    {/* 系统模型显示描述 */}
+                                                    {model.isSystemModel && model.description && (
+                                                        <div className="ml-5 text-xs text-slate-500">
+                                                            {model.description}
+                                                        </div>
+                                                    )}
+                                                    {/* 流式输出开关（仅自定义模型显示） */}
+                                                    {!model.isSystemModel && onModelStreamingChange && (
                                                         <div className="ml-5 flex items-center gap-2 text-xs">
                                                             <span className="text-slate-600">流式输出:</span>
                                                             <Switch

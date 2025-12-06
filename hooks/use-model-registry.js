@@ -6,6 +6,13 @@ import { getDefaultEndpoints } from "@/lib/env-models.js";
 
 const STORAGE_KEY = "Figsci.modelRegistry.v1";
 
+// 系统模型端点 ID 常量
+const SYSTEM_ENDPOINT_ID = "system";
+
+/**
+ * @typedef {import("@/types/model-config.js").SystemModelInfo} SystemModelInfo
+ */
+
 /**
  * @param {string} baseUrl
  * @returns {string}
@@ -120,8 +127,31 @@ const flattenModels = (endpoints) => {
             endpointName: endpoint.name,
             providerHint: deriveProviderHint(endpoint.baseUrl),
             isStreaming: model.isStreaming ?? false, // 添加流式配置
+            isSystemModel: false, // 标记为非系统模型
         }))
     );
+};
+
+/**
+ * 将系统模型转换为运行时选项
+ * @param {SystemModelInfo[]} systemModels
+ * @returns {RuntimeModelOption[]}
+ */
+const flattenSystemModels = (systemModels) => {
+    return systemModels.map((model) => ({
+        key: buildModelKey(SYSTEM_ENDPOINT_ID, model.id),
+        modelId: model.id,
+        label: model.label,
+        description: model.description,
+        // 系统模型不需要在客户端存储这些信息
+        baseUrl: "",
+        apiKey: "",
+        endpointId: SYSTEM_ENDPOINT_ID,
+        endpointName: "系统内置",
+        providerHint: "System",
+        isStreaming: model.isStreaming ?? true,
+        isSystemModel: true, // 标记为系统模型
+    }));
 };
 
 // Default configuration
@@ -150,6 +180,11 @@ export function useModelRegistry() {
         selectedModelKey: undefined,
     });
     const [isReady, setIsReady] = useState(false);
+    
+    // 系统模型相关状态
+    const [systemModels, setSystemModels] = useState([]);
+    const [systemModelsEnabled, setSystemModelsEnabled] = useState(false);
+    const [systemModelsLoading, setSystemModelsLoading] = useState(true);
 
     /**
      * @param {(prev: ModelRegistryState) => ModelRegistryState} updater
@@ -164,6 +199,40 @@ export function useModelRegistry() {
         });
     }, []);
 
+    // 加载系统模型
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+        
+        const loadSystemModels = async () => {
+            try {
+                setSystemModelsLoading(true);
+                const response = await fetch("/api/system-models");
+                const data = await response.json();
+                
+                if (data.enabled && Array.isArray(data.models)) {
+                    setSystemModels(data.models);
+                    setSystemModelsEnabled(true);
+                    console.log("已加载系统内置模型:", data.models.length, "个");
+                } else {
+                    setSystemModels([]);
+                    setSystemModelsEnabled(false);
+                    console.log("系统内置模型未启用或无可用模型");
+                }
+            } catch (error) {
+                console.error("加载系统模型失败:", error);
+                setSystemModels([]);
+                setSystemModelsEnabled(false);
+            } finally {
+                setSystemModelsLoading(false);
+            }
+        };
+        
+        loadSystemModels();
+    }, []);
+
+    // 加载用户自定义模型配置
     useEffect(() => {
         if (typeof window === "undefined") {
             return;
@@ -233,9 +302,26 @@ export function useModelRegistry() {
         }
     }, []);
 
-    const models = useMemo(
+    // 合并系统模型和用户自定义模型
+    // 系统模型在前，用户自定义模型在后
+    const models = useMemo(() => {
+        const systemModelOptions = systemModelsEnabled 
+            ? flattenSystemModels(systemModels)
+            : [];
+        const userModelOptions = flattenModels(state.endpoints);
+        return [...systemModelOptions, ...userModelOptions];
+    }, [state.endpoints, systemModels, systemModelsEnabled]);
+    
+    // 仅用户自定义模型
+    const userModels = useMemo(
         () => flattenModels(state.endpoints),
         [state.endpoints]
+    );
+    
+    // 仅系统模型
+    const systemModelOptions = useMemo(
+        () => systemModelsEnabled ? flattenSystemModels(systemModels) : [],
+        [systemModels, systemModelsEnabled]
     );
 
     /**
@@ -246,6 +332,7 @@ export function useModelRegistry() {
             if (!modelKey) return;
             const exists = models.some((model) => model.key === modelKey);
             if (!exists) {
+                console.warn("尝试选择不存在的模型:", modelKey);
                 return;
             }
             setAndPersist((prev) => ({
@@ -254,6 +341,20 @@ export function useModelRegistry() {
             }));
         },
         [models, setAndPersist]
+    );
+    
+    /**
+     * 检查当前选择的是否为系统模型
+     * @param {string} [modelKey]
+     * @returns {boolean}
+     */
+    const isSelectedSystemModel = useCallback(
+        (modelKey) => {
+            const key = modelKey || state.selectedModelKey;
+            if (!key) return false;
+            return key.startsWith(`${SYSTEM_ENDPOINT_ID}:`);
+        },
+        [state.selectedModelKey]
     );
 
     /**
@@ -288,21 +389,46 @@ export function useModelRegistry() {
 
     const selectedModel = useMemo(() => {
         if (!state.selectedModelKey) {
+            // 如果没有选择模型，且有系统模型可用，返回第一个系统模型
+            if (systemModelsEnabled && systemModelOptions.length > 0) {
+                return systemModelOptions[0];
+            }
             return undefined;
         }
         return models.find((model) => model.key === state.selectedModelKey);
-    }, [models, state.selectedModelKey]);
+    }, [models, state.selectedModelKey, systemModelsEnabled, systemModelOptions]);
+    
+    // 当系统模型加载完成且当前没有选择模型时，自动选择第一个系统模型
+    useEffect(() => {
+        if (!systemModelsLoading && systemModelsEnabled && systemModelOptions.length > 0) {
+            // 如果当前没有选中的模型，或者选中的模型不存在
+            const currentSelection = models.find((m) => m.key === state.selectedModelKey);
+            if (!currentSelection) {
+                const firstSystemModel = systemModelOptions[0];
+                console.log("自动选择系统模型:", firstSystemModel.label);
+                setAndPersist((prev) => ({
+                    ...prev,
+                    selectedModelKey: firstSystemModel.key,
+                }));
+            }
+        }
+    }, [systemModelsLoading, systemModelsEnabled, systemModelOptions, models, state.selectedModelKey, setAndPersist]);
 
     return {
-        isReady,
+        isReady: isReady && !systemModelsLoading,
         hasConfiguredModels: models.length > 0,
+        hasUserModels: userModels.length > 0,
         endpoints: state.endpoints,
         models,
+        userModels,
+        systemModels: systemModelOptions,
+        systemModelsEnabled,
         selectedModelKey: state.selectedModelKey,
         selectedModel,
         selectModel,
         saveEndpoints,
         clearRegistry,
+        isSelectedSystemModel,
     };
 }
 

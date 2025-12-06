@@ -3,6 +3,8 @@
 import { generateText } from "ai";
 // resolveChatModel：根据前端传来的 runtime 配置解析出可直接调用的模型参数
 import { resolveChatModel } from "@/lib/server-models";
+// resolveSystemModel：解析系统内置模型配置
+import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/system-models";
 // 系统提示：从统一的 prompts 模块导入
 import { MODEL_COMPARE_SYSTEM_PROMPT_XML, MODEL_COMPARE_SYSTEM_PROMPT_SVG } from "@/lib/prompts";
 /**
@@ -186,17 +188,26 @@ async function POST(req) {
     }
     // 规范化模型配置数组
     // 1. 如果是字符串数组，转换为对象数组
-    // 2. 过滤掉无效的模型配置（必须有 id 和完整的 runtime 配置）
+    // 2. 支持系统模型（isSystemModel: true）和自定义模型（runtime 配置）
     const normalizedModels = (Array.isArray(models) ? models : []).map(
       (item) => typeof item === "string" ? { id: item } : item
     ).filter(
-      (item) => Boolean(
-        item?.id && item.id.trim().length > 0 && 
-        item?.runtime && 
-        typeof item.runtime.baseUrl === "string" && 
-        typeof item.runtime.apiKey === "string" && 
-        typeof item.runtime.modelId === "string"
-      )
+      (item) => {
+        if (!item?.id || item.id.trim().length === 0) {
+          return false;
+        }
+        // 系统模型：检查 isSystemModel 标志
+        if (item.isSystemModel) {
+          return isSystemModelsEnabled() && isSystemModel(item.id);
+        }
+        // 自定义模型：需要完整的 runtime 配置
+        return Boolean(
+          item?.runtime && 
+          typeof item.runtime.baseUrl === "string" && 
+          typeof item.runtime.apiKey === "string" && 
+          typeof item.runtime.modelId === "string"
+        );
+      }
     );
     
     // 验证至少需要一个有效的模型配置
@@ -238,7 +249,17 @@ async function POST(req) {
         const startTime = Date.now();
         try {
           // 解析模型配置，获取可直接调用的模型实例
-          const resolved = resolveChatModel(model.runtime);
+          // 系统模型：从服务端环境变量获取配置
+          // 自定义模型：使用客户端传入的 runtime 配置
+          let resolved;
+          if (model.isSystemModel) {
+            resolved = resolveSystemModel(model.id);
+            if (!resolved) {
+              throw new Error(`系统模型配置不完整: ${model.id}`);
+            }
+          } else {
+            resolved = resolveChatModel(model.runtime);
+          }
           
           // 调用模型生成图表（非流式，因为需要完整的 JSON 响应）
           const response = await generateText({

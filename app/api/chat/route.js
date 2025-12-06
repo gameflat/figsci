@@ -5,6 +5,8 @@ import { streamText, convertToModelMessages, generateText, createUIMessageStream
 import { z } from "zod/v3";
 // resolveChatModel：根据前端传来的 runtime 配置解析出可直接调用的模型参数
 import { resolveChatModel } from "@/lib/server-models";
+// resolveSystemModel：解析系统内置模型配置
+import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/system-models";
 // 系统提示词：从统一的 prompts 模块导入
 import { getSystemMessage } from "@/lib/prompts";
 // Next.js Route Handler 的最长执行时间（秒），避免 Vercel 上接口超时
@@ -178,18 +180,57 @@ async function POST(req) {
   try {
     // ========== 解析请求参数 ==========
     // 从请求体中解析所有参数
-    const { messages, xml, modelRuntime, enableStreaming, renderMode, isContinuation } = await req.json();
+    // useSystemModel: 是否使用系统内置模型
+    // systemModelId: 系统模型 ID（当 useSystemModel 为 true 时使用）
+    const { messages, xml, modelRuntime, enableStreaming, renderMode, isContinuation, useSystemModel, systemModelId } = await req.json();
     
     // 从请求头获取访问密码（用于服务器端配置模式）
     // 如果提供了访问密码，将使用服务器环境变量中的配置，而不是客户端配置
     const accessPassword = req.headers.get('x-access-password');
     
     // ========== 配置处理逻辑 ==========
-    // 支持两种配置模式：客户端配置和服务器端配置
-    let finalModelRuntime = modelRuntime;
+    // 支持三种配置模式：
+    // 1. 系统内置模型（useSystemModel: true）- 推荐方式
+    // 2. 访问密码模式（x-access-password）- 兼容旧版
+    // 3. 客户端自定义配置（modelRuntime）- 用户自己的 API Key
     
-    // 如果提供了访问密码，使用服务器端配置模式
-    if (accessPassword) {
+    let finalModelRuntime = modelRuntime;
+    let resolvedModel = null;
+    let isUsingSystemModel = false;
+    
+    // 模式1：使用系统内置模型
+    if (useSystemModel && systemModelId) {
+      // 检查系统模型功能是否启用
+      if (!isSystemModelsEnabled()) {
+        return Response.json(
+          { error: "系统内置模型功能未启用" },
+          { status: 400 }
+        );
+      }
+      
+      // 验证请求的模型是否为有效的系统模型
+      if (!isSystemModel(systemModelId)) {
+        return Response.json(
+          { error: `请求的系统模型不存在: ${systemModelId}` },
+          { status: 400 }
+        );
+      }
+      
+      // 解析系统模型配置（从服务端环境变量获取 API Key 等敏感信息）
+      resolvedModel = resolveSystemModel(systemModelId);
+      
+      if (!resolvedModel) {
+        return Response.json(
+          { error: "系统模型配置不完整，请检查服务端环境变量配置" },
+          { status: 500 }
+        );
+      }
+      
+      isUsingSystemModel = true;
+      console.log("使用系统内置模型:", systemModelId);
+    }
+    // 模式2：如果提供了访问密码，使用服务器端配置模式
+    else if (accessPassword) {
       // 从环境变量获取服务器配置的访问密码
       // ACCESS_PASSWORD 应在 .env.local 或部署环境中配置
       const envPassword = process.env.ACCESS_PASSWORD;
@@ -227,12 +268,13 @@ async function POST(req) {
           { status: 500 } // 500 Internal Server Error: 服务器配置不完整
         );
       }
-    } else {
-      // 客户端配置模式：验证必需的参数
-      // 如果未提供访问密码，则必须提供客户端配置
+    }
+    // 模式3：客户端配置模式
+    else {
+      // 如果未提供系统模型或访问密码，则必须提供客户端配置
       if (!modelRuntime) {
         return Response.json(
-          { error: "缺少模型配置。请提供 modelRuntime 或使用 x-access-password 请求头。" },
+          { error: "缺少模型配置。请选择系统模型、配置自定义模型，或使用 x-access-password 请求头。" },
           { status: 400 } // 400 Bad Request: 缺少必需参数
         );
       }
@@ -398,14 +440,18 @@ Render mode: ${outputMode === "svg" ? "svg-only" : "drawio-xml"}`;
       }
     }
     // 根据当前 runtime 解析出真正的模型 ID、baseUrl 与 provider 元信息
-    // 注意：这里使用 finalModelRuntime（可能是客户端配置或服务器端配置）
-    const resolvedModel = resolveChatModel(finalModelRuntime);
+    // 如果使用系统模型，resolvedModel 已经在前面解析过了
+    // 否则使用 finalModelRuntime（可能是客户端配置或服务器端配置）
+    if (!resolvedModel) {
+      resolvedModel = resolveChatModel(finalModelRuntime);
+    }
     // 调试日志：记录配置和消息信息
     console.log("Enhanced messages:", enhancedMessages, "model:", resolvedModel.id);
     console.log("Model runtime config:", {
-      baseUrl: finalModelRuntime.baseUrl,
-      modelId: finalModelRuntime.modelId,
-      hasApiKey: !!finalModelRuntime.apiKey,
+      modelId: resolvedModel.id,
+      isSystemModel: isUsingSystemModel,
+      baseUrl: isUsingSystemModel ? "[系统配置]" : finalModelRuntime?.baseUrl,
+      hasApiKey: isUsingSystemModel ? true : !!finalModelRuntime?.apiKey,
       enableStreaming: enableStreaming ?? true,
       renderMode: outputMode,
       isContinuation: isContinuation || false,

@@ -572,12 +572,26 @@ function useComparisonWorkbench({
     const modelsMeta = resolvedOptions.map(
       (option, index) => {
         const slot = slots[index] ?? "A";
-        return {
+        // 区分系统模型和自定义模型
+        const base = {
           key: option.key,
           id: option.modelId,
-          label: `${option.label || option.modelId} \xB7 \u6A21\u578B ${slot}`,
+          label: `${option.label || option.modelId} · 模型 ${slot}`,
           provider: option.providerHint,
           slot,
+        };
+        
+        // 系统模型：只传递 isSystemModel 标志，服务端从环境变量获取配置
+        if (option.isSystemModel) {
+          return {
+            ...base,
+            isSystemModel: true,
+          };
+        }
+        
+        // 自定义模型：传递完整的 runtime 配置
+        return {
+          ...base,
           runtime: {
             modelId: option.modelId,
             baseUrl: option.baseUrl,
@@ -607,14 +621,21 @@ ${input}` : input;
       let chartXml = await onFetchChart();
       const attachments = files.length > 0 ? await serializeAttachments(files) : [];
       const requestBody = {
-        models: modelsMeta.map((model) => ({
-          id: model.id,
-          key: model.key,
-          label: model.label,
-          provider: model.provider,
-          slot: model.slot,
-          runtime: model.runtime
-        })),
+        models: modelsMeta.map((model) => {
+          const base = {
+            id: model.id,
+            key: model.key,
+            label: model.label,
+            provider: model.provider,
+            slot: model.slot,
+          };
+          // 系统模型：传递 isSystemModel 标志
+          if (model.isSystemModel) {
+            return { ...base, isSystemModel: true };
+          }
+          // 自定义模型：传递 runtime 配置
+          return { ...base, runtime: model.runtime };
+        }),
         prompt: enrichedInput,
         xml: chartXml,
         brief: briefContext.prompt,
