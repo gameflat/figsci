@@ -1,0 +1,74 @@
+# ============================================
+# Docker 构建时忽略的文件和目录
+# ============================================
+
+# 依赖目录（在容器中重新安装）
+node_modules
+.pnpm-store
+
+# Next.js 构建产物（在容器中重新构建）
+.next
+out
+
+# 开发和测试文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# 环境变量文件（敏感信息不应包含在镜像中）
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE 和编辑器配置
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Git 相关
+.git
+.gitignore
+.gitattributes
+
+# 文档（非必要文件）
+docs
+*.md
+!README.md
+
+# 测试文件
+__tests__
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+coverage
+
+# 备份文件
+*.bak
+*.bak2
+*.backup
+
+# Docker 相关（避免递归）
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Cursor 配置
+.cursor
+
+# TypeScript 构建信息
+*.tsbuildinfo
+
+# 其他
+LICENSE
+CHANGELOG.md
+CONTRIBUTING.md
+
