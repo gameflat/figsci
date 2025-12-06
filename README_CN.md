@@ -136,6 +136,11 @@ AWS_REGION=us-east-1
 
 # 可选：自定义 draw.io 地址
 NEXT_PUBLIC_DRAWIO_BASE_URL=https://app.diagrams.net
+
+# 可选：玻尔平台光子扣费（详见文档）
+NEXT_PUBLIC_ENABLE_PHOTON_CHARGE=false
+BOHRIUM_SKU_ID=your-sku-id
+BOHRIUM_DEV_ACCESS_KEY=your-access-key
 ```
 
 ### 启动应用
@@ -220,6 +225,8 @@ Figsci 原生支持多个大模型服务商：
 
 - [架构指南](./docs/architecture.md) - 系统架构和设计决策
 - [国际化指南](./docs/i18n-guide.md) - 多语言实现说明
+- [玻尔平台光子扣费集成](./docs/bohrium-photon-integration.md) - 光子扣费功能完整指南
+- [光子扣费快速开始](./docs/bohrium-photon-quickstart.md) - 5 分钟快速配置
 
 ## 🎨 Figsci Brief 提示词说明
 

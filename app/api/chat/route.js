@@ -9,6 +9,147 @@ import { resolveChatModel } from "@/lib/server-models";
 import { getSystemMessage } from "@/lib/prompts";
 // Next.js Route Handler 的最长执行时间（秒），避免 Vercel 上接口超时
 const maxDuration = 60;
+
+/**
+ * 玻尔平台光子扣费辅助函数
+ * 
+ * 在 AI 生成完成后调用，根据 token 使用量或消息数量进行扣费
+ * 
+ * @param {Request} req - Next.js 请求对象（用于获取 Cookie）
+ * @param {Object} usage - Token 使用量信息
+ * @param {number} usage.inputTokens - 输入 token 数
+ * @param {number} usage.outputTokens - 输出 token 数
+ * @param {number} usage.totalTokens - 总 token 数
+ */
+async function chargePhotonIfEnabled(req, usage) {
+  // 检查是否启用光子扣费
+  const enablePhotonCharge = process.env.NEXT_PUBLIC_ENABLE_PHOTON_CHARGE === 'true';
+  
+  if (!enablePhotonCharge) {
+    console.log("光子扣费未启用，跳过扣费");
+    return;
+  }
+  
+  try {
+    // 计算扣费金额
+    // 可以根据业务需求调整计费规则，这里使用两种方式：
+    // 1. 基于 token 数量：每 1000 token 扣除 X 光子
+    // 2. 固定扣费：每次调用扣除 Y 光子
+    
+    const chargeMode = process.env.BOHRIUM_CHARGE_MODE || 'fixed'; // 'token' 或 'fixed'
+    let eventValue = 0;
+    
+    if (chargeMode === 'token') {
+      // 基于 token 数量计费
+      const chargePerKToken = parseFloat(process.env.BOHRIUM_CHARGE_PER_1K_TOKEN || '1');
+      const totalTokens = usage.totalTokens || 0;
+      eventValue = Math.ceil((totalTokens / 1000) * chargePerKToken);
+    } else {
+      // 固定扣费
+      eventValue = parseInt(process.env.BOHRIUM_CHARGE_PER_REQUEST || '1');
+    }
+    
+    // 如果计算出的扣费金额为 0 或负数，跳过扣费
+    if (eventValue <= 0) {
+      console.log("扣费金额为 0，跳过扣费");
+      return;
+    }
+    
+    // 获取用户 AK（从 Cookie）
+    const cookies = req.headers.get('cookie');
+    let accessKey = null;
+    let clientName = null;
+    
+    if (cookies) {
+      const cookieMap = Object.fromEntries(
+        cookies.split('; ').map(c => {
+          const [key, ...v] = c.split('=');
+          return [key, v.join('=')];
+        })
+      );
+      accessKey = cookieMap['appAccessKey'];
+      clientName = cookieMap['clientName'];
+    }
+    
+    // 如果没有用户 AK，使用开发者 AK（仅用于开发调试）
+    if (!accessKey) {
+      accessKey = process.env.BOHRIUM_DEV_ACCESS_KEY;
+      clientName = process.env.BOHRIUM_CLIENT_NAME;
+      console.warn("未从 Cookie 中获取到用户 AK，使用开发者 AK 进行调试");
+    }
+    
+    // 如果没有 AK，跳过扣费
+    if (!accessKey) {
+      console.warn("未配置 AK，跳过光子扣费");
+      return;
+    }
+    
+    // 获取 SKU ID
+    const skuId = process.env.BOHRIUM_SKU_ID;
+    if (!skuId) {
+      console.warn("未配置 BOHRIUM_SKU_ID，跳过光子扣费");
+      return;
+    }
+    
+    // 生成 bizNo
+    const bizNo = parseInt(`${Date.now()}${Math.floor(Math.random() * 10000)}`);
+    
+    // 调用光子扣费 API
+    const chargeUrl = "https://openapi.dp.tech/openapi/v1/api/integral/consume";
+    const requestBody = {
+      bizNo: bizNo,
+      changeType: 1,
+      eventValue: eventValue,
+      skuId: parseInt(skuId),
+      scene: "appCustomizeCharge"
+    };
+    
+    const headers = {
+      "accessKey": accessKey,
+      "Content-Type": "application/json"
+    };
+    
+    if (clientName) {
+      headers["x-app-key"] = clientName;
+    }
+    
+    console.log("发起光子扣费请求：", {
+      bizNo: bizNo,
+      eventValue: eventValue,
+      chargeMode: chargeMode,
+      tokenUsage: usage
+    });
+    
+    const response = await fetch(chargeUrl, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(requestBody)
+    });
+    
+    const responseText = await response.text();
+    let responseData;
+    
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      console.error("解析光子扣费响应失败：", responseText);
+      return;
+    }
+    
+    if (responseData.code === 0) {
+      console.log("光子扣费成功：", {
+        bizNo: bizNo,
+        eventValue: eventValue
+      });
+    } else {
+      console.error("光子扣费失败：", responseData);
+    }
+    
+  } catch (error) {
+    // 扣费失败不应该影响主流程，只记录错误
+    console.error("光子扣费异常（不影响主流程）：", error);
+  }
+}
 /**
  * POST /api/chat
  * Figsci 图表生成 API 路由
@@ -411,6 +552,15 @@ IMPORTANT: Keep edits concise:
             },
             durationMs
           });
+          
+          // ========== 光子扣费 ==========
+          // 在 AI 生成完成后进行光子扣费
+          // 使用 totalUsage 进行扣费，因为它包含了整个对话的 token 使用量
+          await chargePhotonIfEnabled(req, {
+            inputTokens: totalUsage.inputTokens,
+            outputTokens: totalUsage.outputTokens,
+            totalTokens: (totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)
+          });
         },
         // 提取 metadata 发送到客户端
         messageMetadata: ({ part }) => {
@@ -452,6 +602,15 @@ IMPORTANT: Keep edits concise:
         toolCalls: result.toolCalls?.length || 0,
         finishReason: result.finishReason
       });
+      
+      // ========== 光子扣费 ==========
+      // 在 AI 生成完成后进行光子扣费
+      await chargePhotonIfEnabled(req, {
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
+      });
+      
       // 手动构建 UI Message Stream 的事件顺序
       const chunks = [];
       const messageId = `msg-${Date.now()}`;
