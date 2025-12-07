@@ -666,7 +666,7 @@ export function FigsciBriefLauncher({
             >
                 <div className="flex flex-wrap items-center gap-2 justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        FlowBrief 偏好
+                        Figsci Brief 偏好
                     </p>
                     <Button
                         type="button"
@@ -678,7 +678,7 @@ export function FigsciBriefLauncher({
                             "inline-flex items-center gap-1",
                             isCompact && "rounded-full"
                         )}
-                        aria-label="调整 FlowBrief 偏好"
+                        aria-label="调整 Figsci Brief 偏好"
                     >
                         <Settings2 className="h-4 w-4" />
                         {!isCompact && "调整偏好"}
