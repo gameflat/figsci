@@ -1,0 +1,430 @@
+---
+alwaysApply: false
+description: UI/UX 设计规范，包括动画、交互、响应式设计等最佳实践
+---
+# UI/UX 设计规范
+
+## 基本原则
+
+1. **使用 Tailwind CSS 进行样式设计**，保持设计系统一致性
+2. **动画应该流畅且有意义**，增强用户体验而非分散注意力
+3. **响应式设计优先**，确保在不同设备上都有良好的体验
+4. **交互反馈及时**，让用户清楚知道操作的结果
+
+## 动画和过渡
+
+### 1. 使用 Tailwind CSS 动画类
+
+```javascript
+// ✅ 使用 Tailwind 内置动画类
+<div className="animate-in fade-in-0 zoom-in-95">
+  内容
+</div>
+
+// ✅ 使用过渡类
+<button className="transition-all duration-200 hover:scale-105">
+  按钮
+</button>
+
+// ✅ 条件动画
+<div className={cn(
+  "transition-transform duration-300",
+  isOpen && "translate-x-0",
+  !isOpen && "-translate-x-full"
+)}>
+  侧边栏
+</div>
+```
+
+### 2. 自定义 CSS 动画
+
+参考 [components/template-gallery.jsx](mdc:components/template-gallery.jsx)：
+
+```javascript
+// ✅ 使用 styled-jsx 定义自定义动画
+<style jsx>{`
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`}</style>
+
+// ✅ 应用动画
+<div
+  style={{
+    animation: `fadeInUp 0.25s ease forwards`,
+    animationDelay: `${index * 0.04}s`,
+    opacity: 0,
+  }}
+>
+  内容
+</div>
+```
+
+### 3. 动画性能优化
+
+```javascript
+// ✅ 使用 transform 和 opacity（GPU 加速）
+<div className="transition-transform duration-200 hover:-translate-y-1">
+  卡片
+</div>
+
+// ✅ 避免动画 width、height、top、left（性能较差）
+// ❌ 避免
+<div className="transition-all duration-200 hover:w-full">
+  内容
+</div>
+
+// ✅ 使用 transform 代替
+<div className="transition-transform duration-200 hover:scale-x-105">
+  内容
+</div>
+```
+
+### 4. 动画时长规范
+
+```javascript
+// ✅ 快速反馈（100-200ms）
+<button className="transition-colors duration-150">
+  按钮
+</button>
+
+// ✅ 标准过渡（200-300ms）
+<div className="transition-all duration-200">
+  内容
+</div>
+
+// ✅ 复杂动画（300-500ms）
+<div className="transition-all duration-300">
+  模态框
+</div>
+
+// ✅ 页面过渡（500ms+）
+<div className="transition-all duration-500">
+  页面切换
+</div>
+```
+
+## 交互反馈
+
+### 1. 悬停效果
+
+```javascript
+// ✅ 卡片悬停效果
+<div className={cn(
+  "rounded-xl border bg-white shadow-sm transition-all duration-200",
+  "hover:shadow-lg hover:-translate-y-1",
+  isHovered && "border-slate-300"
+)}>
+  卡片内容
+</div>
+
+// ✅ 按钮悬停效果
+<button className={cn(
+  "px-4 py-2 rounded-md transition-all duration-200",
+  "bg-blue-600 text-white",
+  "hover:bg-blue-700 hover:shadow-md",
+  "active:scale-95"
+)}>
+  按钮
+</button>
+```
+
+### 2. 加载状态
+
+```javascript
+// ✅ 加载骨架屏
+export function SkeletonLoader() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-4 bg-slate-200 rounded w-3/4 mb-2" />
+      <div className="h-4 bg-slate-200 rounded w-full" />
+    </div>
+  );
+}
+
+// ✅ 加载指示器
+{isLoading ? (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+  </div>
+) : (
+  <Content />
+)}
+```
+
+### 3. 状态变化反馈
+
+```javascript
+// ✅ 成功/错误状态反馈
+<div className={cn(
+  "px-4 py-2 rounded-md transition-colors duration-200",
+  isSuccess && "bg-green-50 text-green-700 border border-green-200",
+  isError && "bg-red-50 text-red-700 border border-red-200"
+)}>
+  {message}
+</div>
+```
+
+## 响应式设计
+
+### 1. 断点使用
+
+```javascript
+// ✅ 使用 Tailwind 响应式断点
+<div className="
+  grid 
+  grid-cols-1 
+  sm:grid-cols-2 
+  lg:grid-cols-3 
+  xl:grid-cols-4
+  gap-4
+">
+  网格布局
+</div>
+
+// ✅ 响应式文本大小
+<h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
+  标题
+</h1>
+
+// ✅ 响应式间距
+<div className="p-4 sm:p-6 lg:p-8">
+  内容
+</div>
+```
+
+### 2. 移动端优化
+
+```javascript
+// ✅ 触摸友好的按钮大小
+<button className="
+  min-h-[44px] 
+  min-w-[44px] 
+  px-4 py-2
+  touch-manipulation
+">
+  按钮
+</button>
+
+// ✅ 移动端隐藏/显示
+<div className="hidden md:block">
+  桌面端可见
+</div>
+
+<div className="block md:hidden">
+  移动端可见
+</div>
+```
+
+### 3. 容器和布局
+
+```javascript
+// ✅ 响应式容器
+<div className="
+  w-full 
+  max-w-7xl 
+  mx-auto 
+  px-4 
+  sm:px-6 
+  lg:px-8
+">
+  内容
+</div>
+
+// ✅ 响应式侧边栏
+<aside className="
+  hidden 
+  w-[260px] 
+  shrink-0 
+  md:flex 
+  flex-col
+">
+  侧边栏
+</aside>
+```
+
+## 视觉层次
+
+### 1. 颜色和对比度
+
+```javascript
+// ✅ 使用语义化颜色
+<div className="
+  bg-white 
+  text-slate-900 
+  border-slate-200
+">
+  主要内容
+</div>
+
+<div className="
+  bg-slate-50 
+  text-slate-600 
+  border-slate-100
+">
+  次要内容
+</div>
+
+// ✅ 强调色使用
+<span className="text-blue-600 font-semibold">
+  重要信息
+</span>
+```
+
+### 2. 字体层次
+
+```javascript
+// ✅ 标题层次
+<h1 className="text-2xl font-bold text-slate-900">
+  主标题
+</h1>
+
+<h2 className="text-xl font-semibold text-slate-800">
+  副标题
+</h2>
+
+<h3 className="text-lg font-medium text-slate-700">
+  三级标题
+</h3>
+
+<p className="text-sm text-slate-600">
+  正文
+</p>
+```
+
+### 3. 间距系统
+
+```javascript
+// ✅ 使用 Tailwind 间距系统
+<div className="space-y-4">
+  <div className="p-4">内容 1</div>
+  <div className="p-4">内容 2</div>
+</div>
+
+// ✅ 灵活间距
+<div className="flex items-center gap-2">
+  元素
+</div>
+```
+
+## 可访问性
+
+### 1. 键盘导航
+
+```javascript
+// ✅ 键盘快捷键支持
+useEffect(() => {
+  if (!isOpen) return;
+  
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onClose();
+    } else if (e.key === "ArrowLeft" && hasPrevious) {
+      onPrevious();
+    } else if (e.key === "ArrowRight" && hasNext) {
+      onNext();
+    }
+  };
+  
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, [isOpen, hasPrevious, hasNext, onPrevious, onNext, onClose]);
+```
+
+### 2. 焦点管理
+
+```javascript
+// ✅ 可见焦点指示
+<button className="
+  focus:outline-none 
+  focus:ring-2 
+  focus:ring-blue-500 
+  focus:ring-offset-2
+">
+  按钮
+</button>
+
+// ✅ 跳过链接
+<a href="#main-content" className="sr-only focus:not-sr-only">
+  跳过导航
+</a>
+```
+
+### 3. ARIA 属性
+
+```javascript
+// ✅ 使用 ARIA 属性
+<button
+  aria-label="关闭对话框"
+  aria-expanded={isOpen}
+  onClick={onClose}
+>
+  <XIcon />
+</button>
+
+// ✅ 屏幕阅读器文本
+<span className="sr-only">
+  仅屏幕阅读器可见的文本
+</span>
+```
+
+## 性能优化
+
+### 1. 防抖和节流
+
+参考 [contexts/diagram-context.jsx](mdc:contexts/diagram-context.jsx)：
+
+```javascript
+// ✅ 使用防抖优化频繁操作
+const debouncedSave = useMemo(
+  () => debounce((value) => {
+    // 保存操作
+  }, 300),
+  []
+);
+
+// ✅ 使用节流优化滚动事件
+const throttledScroll = useMemo(
+  () => throttle((e) => {
+    // 滚动处理
+  }, 100),
+  []
+);
+```
+
+### 2. 条件渲染优化
+
+```javascript
+// ✅ 延迟加载非关键内容
+{isVisible && <HeavyComponent />}
+
+// ✅ 使用 React.memo 优化列表渲染
+const MemoizedItem = React.memo(({ item }) => {
+  return <ItemComponent item={item} />;
+});
+```
+
+## 参考实现
+
+参考以下文件作为标准实现示例：
+- [components/template-card.jsx](mdc:components/template-card.jsx) - 卡片动画和交互
+- [components/template-gallery.jsx](mdc:components/template-gallery.jsx) - 列表动画和响应式布局
+- [components/template-detail-modal.jsx](mdc:components/template-detail-modal.jsx) - 模态框交互和键盘导航
+- [components/ui/dialog.jsx](mdc:components/ui/dialog.jsx) - 对话框动画
+- [components/ui/tooltip.jsx](mdc:components/ui/tooltip.jsx) - 工具提示动画
+
+## 避免的实践
+
+- ❌ 过度使用动画（分散用户注意力）
+- ❌ 动画时长过长（超过 500ms 的过渡）
+- ❌ 缺少加载状态（用户不知道操作是否成功）
+- ❌ 忽略移动端体验（按钮太小、间距不足）
+- ❌ 缺少键盘导航支持（可访问性问题）
+- ❌ 使用内联样式代替 Tailwind 类（破坏设计系统一致性）

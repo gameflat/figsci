@@ -1,0 +1,97 @@
+# -*- coding: utf-8 -*-
+# Figsci nginx 配置示例
+# 
+# 此配置文件用于解决 504 Gateway Timeout 错误
+# 将文件复制到服务器并修改相应的路径和端口
+
+server {
+    listen 80;
+    server_name your-domain.com;  # 修改为你的域名或 IP
+    
+    # 日志配置
+    access_log /var/log/nginx/figsci_access.log;
+    error_log /var/log/nginx/figsci_error.log;
+    
+    # 客户端请求体大小限制（用于上传图片等）
+    client_max_body_size 10M;
+    
+    # ========== API 路由配置 ==========
+    # 这是关键配置，解决 504 Gateway Timeout 错误
+    location /api/ {
+        # 代理到 Next.js 服务器
+        # 根据你的部署方式修改端口：
+        # - 开发环境：http://localhost:6002
+        # - 生产环境：http://localhost:6001
+        proxy_pass http://localhost:6001;
+        
+        # ========== 超时配置（关键）==========
+        # 增加代理超时时间到 5 分钟（300 秒）
+        # 这必须大于或等于 Next.js API 路由的 maxDuration
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        
+        # ========== HTTP 版本和连接配置 ==========
+        # 使用 HTTP/1.1 以支持 keep-alive
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        
+        # ========== 请求头配置 ==========
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # ========== 流式响应配置（关键）==========
+        # 禁用缓冲以支持 Server-Sent Events (SSE) 流式响应
+        proxy_buffering off;
+        proxy_cache off;
+        
+        # 禁用响应缓冲，实时传输数据
+        proxy_request_buffering off;
+    }
+    
+    # ========== 静态资源配置 ==========
+    location /_next/static/ {
+        proxy_pass http://localhost:6001;
+        proxy_cache_valid 200 60m;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # ========== 其他请求代理到 Next.js ==========
+    location / {
+        proxy_pass http://localhost:6001;
+        
+        # 基础代理配置
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # 缓存控制
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+# ========== HTTPS 配置（可选）==========
+# 如果使用 HTTPS，取消注释以下配置并配置 SSL 证书
+#
+# server {
+#     listen 443 ssl http2;
+#     server_name your-domain.com;
+#     
+#     ssl_certificate /path/to/your/certificate.crt;
+#     ssl_certificate_key /path/to/your/private.key;
+#     
+#     # SSL 配置
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#     ssl_ciphers HIGH:!aNULL:!MD5;
+#     ssl_prefer_server_ciphers on;
+#     
+#     # 其他配置与 HTTP 配置相同
+#     # ...
+# }
+

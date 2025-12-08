@@ -1,0 +1,356 @@
+---
+alwaysApply: false
+description: 数据持久化规范，包括 localStorage 使用模式和最佳实践
+---
+# 数据持久化规范
+
+## 基本原则
+
+1. **使用 localStorage 存储用户偏好和临时数据**，不存储敏感信息
+2. **统一的存储键名规范**，使用项目前缀避免冲突
+3. **完善的错误处理**，确保数据读取和写入的安全性
+4. **客户端环境检查**，避免在服务端渲染时访问 localStorage
+
+## 存储键名规范
+
+### 命名约定
+
+```javascript
+// ✅ 使用项目前缀 + 功能描述
+const STORAGE_KEY = "Figsci_recent_templates";
+const LOCALE_STORAGE_KEY = "Figsci-locale";
+const MODEL_REGISTRY_KEY = "Figsci_model_registry";
+
+// ❌ 避免使用通用名称
+const KEY = "templates"; // 可能与其他应用冲突
+const DATA = "data"; // 过于模糊
+```
+
+### 键名格式
+
+- 使用项目前缀（如 `Figsci_` 或 `Figsci-`）
+- 使用 kebab-case 或 snake_case
+- 清晰表达存储内容的用途
+
+## localStorage 使用模式
+
+### 1. 基本读写模式
+
+```javascript
+// ✅ 读取数据（带错误处理）
+const loadData = () => {
+  if (typeof window === "undefined") return null;
+  
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.warn("Failed to load data from localStorage:", error);
+  }
+  
+  return null;
+};
+
+// ✅ 保存数据（带错误处理）
+const saveData = (data) => {
+  if (typeof window === "undefined") return;
+  
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.error("Failed to save data to localStorage:", error);
+  }
+};
+```
+
+### 2. 在 React Hook 中使用
+
+```javascript
+// ✅ 在 useEffect 中初始化
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setState(parsed);
+      }
+    } catch (error) {
+      console.warn("Failed to parse stored data:", error);
+    }
+  }
+}, []);
+
+// ✅ 在状态更新时同步保存
+const updateState = useCallback((newValue) => {
+  setState((prev) => {
+    const next = { ...prev, value: newValue };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (error) {
+        console.error("Failed to save state:", error);
+      }
+    }
+    return next;
+  });
+}, []);
+```
+
+### 3. 在 Context 中使用
+
+参考 [contexts/locale-context.jsx](mdc:contexts/locale-context.jsx) 和 [contexts/diagram-context.jsx](mdc:contexts/diagram-context.jsx)：
+
+```javascript
+// ✅ Context 中的持久化模式
+export function MyProvider({ children }) {
+  const [state, setState] = useState(() => {
+    // 初始化时从 localStorage 读取
+    if (typeof window === "undefined") return defaultValue;
+    
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return validateAndNormalize(parsed) || defaultValue;
+      }
+    } catch (error) {
+      console.warn("Failed to load initial state:", error);
+    }
+    
+    return defaultValue;
+  });
+  
+  // 状态更新时同步保存
+  const setAndPersist = useCallback((updater) => {
+    setState((prev) => {
+      const next = updater(prev);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        } catch (error) {
+          console.error("Failed to persist state:", error);
+        }
+      }
+      return next;
+    });
+  }, []);
+  
+  return (
+    <MyContext.Provider value={{ state, setState: setAndPersist }}>
+      {children}
+    </MyContext.Provider>
+  );
+}
+```
+
+## 数据验证和规范化
+
+### 1. 数据验证
+
+```javascript
+// ✅ 验证存储的数据结构
+const validateStoredData = (data) => {
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+  
+  // 验证必需字段
+  if (!Array.isArray(data.items)) {
+    return false;
+  }
+  
+  // 验证数据类型
+  return data.items.every(item => 
+    typeof item.id === "string" && 
+    typeof item.name === "string"
+  );
+};
+
+// ✅ 使用验证函数
+const loadValidatedData = () => {
+  const stored = loadData();
+  if (stored && validateStoredData(stored)) {
+    return stored;
+  }
+  return defaultValue;
+};
+```
+
+### 2. 数据规范化
+
+```javascript
+// ✅ 规范化旧版本数据
+const normalizeData = (data) => {
+  // 处理旧版本数据格式
+  if (data.version === 1) {
+    return {
+      version: 2,
+      items: data.oldItems || [],
+      metadata: data.metadata || {},
+    };
+  }
+  
+  return data;
+};
+```
+
+## 错误处理
+
+### 1. 存储空间不足
+
+```javascript
+// ✅ 处理存储空间不足的情况
+const saveWithQuotaCheck = (data) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    if (error.name === "QuotaExceededError") {
+      console.warn("Storage quota exceeded, clearing old data");
+      // 清理旧数据或提示用户
+      clearOldData();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (retryError) {
+        console.error("Failed to save after cleanup:", retryError);
+      }
+    } else {
+      console.error("Failed to save data:", error);
+    }
+  }
+};
+```
+
+### 2. 数据损坏处理
+
+```javascript
+// ✅ 处理数据损坏的情况
+const loadWithFallback = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return defaultValue;
+    
+    const parsed = JSON.parse(stored);
+    if (validateData(parsed)) {
+      return parsed;
+    } else {
+      console.warn("Invalid data format, using default");
+      return defaultValue;
+    }
+  } catch (error) {
+    console.error("Failed to parse stored data:", error);
+    // 清理损坏的数据
+    localStorage.removeItem(STORAGE_KEY);
+    return defaultValue;
+  }
+};
+```
+
+## 性能优化
+
+### 1. 批量更新
+
+```javascript
+// ✅ 批量更新时合并写入
+const batchUpdate = useCallback((updates) => {
+  setState((prev) => {
+    const next = updates.reduce((acc, update) => update(acc), prev);
+    
+    // 只在最后写入一次
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (error) {
+        console.error("Failed to save batch update:", error);
+      }
+    }
+    
+    return next;
+  });
+}, []);
+```
+
+### 2. 防抖写入
+
+```javascript
+// ✅ 频繁更新时使用防抖
+const debouncedSave = useMemo(
+  () => debounce((data) => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (error) {
+        console.error("Failed to save:", error);
+      }
+    }
+  }, 500),
+  []
+);
+
+// 在状态更新时调用
+useEffect(() => {
+  debouncedSave(state);
+  return () => debouncedSave.cancel();
+}, [state, debouncedSave]);
+```
+
+## 数据清理
+
+### 1. 过期数据清理
+
+```javascript
+// ✅ 清理过期数据
+const cleanupExpiredData = () => {
+  const stored = loadData();
+  if (!stored) return;
+  
+  const now = Date.now();
+  const cleaned = {
+    ...stored,
+    items: stored.items.filter(item => {
+      // 保留最近 30 天的数据
+      return item.timestamp && (now - item.timestamp) < 30 * 24 * 60 * 60 * 1000;
+    }),
+  };
+  
+  saveData(cleaned);
+};
+```
+
+### 2. 大小限制
+
+```javascript
+// ✅ 限制存储数据大小
+const saveWithSizeLimit = (data, maxItems = 100) => {
+  const items = Array.isArray(data.items) ? data.items : [];
+  
+  // 只保留最新的 N 条记录
+  const limited = {
+    ...data,
+    items: items.slice(0, maxItems),
+  };
+  
+  saveData(limited);
+};
+```
+
+## 参考实现
+
+参考以下文件作为标准实现示例：
+- [contexts/locale-context.jsx](mdc:contexts/locale-context.jsx) - 语言设置持久化
+- [hooks/use-model-registry.js](mdc:hooks/use-model-registry.js) - 模型配置持久化
+- [components/template-gallery.jsx](mdc:components/template-gallery.jsx) - 最近使用模板持久化
+- [contexts/diagram-context.jsx](mdc:contexts/diagram-context.jsx) - 图表数据持久化
+
+## 避免的实践
+
+- ❌ 在服务端组件中直接访问 localStorage（应检查 `typeof window !== "undefined"`）
+- ❌ 存储敏感信息（密码、令牌等）
+- ❌ 存储大量数据（考虑使用 IndexedDB）
+- ❌ 缺少错误处理（可能导致应用崩溃）
+- ❌ 使用模糊的键名（可能导致数据冲突）
+- ❌ 不验证存储的数据结构（可能导致运行时错误）

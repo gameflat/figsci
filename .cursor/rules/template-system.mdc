@@ -1,0 +1,384 @@
+---
+alwaysApply: false
+description: 模板系统规范，包括模板数据结构、筛选、排序等最佳实践
+---
+# 模板系统规范
+
+## 基本原则
+
+1. **模板数据结构应该统一且可扩展**，便于维护和扩展
+2. **筛选和排序逻辑应该高效且用户友好**
+3. **模板预览和详情应该清晰展示关键信息**
+4. **模板使用应该无缝集成到工作流中**
+
+## 模板数据结构
+
+### 1. 基础模板结构
+
+参考 [data/templates.js](mdc:data/templates.js) 和 [types/template.js](mdc:types/template.js)：
+
+```javascript
+/**
+ * @typedef {Object} DiagramTemplate
+ * @property {string} id - 唯一标识符
+ * @property {string} title - 模板标题
+ * @property {string} description - 模板描述
+ * @property {"business" | "development" | "product" | "security" | "creative"} category - 分类
+ * @property {string[]} tags - 标签数组
+ * @property {"beginner" | "intermediate" | "advanced"} difficulty - 难度级别
+ * @property {boolean} [isPopular] - 是否热门
+ * @property {boolean} [isNew] - 是否新品
+ * @property {string} icon - 图标名称（lucide-react）
+ * @property {{ from: string; to: string }} gradient - 渐变色配置
+ * @property {string} estimatedTime - 预计时间（如 "5 分钟"）
+ * @property {number} [usageCount] - 使用次数
+ * @property {number} [rating] - 评分
+ * @property {string} [author] - 作者
+ * @property {string[]} [useCases] - 适用场景
+ * @property {string[]} [features] - 核心功能
+ * @property {string} [previewUrl] - 预览图 URL
+ * @property {string} prompt - 生成提示词
+ * @property {Object} brief - 简要配置
+ */
+```
+
+### 2. 模板数据示例
+
+```javascript
+const template = {
+  id: "employee-onboarding",
+  title: "新员工入职流程",
+  description: "新员工入职流程，从 Offer 到正式开始工作",
+  category: "business",
+  tags: ["人力资源", "入职", "流程"],
+  difficulty: "beginner",
+  isPopular: true,
+  icon: "UserPlus",
+  gradient: {
+    from: "#3b82f6",
+    to: "#1d4ed8"
+  },
+  estimatedTime: "5 分钟",
+  usageCount: 1247,
+  rating: 4.8,
+  author: "Figsci 团队",
+  useCases: [
+    "人力资源部门标准化入职流程",
+    "跨部门协作入职项目管理"
+  ],
+  features: [
+    "完整的入职时间线规划",
+    "多部门协作泳道设计"
+  ],
+  prompt: "创建新员工入职流程图...",
+  brief: {
+    intent: "draft",
+    tone: "balanced",
+    focus: ["flow", "clarity"],
+    diagramTypes: ["activity"]
+  }
+};
+```
+
+## 模板筛选
+
+### 1. 多条件筛选
+
+参考 [components/template-gallery.jsx](mdc:components/template-gallery.jsx)：
+
+```javascript
+// ✅ 使用 useMemo 优化筛选性能
+const filteredTemplates = useMemo(() => {
+  let result = templates.slice();
+  
+  // 分类筛选
+  if (selectedCategory !== "all") {
+    result = result.filter(t => t.category === selectedCategory);
+  }
+  
+  // 难度筛选
+  if (difficulty !== "all") {
+    result = result.filter(t => t.difficulty === difficulty);
+  }
+  
+  // 热门筛选
+  if (onlyPopular) {
+    result = result.filter(t => t.isPopular);
+  }
+  
+  // 新品筛选
+  if (onlyNew) {
+    result = result.filter(t => t.isNew);
+  }
+  
+  // 标签筛选
+  if (activeTag) {
+    result = result.filter(t => t.tags.includes(activeTag));
+  }
+  
+  // 搜索筛选
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    result = result.filter(t =>
+      t.title.toLowerCase().includes(query) ||
+      t.description.toLowerCase().includes(query) ||
+      t.tags.some(tag => tag.toLowerCase().includes(query))
+    );
+  }
+  
+  return result;
+}, [templates, selectedCategory, difficulty, onlyPopular, onlyNew, activeTag, searchQuery]);
+```
+
+### 2. 搜索实现
+
+```javascript
+// ✅ 多字段搜索
+const searchTemplates = (query, templates) => {
+  if (!query.trim()) return templates;
+  
+  const lowerQuery = query.toLowerCase();
+  return templates.filter(template =>
+    template.title.toLowerCase().includes(lowerQuery) ||
+    template.description.toLowerCase().includes(lowerQuery) ||
+    template.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+  );
+};
+```
+
+## 模板排序
+
+### 1. 排序实现
+
+```javascript
+// ✅ 多种排序方式
+const sortedTemplates = useMemo(() => {
+  const result = [...filteredTemplates];
+  
+  switch (sortBy) {
+    case "alphabetical":
+      return result.sort((a, b) => 
+        a.title.localeCompare(b.title, "zh-CN")
+      );
+    
+    case "quickest":
+      const toMinutes = (val) => parseInt(val, 10) || 99;
+      return result.sort((a, b) => 
+        toMinutes(a.estimatedTime) - toMinutes(b.estimatedTime)
+      );
+    
+    case "newest":
+      const aDate = a.createdAt ? Date.parse(a.createdAt) : 0;
+      const bDate = b.createdAt ? Date.parse(b.createdAt) : 0;
+      return result.sort((a, b) => bDate - aDate);
+    
+    case "popular":
+    default:
+      return result.sort((a, b) => {
+        const aScore = (a.usageCount ?? 0) + (a.isPopular ? 100 : 0);
+        const bScore = (b.usageCount ?? 0) + (b.isPopular ? 100 : 0);
+        return bScore - aScore;
+      });
+  }
+}, [filteredTemplates, sortBy]);
+```
+
+## 模板展示
+
+### 1. 模板卡片组件
+
+参考 [components/template-card.jsx](mdc:components/template-card.jsx)：
+
+```javascript
+// ✅ 支持多种展示模式
+export function TemplateCard({
+  template,
+  onUse,
+  variant = "grid", // "grid" | "list" | "compact"
+  compact = false,
+}) {
+  const Icon = ICON_MAP[template.icon] || Sparkles;
+  
+  // 根据 variant 渲染不同布局
+  if (variant === "list") {
+    return <ListLayout template={template} onUse={onUse} />;
+  }
+  
+  if (compact) {
+    return <CompactLayout template={template} onUse={onUse} />;
+  }
+  
+  return <GridLayout template={template} onUse={onUse} />;
+}
+```
+
+### 2. 模板详情模态框
+
+参考 [components/template-detail-modal.jsx](mdc:components/template-detail-modal.jsx)：
+
+```javascript
+// ✅ 详情模态框实现
+export function TemplateDetailModal({
+  template,
+  isOpen,
+  onClose,
+  onUse,
+  onPrevious,
+  onNext,
+  hasPrevious,
+  hasNext,
+}) {
+  // 键盘导航支持
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "ArrowLeft" && hasPrevious) {
+        onPrevious();
+      } else if (e.key === "ArrowRight" && hasNext) {
+        onNext();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, hasPrevious, hasNext, onPrevious, onNext, onClose]);
+  
+  // 渲染详情内容
+}
+```
+
+## 模板使用
+
+### 1. 模板选择处理
+
+```javascript
+// ✅ 模板使用处理
+const handleUseTemplate = useCallback((template) => {
+  // 更新最近使用记录
+  updateRecentTemplates(template.id);
+  
+  // 调用回调函数
+  onSelectTemplate(template);
+  
+  // 可选：发送分析事件
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", "template_used", {
+      template_id: template.id,
+      template_category: template.category,
+    });
+  }
+}, [onSelectTemplate]);
+```
+
+### 2. 最近使用记录
+
+参考 [components/template-gallery.jsx](mdc:components/template-gallery.jsx)：
+
+```javascript
+// ✅ 最近使用模板管理
+const RECENT_KEY = "Figsci_recent_templates";
+const MAX_RECENT = 6;
+
+const updateRecentTemplates = useCallback((templateId) => {
+  setRecentTemplateIds((prev) => {
+    const next = [
+      templateId,
+      ...prev.filter(id => id !== templateId)
+    ].slice(0, MAX_RECENT);
+    
+    if (typeof window !== "undefined") {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    }
+    
+    return next;
+  });
+}, []);
+
+// 加载最近使用
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  
+  const stored = localStorage.getItem(RECENT_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setRecentTemplateIds(parsed);
+      }
+    } catch (error) {
+      console.warn("Failed to parse recent templates:", error);
+    }
+  }
+}, []);
+```
+
+## 性能优化
+
+### 1. 虚拟滚动（大量模板时）
+
+```javascript
+// ✅ 使用虚拟滚动优化大量模板渲染
+import { useVirtualizer } from "@tanstack/react-virtual";
+
+const virtualizer = useVirtualizer({
+  count: filteredTemplates.length,
+  getScrollElement: () => parentRef.current,
+  estimateSize: () => 200, // 估计每个项目高度
+  overscan: 5, // 额外渲染的项目数
+});
+
+// 只渲染可见项目
+{virtualizer.getVirtualItems().map((virtualItem) => (
+  <div
+    key={virtualItem.key}
+    style={{
+      height: `${virtualItem.size}px`,
+      transform: `translateY(${virtualItem.start}px)`,
+    }}
+  >
+    <TemplateCard template={filteredTemplates[virtualItem.index]} />
+  </div>
+))}
+```
+
+### 2. 分页加载
+
+```javascript
+// ✅ 分页加载模板
+const [visibleCount, setVisibleCount] = useState(12);
+const PAGE_SIZE = 12;
+
+const visibleTemplates = filteredTemplates.slice(0, visibleCount);
+const hasMore = visibleCount < filteredTemplates.length;
+
+// 加载更多
+const loadMore = () => {
+  setVisibleCount(prev => prev + PAGE_SIZE);
+};
+
+// 重置可见数量（筛选条件变化时）
+useEffect(() => {
+  setVisibleCount(PAGE_SIZE);
+}, [selectedCategory, difficulty, searchQuery]);
+```
+
+## 参考实现
+
+参考以下文件作为标准实现示例：
+- [data/templates.js](mdc:data/templates.js) - 模板数据定义
+- [types/template.js](mdc:types/template.js) - 模板类型定义
+- [components/template-card.jsx](mdc:components/template-card.jsx) - 模板卡片组件
+- [components/template-gallery.jsx](mdc:components/template-gallery.jsx) - 模板库组件
+- [components/template-detail-modal.jsx](mdc:components/template-detail-modal.jsx) - 模板详情模态框
+
+## 避免的实践
+
+- ❌ 在筛选时直接修改原数组（应使用副本）
+- ❌ 缺少搜索防抖（频繁输入时性能问题）
+- ❌ 不验证模板数据结构（可能导致运行时错误）
+- ❌ 一次性渲染所有模板（应使用分页或虚拟滚动）
+- ❌ 缺少加载状态（用户不知道数据是否加载完成）
+- ❌ 不保存用户偏好（筛选条件、排序方式等）

@@ -10,7 +10,8 @@ import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/
 // 系统提示词：从统一的 prompts 模块导入
 import { getSystemMessage } from "@/lib/prompts";
 // Next.js Route Handler 的最长执行时间（秒），避免 Vercel 上接口超时
-const maxDuration = 60;
+// 设置为 300 秒（5 分钟）以支持复杂图表生成，需要配合 nginx 的 proxy_read_timeout 配置
+const maxDuration = 300;
 
 /**
  * 玻尔平台光子扣费辅助函数
