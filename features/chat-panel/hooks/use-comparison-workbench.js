@@ -110,7 +110,7 @@ function useComparisonWorkbench({
           if (entry.status !== "loading") {
             return entry;
           }
-          const pauseReason = reason ?? "\u6A21\u578B\u5BF9\u6BD4\u4EFB\u52A1\u5DF2\u6682\u505C\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002";
+          const pauseReason = reason ?? "模型对比任务已暂停，请稍后重试。";
           const nextResults = entry.results.map(
             (result) => result.status === "loading" ? {
               ...result,
@@ -197,19 +197,19 @@ function useComparisonWorkbench({
   const createComparisonBranchesForResults = useCallback(
     (requestId, results, originBranchId, seedMessages) => {
       if (!requestId || typeof requestId !== "string") {
-        console.error("\u65E0\u6548\u7684 requestId");
+        console.error("无效的 requestId");
         return {};
       }
       if (!Array.isArray(results)) {
-        console.error("results \u5FC5\u987B\u662F\u6570\u7EC4");
+        console.error("results 必须是数组");
         return {};
       }
       if (!originBranchId || typeof originBranchId !== "string") {
-        console.error("\u65E0\u6548\u7684 originBranchId");
+        console.error("无效的 originBranchId");
         return {};
       }
       if (!Array.isArray(seedMessages)) {
-        console.warn("seedMessages \u4E0D\u662F\u6570\u7EC4\uFF0C\u4F7F\u7528\u7A7A\u6570\u7EC4");
+        console.warn("seedMessages 不是数组，使用空数组");
         seedMessages = [];
       }
       const bindings = {};
@@ -217,7 +217,7 @@ function useComparisonWorkbench({
         if (result.status !== "ok" || !result.xml) {
           return;
         }
-        const label = result.label?.trim()?.length ? `${result.label} \xB7 \u5206\u652F` : result.slot ? `\u6A21\u578B ${result.slot} \xB7 \u5206\u652F` : `\u5BF9\u6BD4\u7ED3\u679C \xB7 \u5206\u652F`;
+        const label = result.label?.trim()?.length ? `${result.label} · 分支` : result.slot ? `模型 ${result.slot} · 分支` : `对比结果 · 分支`;
         const branch = createBranch({
           parentId: originBranchId,
           label,
@@ -235,7 +235,7 @@ function useComparisonWorkbench({
         if (branch) {
           bindings[result.id] = branch.id;
         } else {
-          console.warn(`\u521B\u5EFA\u5206\u652F\u5931\u8D25\uFF1Aresult.id = ${result.id}`);
+          console.warn(`创建分支失败：result.id = ${result.id}`);
         }
       });
       return bindings;
@@ -252,7 +252,7 @@ function useComparisonWorkbench({
       try {
         await tryApplyRoot(baseline);
         if (showNotice) {
-          triggerComparisonNotice("success", "\u5DF2\u6062\u590D\u9884\u89C8\u524D\u7684\u753B\u5E03\u3002");
+          triggerComparisonNotice("success", "已恢复预览前的画布。");
         }
       } catch (error) {
         console.error("Reset comparison preview failed:", error);
@@ -287,7 +287,7 @@ function useComparisonWorkbench({
     }
   }, []);
   const normalizeComparisonResults = useCallback(
-    (modelsMeta, rawResults, defaultErrorMessage = "\u8BE5\u6A21\u578B\u672A\u8FD4\u56DE\u6709\u6548\u7ED3\u679C\uFF0C\u8BF7\u8C03\u6574\u63D0\u793A\u8BCD\u540E\u91CD\u8BD5\u3002") => {
+    (modelsMeta, rawResults, defaultErrorMessage = "该模型未返回有效结果，请调整提示词后重试。") => {
       const ensureString = (value) => typeof value === "string" && value.trim().length > 0 ? value.trim() : void 0;
       return modelsMeta.map((model, index) => {
         const item = rawResults?.[index] ?? {};
@@ -342,7 +342,7 @@ function useComparisonWorkbench({
   const handleDownloadXml = useCallback(
     (result) => {
       if (result.status !== "ok") {
-        triggerComparisonNotice("error", "\u8BE5\u6A21\u578B\u6CA1\u6709\u53EF\u5BFC\u51FA\u7684\u7ED3\u679C\u3002");
+        triggerComparisonNotice("error", "该模型没有可导出的结果。");
         return;
       }
       if (result.mode === "svg" && result.svg) {
@@ -353,7 +353,7 @@ function useComparisonWorkbench({
         anchor.download = `${result.label ?? result.modelId}.svg`;
         anchor.click();
         URL.revokeObjectURL(url);
-        triggerComparisonNotice("success", "\u5DF2\u5BFC\u51FA SVG \u6587\u4EF6\u3002");
+        triggerComparisonNotice("success", "已导出 SVG 文件。");
         return;
       }
       if (result.xml) {
@@ -366,21 +366,21 @@ function useComparisonWorkbench({
         anchor.download = `${result.label ?? result.modelId}.xml`;
         anchor.click();
         URL.revokeObjectURL(url);
-        triggerComparisonNotice("success", "\u5DF2\u5BFC\u51FA XML \u6587\u4EF6\u3002");
+        triggerComparisonNotice("success", "已导出 XML 文件。");
         return;
       }
-      triggerComparisonNotice("error", "\u8BE5\u6A21\u578B\u7F3A\u5C11\u53EF\u5BFC\u51FA\u7684 XML \u6216 SVG\u3002");
+      triggerComparisonNotice("error", "该模型缺少可导出的 XML 或 SVG。");
     },
     [triggerComparisonNotice]
   );
   const handleApplyComparisonResult = useCallback(
     async (result) => {
       if (!result || typeof result !== "object") {
-        triggerComparisonNotice("error", "\u65E0\u6548\u7684\u5BF9\u6BD4\u7ED3\u679C\u5BF9\u8C61");
+        triggerComparisonNotice("error", "无效的对比结果对象");
         return;
       }
       if (result.status !== "ok" || !result.xml && !result.svg) {
-        triggerComparisonNotice("error", "\u8BE5\u6A21\u578B\u6CA1\u6709\u53EF\u5E94\u7528\u7684\u7ED3\u679C\u3002");
+        triggerComparisonNotice("error", "该模型没有可应用的结果。");
         return;
       }
       let canvasPayload = renderMode === "svg" ? result.svg ?? "" : result.xml ?? "";
@@ -389,13 +389,13 @@ function useComparisonWorkbench({
           const { rootXml } = buildSvgRootXml(result.svg);
           canvasPayload = rootXml;
         } catch (error) {
-          triggerComparisonNotice("error", "SVG \u8F6C\u6362\u5931\u8D25\uFF0C\u65E0\u6CD5\u5E94\u7528\u7ED3\u679C\u3002");
+          triggerComparisonNotice("error", "SVG 转换失败，无法应用结果。");
           return;
         }
       }
       const trimmedXml = (canvasPayload || "").trim();
       if (trimmedXml.length === 0) {
-        triggerComparisonNotice("error", "\u8FD4\u56DE\u5185\u5BB9\u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u5E94\u7528\u3002");
+        triggerComparisonNotice("error", "返回内容为空，无法应用。");
         return;
       }
       if (result.branchId) {
@@ -417,7 +417,7 @@ function useComparisonWorkbench({
           }
           triggerComparisonNotice(
             "success",
-            `\u5DF2\u5207\u6362\u81F3\u300C${branch.label}\u300D\uFF0C\u53EF\u7EE7\u7EED\u5728\u8BE5\u7248\u672C\u4E0A\u5BF9\u8BDD\u3002`
+            `已切换至「${branch.label}」，可继续在该版本上对话。`
           );
           return;
         }
@@ -431,7 +431,7 @@ function useComparisonWorkbench({
         const relatedEntry = comparisonHistory.find(
           (entry) => entry.results.some((item) => item.id === result.id)
         );
-        const branchLabel = result.label?.trim()?.length ? `${result.label} \xB7 \u5206\u652F` : result.slot ? `\u6A21\u578B ${result.slot} \xB7 \u5206\u652F` : `\u5BF9\u6BD4\u7ED3\u679C \xB7 \u5206\u652F`;
+        const branchLabel = result.label?.trim()?.length ? `${result.label} · 分支` : result.slot ? `模型 ${result.slot} · 分支` : `对比结果 · 分支`;
         const created = createBranch({
           label: branchLabel,
           diagramXml: trimmedXml,
@@ -446,7 +446,7 @@ function useComparisonWorkbench({
         if (created) {
           attachBranchToResult(result.id, created.id);
         } else {
-          console.warn("\u521B\u5EFA\u5206\u652F\u5931\u8D25\uFF0C\u4F46\u56FE\u8868\u5DF2\u5E94\u7528");
+          console.warn("创建分支失败，但图表已应用");
         }
         if (relatedEntry?.requestId) {
           updateComparisonEntry(relatedEntry.requestId, (entry) => {
@@ -461,11 +461,11 @@ function useComparisonWorkbench({
         setBranchDecisionRequirement(null);
         triggerComparisonNotice(
           "success",
-          `\u5DF2\u91C7\u7528\u300C${created?.label ?? result.label ?? result.modelId}\u300D\u7684\u753B\u5E03\uFF0C\u5E76\u5F00\u542F\u65B0\u5206\u652F\u3002`
+          `已采用「${created?.label ?? result.label ?? result.modelId}」的画布，并开启新分支。`
         );
       } catch (error) {
-        console.error("\u5E94\u7528\u5BF9\u6BD4\u7ED3\u679C\u5931\u8D25\uFF1A", error);
-        const message = error instanceof Error ? error.message : "\u5E94\u7528\u6A21\u578B\u8F93\u51FA\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002";
+        console.error("应用对比结果失败：", error);
+        const message = error instanceof Error ? error.message : "应用模型输出失败，请稍后重试。";
         triggerComparisonNotice("error", message);
       }
     },
@@ -488,7 +488,7 @@ function useComparisonWorkbench({
         return;
       }
       if (result.status !== "ok" || !result.xml) {
-        triggerComparisonNotice("error", "\u8BE5\u6A21\u578B\u672A\u8FD4\u56DE\u53EF\u9884\u89C8\u7684 XML\u3002");
+        triggerComparisonNotice("error", "该模型未返回可预览的 XML。");
         return;
       }
       try {
@@ -500,10 +500,10 @@ function useComparisonWorkbench({
           requestId,
           resultId: result.id
         });
-        triggerComparisonNotice("success", `\u5DF2\u9884\u89C8\u300C${result.label}\u300D\u3002`);
+        triggerComparisonNotice("success", `已预览「${result.label}」。`);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "\u9884\u89C8\u65F6\u53D1\u751F\u672A\u77E5\u9519\u8BEF\u3002";
-        triggerComparisonNotice("error", `\u9884\u89C8\u5931\u8D25\uFF1A${message}`);
+        const message = error instanceof Error ? error.message : "预览时发生未知错误。";
+        triggerComparisonNotice("error", `预览失败：${message}`);
       }
     },
     [
@@ -524,7 +524,7 @@ function useComparisonWorkbench({
       }
       triggerComparisonNotice(
         "error",
-        "\u8BF7\u5148\u5728\u4E0A\u6B21\u5BF9\u6BD4\u7ED3\u679C\u4E2D\u9009\u62E9\u4E00\u4E2A\u5206\u652F\uFF0C\u518D\u7EE7\u7EED\u64CD\u4F5C\u3002"
+        "请先在上次对比结果中选择一个分支，再继续操作。"
       );
       return false;
     },
@@ -534,12 +534,12 @@ function useComparisonWorkbench({
     if (status === "streaming" || isComparisonRunning) {
       triggerComparisonNotice(
         "error",
-        status === "streaming" ? "AI \u6B63\u5728\u56DE\u7B54\u5176\u4ED6\u8BF7\u6C42\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002" : "\u5DF2\u6709\u6A21\u578B\u5BF9\u6BD4\u4EFB\u52A1\u5728\u6267\u884C\uFF0C\u8BF7\u7A0D\u5019\u3002"
+        status === "streaming" ? "AI 正在回答其他请求，请稍后再试。" : "已有模型对比任务在执行，请稍候。"
       );
       return;
     }
     if (!input.trim()) {
-      triggerComparisonNotice("error", "\u8BF7\u8F93\u5165\u5BF9\u6BD4\u63D0\u793A\u8BCD\u540E\u518D\u8BD5\u3002");
+      triggerComparisonNotice("error", "请输入对比提示词后再试。");
       return;
     }
     if (!ensureBranchSelectionSettled()) {
@@ -561,7 +561,7 @@ function useComparisonWorkbench({
     if (resolvedOptions.length === 0) {
       triggerComparisonNotice(
         "error",
-        "\u8BF7\u5148\u5728\u6A21\u578B\u8BBE\u7F6E\u91CC\u6DFB\u52A0\u81F3\u5C11\u4E00\u4E2A\u6A21\u578B\uFF0C\u518D\u6267\u884C\u5BF9\u6BD4\u3002"
+        "请先在模型设置里添加至少一个模型，再执行对比。"
       );
       return;
     }
@@ -655,7 +655,7 @@ ${input}` : input;
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
-          errorText || "\u6A21\u578B\u5BF9\u6BD4\u63A5\u53E3\u8FD4\u56DE\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002"
+          errorText || "模型对比接口返回错误，请稍后再试。"
         );
       }
       const data = await response.json();
@@ -691,7 +691,7 @@ ${input}` : input;
       );
       triggerComparisonNotice(
         allError ? "error" : "success",
-        allError ? "\u4E24\u4E2A\u6A21\u578B\u5747\u672A\u8FD4\u56DE\u6709\u6548\u7ED3\u679C\uFF0C\u8BF7\u68C0\u67E5\u63D0\u793A\u8BCD\u6216\u6A21\u578B\u8BBE\u7F6E\u3002" : "\u6A21\u578B\u5BF9\u6BD4\u5B8C\u6210\uFF0C\u7ED3\u679C\u5DF2\u5C55\u793A\u5728\u5BF9\u8BDD\u4E2D\u3002"
+        allError ? "两个模型均未返回有效结果，请检查提示词或模型设置。" : "模型对比完成，结果已展示在对话中。"
       );
       clearComparisonRequest();
     } catch (error) {
@@ -700,7 +700,7 @@ ${input}` : input;
         return;
       }
       console.error("Model comparison failed:", error);
-      const message = error instanceof Error ? error.message : "\u6A21\u578B\u5BF9\u6BD4\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002";
+      const message = error instanceof Error ? error.message : "模型对比失败，请稍后重试。";
       const fallbackResults = modelsMeta.map(
         (model) => ({
           id: `${model.key}__${model.slot}`,
@@ -774,7 +774,7 @@ ${input}` : input;
       if (currentResult?.status === "loading") {
         triggerComparisonNotice(
           "error",
-          "\u8BE5\u6A21\u578B\u6B63\u5728\u751F\u6210\u4E2D\uFF0C\u8BF7\u7A0D\u7B49\u3002"
+          "该模型正在生成中，请稍等。"
         );
         return;
       }
@@ -827,7 +827,7 @@ ${input}` : input;
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(
-            errorText || "\u6A21\u578B\u5BF9\u6BD4\u63A5\u53E3\u8FD4\u56DE\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002"
+            errorText || "模型对比接口返回错误，请稍后再试。"
           );
         }
         const data = await response.json();
@@ -857,7 +857,7 @@ ${input}` : input;
           status: "ready",
           results: enrichedResults
         }));
-        triggerComparisonNotice("success", "\u5DF2\u91CD\u65B0\u751F\u6210\u6A21\u578B\u8F93\u51FA\u3002");
+        triggerComparisonNotice("success", "已重新生成模型输出。");
         clearComparisonRequest();
       } catch (error) {
         clearComparisonRequest();
@@ -865,7 +865,7 @@ ${input}` : input;
           return;
         }
         console.error("Retry comparison failed:", error);
-        const message = error instanceof Error ? error.message : "\u6A21\u578B\u5BF9\u6BD4\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002";
+        const message = error instanceof Error ? error.message : "模型对比失败，请稍后再试。";
         updateComparisonEntry(entry.requestId, (current) => ({
           ...current,
           status: "ready",

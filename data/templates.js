@@ -2,10 +2,10 @@ const DIAGRAM_TEMPLATES = [
   // 1. Employee Onboarding Flow
   {
     id: "employee-onboarding",
-    title: "\u65B0\u5458\u5DE5\u5165\u804C\u6D41\u7A0B",
-    description: "\u65B0\u5458\u5DE5\u5165\u804C\u6D41\u7A0B\uFF0C\u4ECEOffer\u5230\u6B63\u5F0F\u5F00\u59CB\u5DE5\u4F5C",
+    title: "新员工入职流程",
+    description: "新员工入职流程，从Offer到正式开始工作",
     category: "business",
-    tags: ["\u4EBA\u529B\u8D44\u6E90", "\u5165\u804C", "\u6D41\u7A0B"],
+    tags: ["人力资源", "入职", "流程"],
     difficulty: "beginner",
     isPopular: true,
     icon: "UserPlus",
@@ -13,30 +13,30 @@ const DIAGRAM_TEMPLATES = [
       from: "#3b82f6",
       to: "#1d4ed8"
     },
-    estimatedTime: "5 \u5206\u949F",
+    estimatedTime: "5 分钟",
     usageCount: 1247,
     rating: 4.8,
-    author: "Figsci \u56E2\u961F",
+    author: "Figsci 团队",
     useCases: [
-      "\u4EBA\u529B\u8D44\u6E90\u90E8\u95E8\u6807\u51C6\u5316\u5165\u804C\u6D41\u7A0B",
-      "\u8DE8\u90E8\u95E8\u534F\u4F5C\u5165\u804C\u9879\u76EE\u7BA1\u7406",
-      "\u65B0\u5458\u5DE5\u5165\u804C\u4F53\u9A8C\u4F18\u5316",
-      "\u8FDC\u7A0B\u5165\u804C\u6D41\u7A0B\u8BBE\u8BA1"
+      "人力资源部门标准化入职流程",
+      "跨部门协作入职项目管理",
+      "新员工入职体验优化",
+      "远程入职流程设计"
     ],
     features: [
-      "\u5B8C\u6574\u7684\u5165\u804C\u65F6\u95F4\u7EBF\u89C4\u5212",
-      "\u591A\u90E8\u95E8\u534F\u4F5C\u6CF3\u9053\u8BBE\u8BA1",
-      "\u5173\u952E\u51B3\u7B56\u70B9\u6807\u6CE8",
-      "\u81EA\u52A8\u5316\u4EFB\u52A1\u63D0\u9192\u8282\u70B9"
+      "完整的入职时间线规划",
+      "多部门协作泳道设计",
+      "关键决策点标注",
+      "自动化任务提醒节点"
     ],
-    prompt: `\u521B\u5EFA\u4E00\u4E2A\u65B0\u5458\u5DE5\u5165\u804C\u6D41\u7A0B\u56FE\uFF0C\u4ECE\u63A5\u53D7Offer\u5230\u7B2C\u4E00\u5929\u4E0A\u73ED\uFF1A
-- \u5165\u804C\u524D\uFF1A\u80CC\u666F\u8C03\u67E5 \u2192 \u7B7E\u7F72\u5408\u540C \u2192 IT\u8BBE\u5907\u7533\u8BF7
-- \u7B2C\u4E00\u5929\uFF1A\u6B22\u8FCE\u4F1A \u2192 \u529E\u516C\u5BA4\u53C2\u89C2 \u2192 \u8BBE\u5907\u8BBE\u7F6E \u2192 \u6743\u9650\u5F00\u901A
-- \u7B2C\u4E00\u5468\uFF1A\u56E2\u961F\u4ECB\u7ECD \u2192 \u57F9\u8BAD\u8BFE\u7A0B \u2192 \u76EE\u6807\u8BBE\u5B9A
-- \u6CF3\u9053\uFF1AHR\u3001IT\u3001\u7ECF\u7406\u3001\u65B0\u5458\u5DE5
-- \u51B3\u7B56\u70B9\uFF1A\u80CC\u666F\u8C03\u67E5\u901A\u8FC7/\u5931\u8D25\u3001\u8BBE\u5907\u51C6\u5907\u597D \u662F/\u5426
-- \u4F7F\u7528\u67D4\u548C\u7684\u84DD/\u7EFF\u8272\u8C03\uFF0C\u6E05\u6670\u7684\u65F6\u95F4\u7EBF\u6307\u793A
-- \u4FDD\u6301\u6574\u6D01\u4E13\u4E1A\uFF0C\u9002\u5F53\u7684\u95F4\u8DDD`,
+    prompt: `创建一个新员工入职流程图，从接受Offer到第一天上班：
+- 入职前：背景调查 → 签署合同 → IT设备申请
+- 第一天：欢迎会 → 办公室参观 → 设备设置 → 权限开通
+- 第一周：团队介绍 → 培训课程 → 目标设定
+- 泳道：HR、IT、经理、新员工
+- 决策点：背景调查通过/失败、设备准备好 是/否
+- 使用柔和的蓝/绿色调，清晰的时间线指示
+- 保持整洁专业，适当的间距`,
     brief: {
       intent: "draft",
       tone: "balanced",
@@ -47,10 +47,10 @@ const DIAGRAM_TEMPLATES = [
   // 2. API Request/Response Flow
   {
     id: "api-flow",
-    title: "API \u8BF7\u6C42/\u54CD\u5E94\u6D41\u7A0B",
-    description: "API\u8C03\u7528\u7684\u5B8C\u6574\u751F\u547D\u5468\u671F\uFF0C\u5305\u542B\u8BA4\u8BC1\u3001\u8BF7\u6C42\u3001\u54CD\u5E94",
+    title: "API 请求/响应流程",
+    description: "API调用的完整生命周期，包含认证、请求、响应",
     category: "development",
-    tags: ["API", "\u540E\u7AEF", "\u96C6\u6210"],
+    tags: ["API", "后端", "集成"],
     difficulty: "intermediate",
     isPopular: true,
     icon: "Workflow",
@@ -58,36 +58,36 @@ const DIAGRAM_TEMPLATES = [
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "10 \u5206\u949F",
+    estimatedTime: "10 分钟",
     usageCount: 892,
     rating: 4.7,
-    author: "DevOps \u56E2\u961F",
+    author: "DevOps 团队",
     useCases: [
-      "API\u6587\u6863\u53EF\u89C6\u5316",
-      "\u5FAE\u670D\u52A1\u67B6\u6784\u8BBE\u8BA1",
-      "\u7CFB\u7EDF\u96C6\u6210\u65B9\u6848\u5C55\u793A",
-      "\u5F00\u53D1\u56E2\u961F\u6280\u672F\u57F9\u8BAD"
+      "API文档可视化",
+      "微服务架构设计",
+      "系统集成方案展示",
+      "开发团队技术培训"
     ],
     features: [
-      "\u5B8C\u6574\u7684\u8BF7\u6C42-\u54CD\u5E94\u65F6\u5E8F\u56FE",
-      "\u591A\u5C42\u8BA4\u8BC1\u6D41\u7A0B\u5C55\u793A",
-      "\u9519\u8BEF\u5904\u7406\u8DEF\u5F84\u6807\u6CE8",
-      "\u6027\u80FD\u6307\u6807\u53EF\u89C6\u5316"
+      "完整的请求-响应时序图",
+      "多层认证流程展示",
+      "错误处理路径标注",
+      "性能指标可视化"
     ],
-    prompt: `\u521B\u5EFAAPI\u8BF7\u6C42/\u54CD\u5E94\u65F6\u5E8F\u56FE\uFF1A
-- \u53C2\u4E0E\u8005\uFF1A\u5BA2\u6237\u7AEF\u3001API\u7F51\u5173\u3001\u8BA4\u8BC1\u670D\u52A1\u3001\u540E\u7AEF\u670D\u52A1\u3001\u6570\u636E\u5E93
-- \u6D41\u7A0B\uFF1A
-  1. \u5BA2\u6237\u7AEF \u2192 API\u7F51\u5173\uFF1APOST /api/users (\u5E26JWT\u4EE4\u724C)
-  2. API\u7F51\u5173 \u2192 \u8BA4\u8BC1\u670D\u52A1\uFF1A\u9A8C\u8BC1\u4EE4\u724C
-  3. \u8BA4\u8BC1\u670D\u52A1 \u2192 API\u7F51\u5173\uFF1A\u4EE4\u724C\u6709\u6548 (200 OK)
-  4. API\u7F51\u5173 \u2192 \u540E\u7AEF\u670D\u52A1\uFF1A\u8F6C\u53D1\u8BF7\u6C42
-  5. \u540E\u7AEF\u670D\u52A1 \u2192 \u6570\u636E\u5E93\uFF1A\u67E5\u8BE2\u7528\u6237\u6570\u636E
-  6. \u6570\u636E\u5E93 \u2192 \u540E\u7AEF\u670D\u52A1\uFF1A\u8FD4\u56DE\u7ED3\u679C
-  7. \u540E\u7AEF\u670D\u52A1 \u2192 API\u7F51\u5173\uFF1A\u54CD\u5E94\u8F7D\u8377
-  8. API\u7F51\u5173 \u2192 \u5BA2\u6237\u7AEF\uFF1A200 OK \u5E26\u6570\u636E
-- \u6DFB\u52A0\u9519\u8BEF\u8DEF\u5F84\uFF1A\u65E0\u6548\u4EE4\u724C (401)\u3001\u670D\u52A1\u8D85\u65F6 (504)
-- \u5305\u542B\u8BF7\u6C42/\u54CD\u5E94\u5934\u3001\u5EF6\u8FDF\u6307\u793A\u5668
-- \u4F7F\u7528\u5E26\u6709\u751F\u547D\u7EBF\u7684\u65F6\u5E8F\u56FE\u98CE\u683C`,
+    prompt: `创建API请求/响应时序图：
+- 参与者：客户端、API网关、认证服务、后端服务、数据库
+- 流程：
+  1. 客户端 → API网关：POST /api/users (带JWT令牌)
+  2. API网关 → 认证服务：验证令牌
+  3. 认证服务 → API网关：令牌有效 (200 OK)
+  4. API网关 → 后端服务：转发请求
+  5. 后端服务 → 数据库：查询用户数据
+  6. 数据库 → 后端服务：返回结果
+  7. 后端服务 → API网关：响应载荷
+  8. API网关 → 客户端：200 OK 带数据
+- 添加错误路径：无效令牌 (401)、服务超时 (504)
+- 包含请求/响应头、延迟指示器
+- 使用带有生命线的时序图风格`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -98,10 +98,10 @@ const DIAGRAM_TEMPLATES = [
   // 3. Business Decision Tree
   {
     id: "decision-tree",
-    title: "\u5546\u4E1A\u51B3\u7B56\u6811",
-    description: "\u5546\u4E1A\u51B3\u7B56\u6D41\u7A0B\uFF0C\u5305\u542B\u591A\u4E2A\u51B3\u7B56\u8282\u70B9\u548C\u7ED3\u679C\u8BC4\u4F30",
+    title: "商业决策树",
+    description: "商业决策流程，包含多个决策节点和结果评估",
     category: "business",
-    tags: ["\u6218\u7565", "\u51B3\u7B56", "\u5206\u6790"],
+    tags: ["战略", "决策", "分析"],
     difficulty: "intermediate",
     isPopular: true,
     icon: "GitBranch",
@@ -109,33 +109,33 @@ const DIAGRAM_TEMPLATES = [
       from: "#3b82f6",
       to: "#1d4ed8"
     },
-    estimatedTime: "10 \u5206\u949F",
+    estimatedTime: "10 分钟",
     usageCount: 1056,
     rating: 4.6,
-    author: "\u6218\u7565\u56E2\u961F",
+    author: "战略团队",
     useCases: [
-      "\u6218\u7565\u89C4\u5212\u51B3\u7B56\u5206\u6790",
-      "\u6295\u8D44\u9879\u76EE\u8BC4\u4F30",
-      "\u5E02\u573A\u8FDB\u5165\u7B56\u7565\u5236\u5B9A",
-      "\u98CE\u9669\u7BA1\u7406\u6846\u67B6\u8BBE\u8BA1"
+      "战略规划决策分析",
+      "投资项目评估",
+      "市场进入策略制定",
+      "风险管理框架设计"
     ],
     features: [
-      "\u591A\u5C42\u7EA7\u51B3\u7B56\u6811\u7ED3\u6784",
-      "\u6982\u7387\u6743\u91CD\u8BA1\u7B97",
-      "\u7ED3\u679C\u53EF\u89C6\u5316\u8BC4\u5206",
-      "\u98CE\u9669\u7B49\u7EA7\u8272\u5F69\u7F16\u7801"
+      "多层级决策树结构",
+      "概率权重计算",
+      "结果可视化评分",
+      "风险等级色彩编码"
     ],
-    prompt: `\u521B\u5EFA\u4E00\u4E2A\u5546\u4E1A\u51B3\u7B56\u6811\uFF0C\u4E3B\u9898\u4E3A\u201C\u662F\u5426\u5728\u5E02\u573A\u63A8\u51FA\u65B0\u4EA7\u54C1\uFF1F\u201D\uFF1A
-- \u6839\u51B3\u7B56\uFF1A\u5E02\u573A\u89C4\u6A21 > $10M\uFF1F(\u662F/\u5426)
-- \u5206\u652F 1 (\u662F)\uFF1A\u7ADE\u4E89\u7A0B\u5EA6\uFF1F(\u9AD8/\u4E2D/\u4F4E)
-  - \u9AD8\uFF1AROI\u8BA1\u7B97 \u2192 \u8FDB\u884C/\u653E\u5F03
-  - \u4E2D\uFF1A\u98CE\u9669\u8BC4\u4F30 \u2192 \u8FDB\u884C/\u653E\u5F03
-  - \u4F4E\uFF1A\u5FEB\u901F\u901A\u9053\u53D1\u5E03
-- \u5206\u652F 2 (\u5426)\uFF1A\u66FF\u4EE3\u5E02\u573A\u5206\u6790
-- \u5305\u542B\u6982\u7387\u767E\u5206\u6BD4\u3001\u9884\u671F\u7ED3\u679C
-- \u4F7F\u7528\u77E9\u5F62\u51B3\u7B56\u8282\u70B9\uFF0C\u83F1\u5F62\u8868\u793A\u95EE\u9898
-- \u7ED3\u679C\u989C\u8272\u7F16\u7801\uFF1A\u7EFF\u8272 (\u8FDB\u884C)\u3001\u7EA2\u8272 (\u653E\u5F03)\u3001\u9EC4\u8272 (\u590D\u5BA1)
-- \u6DFB\u52A0\u6E05\u6670\u7684\u6807\u7B7E\u548C\u51B3\u7B56\u6807\u51C6`,
+    prompt: `创建一个商业决策树，主题为“是否在市场推出新产品？”：
+- 根决策：市场规模 > $10M？(是/否)
+- 分支 1 (是)：竞争程度？(高/中/低)
+  - 高：ROI计算 → 进行/放弃
+  - 中：风险评估 → 进行/放弃
+  - 低：快速通道发布
+- 分支 2 (否)：替代市场分析
+- 包含概率百分比、预期结果
+- 使用矩形决策节点，菱形表示问题
+- 结果颜色编码：绿色 (进行)、红色 (放弃)、黄色 (复审)
+- 添加清晰的标签和决策标准`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -146,28 +146,28 @@ const DIAGRAM_TEMPLATES = [
   // 4. Customer Journey Map
   {
     id: "customer-journey",
-    title: "\u5BA2\u6237\u65C5\u7A0B\u5730\u56FE",
-    description: "\u5BA2\u6237\u4F53\u9A8C\u65C5\u7A0B\uFF0C\u5305\u542B\u9636\u6BB5\u3001\u89E6\u70B9\u3001\u60C5\u7EEA\u66F2\u7EBF",
+    title: "客户旅程地图",
+    description: "客户体验旅程，包含阶段、触点、情绪曲线",
     category: "business",
-    tags: ["\u5BA2\u6237\u4F53\u9A8C", "\u65C5\u7A0B", "\u89E6\u70B9"],
+    tags: ["客户体验", "旅程", "触点"],
     difficulty: "intermediate",
     icon: "Route",
     gradient: {
       from: "#3b82f6",
       to: "#1d4ed8"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u4E3ASaaS\u4EA7\u54C1\u521B\u5EFA\u5BA2\u6237\u65C5\u7A0B\u5730\u56FE\uFF1A
-- \u9636\u6BB5\uFF1A\u8BA4\u77E5 \u2192 \u8003\u8651 \u2192 \u8D2D\u4E70 \u2192 \u5165\u804C \u2192 \u7559\u5B58
-- \u6BCF\u4E2A\u9636\u6BB5\uFF1A
-  - \u5BA2\u6237\u884C\u4E3A\uFF08\u4F8B\u5982\uFF0C\u201C\u641C\u7D22\u89E3\u51B3\u65B9\u6848\u201D\uFF0C\u201C\u9605\u8BFB\u8BC4\u8BBA\u201D\uFF09
-  - \u89E6\u70B9\uFF08\u4F8B\u5982\uFF0C\u201C\u8C37\u6B4C\u5E7F\u544A\u201D\uFF0C\u201C\u4EA7\u54C1\u7F51\u7AD9\u201D\uFF0C\u201C\u7535\u5B50\u90AE\u4EF6\u201D\uFF09
-  - \u60C5\u7EEA\uFF08\u79EF\u6781/\u4E2D\u6027/\u6D88\u6781\u6307\u6807\uFF09
-  - \u75DB\u70B9\uFF08\u7528\u7EA2\u8272\u7A81\u51FA\u663E\u793A\uFF09
-  - \u673A\u4F1A\uFF08\u7528\u7EFF\u8272\u7A81\u51FA\u663E\u793A\uFF09
-- \u5728\u6240\u6709\u9636\u6BB5\u6DFB\u52A0\u60C5\u7EEA\u66F2\u7EBF
-- \u4F7F\u7528\u65F6\u95F4\u7EBF\u53EF\u89C6\u5316\uFF0C\u53CB\u597D\u7684\u56FE\u6807
-- \u4FDD\u6301\u591A\u5F69\u4F46\u4E13\u4E1A`,
+    estimatedTime: "10 分钟",
+    prompt: `为SaaS产品创建客户旅程地图：
+- 阶段：认知 → 考虑 → 购买 → 入职 → 留存
+- 每个阶段：
+  - 客户行为（例如，“搜索解决方案”，“阅读评论”）
+  - 触点（例如，“谷歌广告”，“产品网站”，“电子邮件”）
+  - 情绪（积极/中性/消极指标）
+  - 痛点（用红色突出显示）
+  - 机会（用绿色突出显示）
+- 在所有阶段添加情绪曲线
+- 使用时间线可视化，友好的图标
+- 保持多彩但专业`,
     brief: {
       intent: "draft",
       tone: "playful",
@@ -178,29 +178,29 @@ const DIAGRAM_TEMPLATES = [
   // 5. Agile Sprint Workflow
   {
     id: "agile-sprint",
-    title: "\u654F\u6377 Sprint \u5DE5\u4F5C\u6D41",
-    description: "Scrum\u654F\u6377\u5F00\u53D1\u7684\u5B8C\u6574Sprint\u6D41\u7A0B",
+    title: "敏捷 Sprint 工作流",
+    description: "Scrum敏捷开发的完整Sprint流程",
     category: "development",
-    tags: ["\u654F\u6377", "Scrum", "Sprint"],
+    tags: ["敏捷", "Scrum", "Sprint"],
     difficulty: "beginner",
     icon: "Repeat",
     gradient: {
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "8 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u654F\u6377 Sprint \u5DE5\u4F5C\u6D41\uFF082\u5468\u5468\u671F\uFF09\uFF1A
-- Sprint \u89C4\u5212\uFF1ABacklog \u68B3\u7406 \u2192 \u6545\u4E8B\u9009\u62E9 \u2192 \u4EFB\u52A1\u5206\u89E3 \u2192 \u5BB9\u91CF\u89C4\u5212
-- \u65E5\u5E38\u6D3B\u52A8\uFF1A\u6BCF\u65E5\u7AD9\u4F1A \u2192 \u5F00\u53D1 \u2192 \u4EE3\u7801\u5BA1\u67E5 \u2192 \u6D4B\u8BD5
-- Sprint \u4EEA\u5F0F\u65F6\u95F4\u7EBF\uFF1A
-  - \u7B2C\u4E00\u5929\uFF1ASprint \u89C4\u5212\uFF082-4\u5C0F\u65F6\uFF09
-  - \u6BCF\u65E5\uFF1A\u7AD9\u4F1A\uFF0815\u5206\u949F\uFF09
-  - Sprint \u4E2D\u671F\uFF1ABacklog \u68B3\u7406
-  - \u6700\u540E\u4E00\u5929\uFF1ASprint \u8BC4\u5BA1 \u2192 Sprint \u56DE\u987E
-- \u4EA4\u4ED8\u7269\uFF1A\u6F5C\u5728\u53EF\u53D1\u5E03\u589E\u91CF
-- \u6CF3\u9053\uFF1APO\u3001Scrum Master\u3001\u5F00\u53D1\u56E2\u961F\u3001QA
-- \u5305\u542B\u901F\u5EA6\u8DDF\u8E2A\u3001\u71C3\u5C3D\u56FE\u53C2\u8003
-- \u4F7F\u7528\u8FED\u4EE3\u6D41\u7A0B\u53EF\u89C6\u5316`,
+    estimatedTime: "8 分钟",
+    prompt: `创建敏捷 Sprint 工作流（2周周期）：
+- Sprint 规划：Backlog 梳理 → 故事选择 → 任务分解 → 容量规划
+- 日常活动：每日站会 → 开发 → 代码审查 → 测试
+- Sprint 仪式时间线：
+  - 第一天：Sprint 规划（2-4小时）
+  - 每日：站会（15分钟）
+  - Sprint 中期：Backlog 梳理
+  - 最后一天：Sprint 评审 → Sprint 回顾
+- 交付物：潜在可发布增量
+- 泳道：PO、Scrum Master、开发团队、QA
+- 包含速度跟踪、燃尽图参考
+- 使用迭代流程可视化`,
     brief: {
       intent: "draft",
       tone: "balanced",
@@ -211,33 +211,33 @@ const DIAGRAM_TEMPLATES = [
   // 6. Bug Triage Process
   {
     id: "bug-triage",
-    title: "Bug \u5904\u7406\u6D41\u7A0B",
-    description: "Bug\u5904\u7406\u6D41\u7A0B\uFF0C\u4ECE\u62A5\u544A\u5230\u4FEE\u590D\u9A8C\u8BC1",
+    title: "Bug 处理流程",
+    description: "Bug处理流程，从报告到修复验证",
     category: "development",
-    tags: ["QA", "Bug \u8FFD\u8E2A", "\u6D41\u7A0B"],
+    tags: ["QA", "Bug 追踪", "流程"],
     difficulty: "beginner",
     icon: "Bug",
     gradient: {
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "8 \u5206\u949F",
-    prompt: `\u521B\u5EFA Bug \u5904\u7406\u5DE5\u4F5C\u6D41\uFF1A
-- \u62A5\u544A\uFF1A\u7528\u6237/QA \u62A5\u544A Bug \u2192 \u81EA\u52A8\u521B\u5EFA\u5DE5\u5355
-- \u5206\u6D41\uFF1AQA \u8D1F\u8D23\u4EBA\u5BA1\u6838
-  - \u91CD\u590D\uFF1F\u2192 \u5173\u95ED\u5E76\u94FE\u63A5\u5230\u539F\u59CB\u5DE5\u5355
-  - \u6709\u6548 Bug\uFF1F\u2192 \u7EE7\u7EED
-- \u4E25\u91CD\u7A0B\u5EA6\u8BC4\u4F30\uFF1A
-  - \u4E25\u91CD (P0)\uFF1A\u7ACB\u5373\u4FEE\u590D\uFF0C\u5347\u7EA7\u5230\u5F85\u547D\u72B6\u6001
-  - \u9AD8 (P1)\uFF1A\u5206\u914D\u5230\u5F53\u524D Sprint
-  - \u4E2D (P2)\uFF1A\u6DFB\u52A0\u5230 Backlog
-  - \u4F4E (P3)\uFF1A\u6DFB\u52A0\u5230\u6280\u672F\u503A\u52A1\u5217\u8868
-- \u5206\u914D\uFF1A\u6309\u7EC4\u4EF6\u81EA\u52A8\u5206\u914D \u2192 \u5DE5\u7A0B\u5E08\u8BA4\u9886
-- \u5F00\u53D1\uFF1A\u4FEE\u590D \u2192 \u521B\u5EFA PR \u2192 \u4EE3\u7801\u5BA1\u67E5 \u2192 \u5408\u5E76
-- \u9A8C\u8BC1\uFF1A\u90E8\u7F72\u5230 Staging \u2192 QA \u9A8C\u8BC1 \u2192 \u90E8\u7F72\u5230\u751F\u4EA7
-- \u5173\u95ED\uFF1A\u5728\u751F\u4EA7\u73AF\u5883\u9A8C\u8BC1 \u2192 \u66F4\u65B0\u5DE5\u5355 \u2192 \u901A\u77E5\u62A5\u544A\u4EBA
-- \u6CF3\u9053\uFF1A\u62A5\u544A\u4EBA\u3001QA \u8D1F\u8D23\u4EBA\u3001\u5DE5\u7A0B\u3001DevOps
-- \u6309\u4F18\u5148\u7EA7\u989C\u8272\u7F16\u7801`,
+    estimatedTime: "8 分钟",
+    prompt: `创建 Bug 处理工作流：
+- 报告：用户/QA 报告 Bug → 自动创建工单
+- 分流：QA 负责人审核
+  - 重复？→ 关闭并链接到原始工单
+  - 有效 Bug？→ 继续
+- 严重程度评估：
+  - 严重 (P0)：立即修复，升级到待命状态
+  - 高 (P1)：分配到当前 Sprint
+  - 中 (P2)：添加到 Backlog
+  - 低 (P3)：添加到技术债务列表
+- 分配：按组件自动分配 → 工程师认领
+- 开发：修复 → 创建 PR → 代码审查 → 合并
+- 验证：部署到 Staging → QA 验证 → 部署到生产
+- 关闭：在生产环境验证 → 更新工单 → 通知报告人
+- 泳道：报告人、QA 负责人、工程、DevOps
+- 按优先级颜色编码`,
     brief: {
       intent: "draft",
       tone: "balanced",
@@ -248,10 +248,10 @@ const DIAGRAM_TEMPLATES = [
   // 7. Git Branching Strategy
   {
     id: "git-branching",
-    title: "Git \u5206\u652F\u7B56\u7565",
-    description: "Git\u5DE5\u4F5C\u6D41\uFF0C\u5305\u542Bfeature\u3001develop\u3001release\u3001hotfix\u5206\u652F",
+    title: "Git 分支策略",
+    description: "Git工作流，包含feature、develop、release、hotfix分支",
     category: "development",
-    tags: ["Git", "\u7248\u672C\u63A7\u5236", "DevOps"],
+    tags: ["Git", "版本控制", "DevOps"],
     difficulty: "intermediate",
     isPopular: true,
     icon: "GitBranch",
@@ -259,23 +259,23 @@ const DIAGRAM_TEMPLATES = [
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA Git \u5206\u652F\u7B56\u7565\u56FE (Gitflow)\uFF1A
-- \u4E3B\u8981\u5206\u652F\uFF1Amain (\u751F\u4EA7), develop (\u96C6\u6210)
-- \u652F\u6301\u5206\u652F\uFF1A
-  - Feature \u5206\u652F\uFF1A\u4ECE develop \u5206\u51FA \u2192 \u5408\u5E76\u56DE develop
-  - Release \u5206\u652F\uFF1A\u4ECE develop \u5206\u51FA \u2192 \u5408\u5E76\u5230 main + develop
-  - Hotfix \u5206\u652F\uFF1A\u4ECE main \u5206\u51FA \u2192 \u5408\u5E76\u5230 main + develop
-- \u5178\u578B\u6D41\u7A0B\uFF1A
-  1. \u4ECE develop \u521B\u5EFA feature/new-feature
-  2. \u5F00\u53D1 \u2192 \u63D0\u4EA4 \u2192 \u63A8\u9001
-  3. Pull Request \u2192 \u4EE3\u7801\u5BA1\u67E5 \u2192 \u5408\u5E76\u5230 develop
-  4. \u4ECE develop \u521B\u5EFA release/v1.2.0
-  5. \u6D4B\u8BD5 \u2192 Bug \u4FEE\u590D \u2192 \u5408\u5E76\u5230 main
-  6. \u6253\u6807\u7B7E v1.2.0 \u2192 \u90E8\u7F72
-- \u4F7F\u7528\u4E0D\u540C\u989C\u8272\u533A\u5206\u5206\u652F\u7C7B\u578B\uFF0C\u663E\u793A\u5408\u5E76\u65B9\u5411
-- \u4E3A\u6BCF\u79CD\u5206\u652F\u7C7B\u578B\u6DFB\u52A0\u6E05\u6670\u6807\u7B7E
-- \u5305\u542B\u65F6\u95F4\u7EBF/\u987A\u5E8F\u6307\u793A\u5668`,
+    estimatedTime: "10 分钟",
+    prompt: `创建 Git 分支策略图 (Gitflow)：
+- 主要分支：main (生产), develop (集成)
+- 支持分支：
+  - Feature 分支：从 develop 分出 → 合并回 develop
+  - Release 分支：从 develop 分出 → 合并到 main + develop
+  - Hotfix 分支：从 main 分出 → 合并到 main + develop
+- 典型流程：
+  1. 从 develop 创建 feature/new-feature
+  2. 开发 → 提交 → 推送
+  3. Pull Request → 代码审查 → 合并到 develop
+  4. 从 develop 创建 release/v1.2.0
+  5. 测试 → Bug 修复 → 合并到 main
+  6. 打标签 v1.2.0 → 部署
+- 使用不同颜色区分分支类型，显示合并方向
+- 为每种分支类型添加清晰标签
+- 包含时间线/顺序指示器`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -286,30 +286,30 @@ const DIAGRAM_TEMPLATES = [
   // 8. Approval Workflow
   {
     id: "approval-workflow",
-    title: "\u5BA1\u6279\u5DE5\u4F5C\u6D41",
-    description: "\u591A\u5C42\u7EA7\u5BA1\u6279\u6D41\u7A0B\uFF0C\u9002\u7528\u4E8E\u91C7\u8D2D\u3001\u8BF7\u5047\u3001\u62A5\u9500\u7B49\u573A\u666F",
+    title: "审批工作流",
+    description: "多层级审批流程，适用于采购、请假、报销等场景",
     category: "business",
-    tags: ["\u5DE5\u4F5C\u6D41", "\u5BA1\u6279", "\u6D41\u7A0B"],
+    tags: ["工作流", "审批", "流程"],
     difficulty: "beginner",
     icon: "CheckCircle",
     gradient: {
       from: "#3b82f6",
       to: "#1d4ed8"
     },
-    estimatedTime: "5 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4E00\u4E2A\u591A\u5C42\u7EA7\u91C7\u8D2D\u7533\u8BF7\u5BA1\u6279\u5DE5\u4F5C\u6D41\uFF1A
-- \u5F00\u59CB\uFF1A\u5458\u5DE5\u63D0\u4EA4\u7533\u8BF7
-- \u51B3\u7B56 1\uFF1A\u91D1\u989D < $1,000\uFF1F
-  - \u662F\uFF1A\u76F4\u63A5\u7ECF\u7406\u5BA1\u6279 \u2192 \u7ED3\u675F
-  - \u5426\uFF1A\u7EE7\u7EED\u5230\u51B3\u7B56 2
-- \u51B3\u7B56 2\uFF1A\u91D1\u989D < $10,000\uFF1F
-  - \u662F\uFF1A\u90E8\u95E8\u4E3B\u7BA1\u5BA1\u6279 \u2192 \u8D22\u52A1\u5BA1\u6838 \u2192 \u7ED3\u675F
-  - \u5426\uFF1AVP \u5BA1\u6279 \u2192 CFO \u5BA1\u6279 \u2192 CEO \u5BA1\u6279 \u2192 \u7ED3\u675F
-- \u6BCF\u4E2A\u5BA1\u6279\u90FD\u53EF\u4EE5\u62D2\u7EDD\uFF08\u9000\u56DE\u7ED9\u5458\u5DE5\uFF09\u6216\u6279\u51C6\uFF08\u7EE7\u7EED\uFF09
-- \u6CF3\u9053\uFF1A\u5458\u5DE5\u3001\u7ECF\u7406\u3001\u90E8\u95E8\u4E3B\u7BA1\u3001\u8D22\u52A1\u3001\u9AD8\u7BA1
-- \u4E3A\u7D27\u6025\u8BF7\u6C42\u6DFB\u52A0\u5E76\u884C\u8DEF\u5F84
-- \u989C\u8272\u7F16\u7801\uFF1A\u7EFF\u8272\u8868\u793A\u6279\u51C6\uFF0C\u7EA2\u8272\u8868\u793A\u62D2\u7EDD\uFF0C\u9EC4\u8272\u8868\u793A\u5F85\u5B9A
-- \u5305\u542B\u6E05\u6670\u7684\u51B3\u7B56\u6807\u51C6\u548C\u5BA1\u6279\u9650\u989D`,
+    estimatedTime: "5 分钟",
+    prompt: `创建一个多层级采购申请审批工作流：
+- 开始：员工提交申请
+- 决策 1：金额 < $1,000？
+  - 是：直接经理审批 → 结束
+  - 否：继续到决策 2
+- 决策 2：金额 < $10,000？
+  - 是：部门主管审批 → 财务审核 → 结束
+  - 否：VP 审批 → CFO 审批 → CEO 审批 → 结束
+- 每个审批都可以拒绝（退回给员工）或批准（继续）
+- 泳道：员工、经理、部门主管、财务、高管
+- 为紧急请求添加并行路径
+- 颜色编码：绿色表示批准，红色表示拒绝，黄色表示待定
+- 包含清晰的决策标准和审批限额`,
     brief: {
       intent: "draft",
       tone: "balanced",
@@ -320,38 +320,38 @@ const DIAGRAM_TEMPLATES = [
   // 9. CI/CD Pipeline
   {
     id: "cicd-pipeline",
-    title: "CI/CD \u6D41\u6C34\u7EBF",
-    description: "\u6301\u7EED\u96C6\u6210/\u6301\u7EED\u90E8\u7F72\u6D41\u6C34\u7EBF\uFF0C\u4ECE\u4EE3\u7801\u63D0\u4EA4\u5230\u751F\u4EA7\u53D1\u5E03",
+    title: "CI/CD 流水线",
+    description: "持续集成/持续部署流水线，从代码提交到生产发布",
     category: "development",
-    tags: ["CI/CD", "DevOps", "\u81EA\u52A8\u5316"],
+    tags: ["CI/CD", "DevOps", "自动化"],
     difficulty: "advanced",
     icon: "Zap",
     gradient: {
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "15 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4E00\u4E2A\u5168\u9762\u7684 CI/CD \u6D41\u6C34\u7EBF\uFF1A
-- \u89E6\u53D1\uFF1AGit \u63A8\u9001\u5230 main \u5206\u652F
-- CI \u9636\u6BB5\uFF1A
-  - \u68C0\u51FA\u4EE3\u7801
-  - \u5B89\u88C5\u4F9D\u8D56
-  - \u8FD0\u884C Lint \u68C0\u67E5
-  - \u8FD0\u884C\u5355\u5143\u6D4B\u8BD5\uFF08\u5E76\u884C\uFF09
-  - \u8FD0\u884C\u96C6\u6210\u6D4B\u8BD5\uFF08\u5E76\u884C\uFF09
-  - \u6784\u5EFA\u5236\u54C1
-  - \u5B89\u5168\u626B\u63CF (SAST/DAST)
-- CD \u9636\u6BB5\uFF1A
-  - \u90E8\u7F72\u5230 Staging \u73AF\u5883
-  - \u8FD0\u884C\u5192\u70DF\u6D4B\u8BD5
-  - \u624B\u52A8\u6279\u51C6\u95E8\u7981
-  - \u90E8\u7F72\u5230\u751F\u4EA7\u73AF\u5883\uFF08\u84DD\u7EFF\u90E8\u7F72\uFF09
-  - \u5065\u5EB7\u68C0\u67E5
-  - \u56DE\u6EDA\u80FD\u529B
-- \u5305\u542B\u6210\u529F/\u5931\u8D25\u8DEF\u5F84\uFF0C\u901A\u77E5\u6B65\u9AA4
-- \u5C3D\u53EF\u80FD\u663E\u793A\u5E76\u884C\u6267\u884C
-- \u4E3A\u6BCF\u4E2A\u5DE5\u5177\u6DFB\u52A0\u56FE\u6807\uFF08Jenkins, Docker, K8s \u7B49\uFF09
-- \u6309\u72B6\u6001\u989C\u8272\u7F16\u7801\u9636\u6BB5`,
+    estimatedTime: "15 分钟",
+    prompt: `创建一个全面的 CI/CD 流水线：
+- 触发：Git 推送到 main 分支
+- CI 阶段：
+  - 检出代码
+  - 安装依赖
+  - 运行 Lint 检查
+  - 运行单元测试（并行）
+  - 运行集成测试（并行）
+  - 构建制品
+  - 安全扫描 (SAST/DAST)
+- CD 阶段：
+  - 部署到 Staging 环境
+  - 运行冒烟测试
+  - 手动批准门禁
+  - 部署到生产环境（蓝绿部署）
+  - 健康检查
+  - 回滚能力
+- 包含成功/失败路径，通知步骤
+- 尽可能显示并行执行
+- 为每个工具添加图标（Jenkins, Docker, K8s 等）
+- 按状态颜色编码阶段`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -362,28 +362,28 @@ const DIAGRAM_TEMPLATES = [
   // 10. Organizational Chart
   {
     id: "org-chart",
-    title: "\u7EC4\u7EC7\u67B6\u6784\u56FE",
-    description: "\u516C\u53F8\u7EC4\u7EC7\u67B6\u6784\u56FE\uFF0C\u5C55\u793A\u5C42\u7EA7\u5173\u7CFB\u548C\u6C47\u62A5\u7EBF",
+    title: "组织架构图",
+    description: "公司组织架构图，展示层级关系和汇报线",
     category: "business",
-    tags: ["\u7EC4\u7EC7\u67B6\u6784", "\u7ED3\u6784", "\u5C42\u7EA7"],
+    tags: ["组织架构", "结构", "层级"],
     difficulty: "beginner",
     icon: "Building",
     gradient: {
       from: "#3b82f6",
       to: "#1d4ed8"
     },
-    estimatedTime: "5 \u5206\u949F",
-    prompt: `\u4E3A\u79D1\u6280\u521D\u521B\u516C\u53F8\u521B\u5EFA\u4E00\u4E2A\u6E05\u6670\u7684\u7EC4\u7EC7\u67B6\u6784\u56FE\uFF1A
-- CEO \u5728\u9876\u90E8
-- C-Level\uFF1ACTO, CPO, CFO, CMO (\u5411 CEO \u6C47\u62A5)
-- \u5DE5\u7A0B (CTO \u4E0B)\uFF1A\u524D\u7AEF\u56E2\u961F\u3001\u540E\u7AEF\u56E2\u961F\u3001DevOps \u56E2\u961F
-- \u4EA7\u54C1 (CPO \u4E0B)\uFF1A\u4EA7\u54C1\u7ECF\u7406\u3001\u8BBE\u8BA1\u5E08\u3001\u7814\u7A76\u5458
-- \u8D22\u52A1 (CFO \u4E0B)\uFF1A\u4F1A\u8BA1\u3001FP&A
-- \u5E02\u573A (CMO \u4E0B)\uFF1A\u589E\u957F\u3001\u5185\u5BB9\u3001\u54C1\u724C
-- \u4F7F\u7528\u5C42\u7EA7\u6811\u5E03\u5C40\uFF0C\u4E00\u81F4\u7684\u95F4\u8DDD
-- \u6309\u90E8\u95E8\u989C\u8272\u7F16\u7801\uFF0C\u663E\u793A\u6BCF\u4E2A\u56E2\u961F\u7684\u4EBA\u6570
-- \u6DFB\u52A0\u6E05\u6670\u7684\u6C47\u62A5\u7EBF
-- \u4FDD\u6301\u4E13\u4E1A\u548C\u5E73\u8861`,
+    estimatedTime: "5 分钟",
+    prompt: `为科技初创公司创建一个清晰的组织架构图：
+- CEO 在顶部
+- C-Level：CTO, CPO, CFO, CMO (向 CEO 汇报)
+- 工程 (CTO 下)：前端团队、后端团队、DevOps 团队
+- 产品 (CPO 下)：产品经理、设计师、研究员
+- 财务 (CFO 下)：会计、FP&A
+- 市场 (CMO 下)：增长、内容、品牌
+- 使用层级树布局，一致的间距
+- 按部门颜色编码，显示每个团队的人数
+- 添加清晰的汇报线
+- 保持专业和平衡`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -394,10 +394,10 @@ const DIAGRAM_TEMPLATES = [
   // 11. Mind Map (Brainstorming)
   {
     id: "mindmap-brainstorm",
-    title: "\u5934\u8111\u98CE\u66B4\u601D\u7EF4\u5BFC\u56FE",
-    description: "\u53D1\u6563\u601D\u7EF4\u5BFC\u56FE\uFF0C\u7528\u4E8E\u5934\u8111\u98CE\u66B4\u548C\u521B\u610F\u6574\u7406",
+    title: "头脑风暴思维导图",
+    description: "发散思维导图，用于头脑风暴和创意整理",
     category: "creative",
-    tags: ["\u5934\u8111\u98CE\u66B4", "\u6784\u601D", "\u521B\u610F"],
+    tags: ["头脑风暴", "构思", "创意"],
     difficulty: "beginner",
     isNew: true,
     icon: "Lightbulb",
@@ -405,31 +405,31 @@ const DIAGRAM_TEMPLATES = [
       from: "#f59e0b",
       to: "#d97706"
     },
-    estimatedTime: "5 \u5206\u949F",
-    prompt: `\u4E3A\u201C\u4EA7\u54C1\u521B\u65B0\u70B9\u5B50\u201D\u521B\u5EFA\u4E00\u4E2A\u5934\u8111\u98CE\u66B4\u601D\u7EF4\u5BFC\u56FE\uFF1A
-- \u4E2D\u5FC3\u8282\u70B9\uFF1A\u201C2025\u5E74\u4EA7\u54C1\u521B\u65B0\u201D
-- \u4E3B\u8981\u5206\u652F\uFF08\u7B2C1\u5C42\uFF09\uFF1A
-  - \u65B0\u529F\u80FD
-  - \u7528\u6237\u4F53\u9A8C
-  - \u5546\u4E1A\u6A21\u5F0F
-  - \u6280\u672F\u6808
-  - \u8425\u9500\u6E20\u9053
-- \u5B50\u5206\u652F\uFF08\u7B2C2-3\u5C42\uFF09\uFF1A
-  - \u65B0\u529F\u80FD\uFF1A
-    - AI\u63A8\u8350 \u2192 \u4E2A\u6027\u5316\u5F15\u64CE
-    - \u793E\u4EA4\u5206\u4EAB \u2192 \u75C5\u6BD2\u5F0F\u4F20\u64AD
-    - \u79FB\u52A8\u5E94\u7528 \u2192 \u79BB\u7EBF\u6A21\u5F0F
-  - \u7528\u6237\u4F53\u9A8C\uFF1A
-    - \u5165\u804C\u91CD\u8BBE\u8BA1 \u2192 \u4EA4\u4E92\u5F0F\u6559\u7A0B
-    - \u65E0\u969C\u788D \u2192 \u5C4F\u5E55\u9605\u8BFB\u5668\u652F\u6301
-    - \u6027\u80FD \u2192 \u4E9A\u79D2\u7EA7\u52A0\u8F7D
-  - \u5546\u4E1A\u6A21\u5F0F\uFF1A
-    - \u514D\u8D39\u589E\u503C\u5C42 \u2192 \u529F\u80FD\u5BF9\u6BD4
-    - \u4F01\u4E1A\u8BA1\u5212 \u2192 \u81EA\u5B9A\u4E49SLA
-    - \u5E02\u573A \u2192 \u6536\u5165\u5206\u6210
-- \u4F7F\u7528\u6709\u673A\u5F62\u72B6\uFF0C\u591A\u6837\u7684\u989C\u8272\uFF0C\u6709\u8DA3\u7684\u56FE\u6807
-- \u4E3A\u9AD8\u4F18\u5148\u7EA7\u70B9\u5B50\u6DFB\u52A0\u201C\u70ED\u95E8\u201D\u6307\u793A\u5668
-- \u5305\u542B\u8DE8\u5206\u652F\u76F8\u5173\u70B9\u5B50\u4E4B\u95F4\u7684\u8FDE\u63A5`,
+    estimatedTime: "5 分钟",
+    prompt: `为“产品创新点子”创建一个头脑风暴思维导图：
+- 中心节点：“2025年产品创新”
+- 主要分支（第1层）：
+  - 新功能
+  - 用户体验
+  - 商业模式
+  - 技术栈
+  - 营销渠道
+- 子分支（第2-3层）：
+  - 新功能：
+    - AI推荐 → 个性化引擎
+    - 社交分享 → 病毒式传播
+    - 移动应用 → 离线模式
+  - 用户体验：
+    - 入职重设计 → 交互式教程
+    - 无障碍 → 屏幕阅读器支持
+    - 性能 → 亚秒级加载
+  - 商业模式：
+    - 免费增值层 → 功能对比
+    - 企业计划 → 自定义SLA
+    - 市场 → 收入分成
+- 使用有机形状，多样的颜色，有趣的图标
+- 为高优先级点子添加“热门”指示器
+- 包含跨分支相关点子之间的连接`,
     brief: {
       intent: "draft",
       tone: "playful",
@@ -440,37 +440,37 @@ const DIAGRAM_TEMPLATES = [
   // 12. Product Development Lifecycle
   {
     id: "product-lifecycle",
-    title: "\u4EA7\u54C1\u5F00\u53D1\u751F\u547D\u5468\u671F",
-    description: "\u4EA7\u54C1\u4ECE\u6982\u5FF5\u5230\u53D1\u5E03\u7684\u5B8C\u6574\u751F\u547D\u5468\u671F",
+    title: "产品开发生命周期",
+    description: "产品从概念到发布的完整生命周期",
     category: "product",
-    tags: ["\u4EA7\u54C1", "\u751F\u547D\u5468\u671F", "\u5F00\u53D1"],
+    tags: ["产品", "生命周期", "开发"],
     difficulty: "intermediate",
     icon: "Package",
     gradient: {
       from: "#ec4899",
       to: "#be185d"
     },
-    estimatedTime: "12 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4EA7\u54C1\u5F00\u53D1\u751F\u547D\u5468\u671F\uFF1A
-- \u53D1\u73B0\u9636\u6BB5\uFF1A
-  - \u5E02\u573A\u8C03\u7814 \u2192 \u7528\u6237\u8BBF\u8C08 \u2192 \u7ADE\u54C1\u5206\u6790
-  - \u95EE\u9898\u9A8C\u8BC1\uFF1A\u8FD9\u662F\u771F\u6B63\u7684\u95EE\u9898\u5417\uFF1F(\u662F/\u5426)
-- \u5B9A\u4E49\u9636\u6BB5\uFF1A
-  - \u7528\u6237\u753B\u50CF \u2192 \u7528\u6237\u6545\u4E8B \u2192 \u529F\u80FD\u4F18\u5148\u7EA7
-  - PRD \u521B\u5EFA \u2192 \u8BBE\u8BA1\u89C4\u8303 \u2192 \u6280\u672F\u89C4\u8303
-- \u8BBE\u8BA1\u9636\u6BB5\uFF1A
-  - \u7EBF\u6846\u56FE \u2192 \u89C6\u89C9\u7A3F \u2192 \u539F\u578B \u2192 \u53EF\u7528\u6027\u6D4B\u8BD5
-  - \u8BBE\u8BA1\u6279\u51C6\u95E8\u7981
-- \u5F00\u53D1\u9636\u6BB5\uFF1A
-  - Sprint \u89C4\u5212 \u2192 \u654F\u6377\u5F00\u53D1 \u2192 QA \u6D4B\u8BD5
-- \u53D1\u5E03\u9636\u6BB5\uFF1A
-  - Beta \u6D4B\u8BD5 \u2192 \u53CD\u9988\u6536\u96C6 \u2192 \u751F\u4EA7\u53D1\u5E03
-  - \u8425\u9500\u6D3B\u52A8 \u2192 \u7528\u6237\u5165\u804C
-- \u589E\u957F\u9636\u6BB5\uFF1A
-  - \u5206\u6790\u76D1\u63A7 \u2192 A/B \u6D4B\u8BD5 \u2192 \u529F\u80FD\u8FED\u4EE3
-- \u5305\u542B\u4ECE\u6BCF\u4E2A\u9636\u6BB5\u56DE\u5230\u53D1\u73B0\u9636\u6BB5\u7684\u53CD\u9988\u5FAA\u73AF
-- \u6DFB\u52A0\u51B3\u7B56\u95E8\u7981\u548C\u8D28\u91CF\u68C0\u67E5\u70B9
-- \u6309\u9636\u6BB5\u7C7B\u578B\u989C\u8272\u7F16\u7801`,
+    estimatedTime: "12 分钟",
+    prompt: `创建产品开发生命周期：
+- 发现阶段：
+  - 市场调研 → 用户访谈 → 竞品分析
+  - 问题验证：这是真正的问题吗？(是/否)
+- 定义阶段：
+  - 用户画像 → 用户故事 → 功能优先级
+  - PRD 创建 → 设计规范 → 技术规范
+- 设计阶段：
+  - 线框图 → 视觉稿 → 原型 → 可用性测试
+  - 设计批准门禁
+- 开发阶段：
+  - Sprint 规划 → 敏捷开发 → QA 测试
+- 发布阶段：
+  - Beta 测试 → 反馈收集 → 生产发布
+  - 营销活动 → 用户入职
+- 增长阶段：
+  - 分析监控 → A/B 测试 → 功能迭代
+- 包含从每个阶段回到发现阶段的反馈循环
+- 添加决策门禁和质量检查点
+- 按阶段类型颜色编码`,
     brief: {
       intent: "draft",
       tone: "balanced",
@@ -481,33 +481,33 @@ const DIAGRAM_TEMPLATES = [
   // 13. Microservices Communication
   {
     id: "microservices",
-    title: "\u5FAE\u670D\u52A1\u901A\u4FE1",
-    description: "\u5FAE\u670D\u52A1\u67B6\u6784\u7684\u670D\u52A1\u95F4\u901A\u4FE1\u6A21\u5F0F",
+    title: "微服务通信",
+    description: "微服务架构的服务间通信模式",
     category: "development",
-    tags: ["\u5FAE\u670D\u52A1", "\u67B6\u6784", "\u901A\u4FE1"],
+    tags: ["微服务", "架构", "通信"],
     difficulty: "advanced",
     icon: "Network",
     gradient: {
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "15 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u5FAE\u670D\u52A1\u901A\u4FE1\u56FE\uFF1A
-- \u670D\u52A1\uFF1AAPI \u7F51\u5173\u3001\u7528\u6237\u670D\u52A1\u3001\u8BA2\u5355\u670D\u52A1\u3001\u652F\u4ED8\u670D\u52A1\u3001\u901A\u77E5\u670D\u52A1\u3001\u5E93\u5B58\u670D\u52A1
-- \u901A\u4FE1\u6A21\u5F0F\uFF1A
-  - \u540C\u6B65\uFF1AREST API \u8C03\u7528\uFF08\u5B9E\u7EBF\uFF09
-  - \u5F02\u6B65\uFF1A\u6D88\u606F\u961F\u5217\uFF08\u865A\u7EBF\uFF09
-  - \u4E8B\u4EF6\u9A71\u52A8\uFF1A\u4E8B\u4EF6\u603B\u7EBF\uFF08\u70B9\u7EBF\uFF09
-- \u793A\u4F8B\u6D41\u7A0B\uFF1A
-  1. \u5BA2\u6237\u7AEF \u2192 API \u7F51\u5173 \u2192 \u8BA2\u5355\u670D\u52A1
-  2. \u8BA2\u5355\u670D\u52A1 \u2192 \u652F\u4ED8\u670D\u52A1\uFF08\u540C\u6B65 REST\uFF09
-  3. \u8BA2\u5355\u670D\u52A1 \u2192 \u5E93\u5B58\u670D\u52A1\uFF08\u540C\u6B65 REST\uFF09
-  4. \u8BA2\u5355\u670D\u52A1 \u2192 \u6D88\u606F\u961F\u5217 \u2192 \u901A\u77E5\u670D\u52A1\uFF08\u5F02\u6B65\uFF09
-  5. \u652F\u4ED8\u670D\u52A1 \u2192 \u4E8B\u4EF6\u603B\u7EBF \u2192 \u5206\u6790\u670D\u52A1\uFF08\u4E8B\u4EF6\uFF09
-- \u663E\u793A\u534F\u8BAE\uFF08HTTP, gRPC, RabbitMQ, Kafka\uFF09
-- \u5305\u542B\u670D\u52A1\u6CE8\u518C\u3001\u8D1F\u8F7D\u5747\u8861\u3001\u65AD\u8DEF\u5668\u6A21\u5F0F
-- \u6309\u901A\u4FE1\u7C7B\u578B\u989C\u8272\u7F16\u7801
-- \u6DFB\u52A0\u5EF6\u8FDF\u6307\u793A\u5668`,
+    estimatedTime: "15 分钟",
+    prompt: `创建微服务通信图：
+- 服务：API 网关、用户服务、订单服务、支付服务、通知服务、库存服务
+- 通信模式：
+  - 同步：REST API 调用（实线）
+  - 异步：消息队列（虚线）
+  - 事件驱动：事件总线（点线）
+- 示例流程：
+  1. 客户端 → API 网关 → 订单服务
+  2. 订单服务 → 支付服务（同步 REST）
+  3. 订单服务 → 库存服务（同步 REST）
+  4. 订单服务 → 消息队列 → 通知服务（异步）
+  5. 支付服务 → 事件总线 → 分析服务（事件）
+- 显示协议（HTTP, gRPC, RabbitMQ, Kafka）
+- 包含服务注册、负载均衡、断路器模式
+- 按通信类型颜色编码
+- 添加延迟指示器`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -518,33 +518,33 @@ const DIAGRAM_TEMPLATES = [
   // 14. User Story Mapping
   {
     id: "user-story-mapping",
-    title: "\u7528\u6237\u6545\u4E8B\u5730\u56FE",
-    description: "\u7528\u6237\u6545\u4E8B\u5730\u56FE\uFF0C\u6309\u7528\u6237\u65C5\u7A0B\u7EC4\u7EC7\u529F\u80FD\u9700\u6C42",
+    title: "用户故事地图",
+    description: "用户故事地图，按用户旅程组织功能需求",
     category: "product",
-    tags: ["\u654F\u6377", "\u7528\u6237\u6545\u4E8B", "\u89C4\u5212"],
+    tags: ["敏捷", "用户故事", "规划"],
     difficulty: "intermediate",
     icon: "Map",
     gradient: {
       from: "#ec4899",
       to: "#be185d"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u4E3A\u5728\u7EBF\u8D2D\u7269\u5E94\u7528\u521B\u5EFA\u7528\u6237\u6545\u4E8B\u5730\u56FE\uFF1A
-- \u7528\u6237\u6D3B\u52A8\uFF08\u9876\u5C42\uFF0C\u4ECE\u5DE6\u5230\u53F3\uFF09\uFF1A
-  - \u6D4F\u89C8\u5546\u54C1 \u2192 \u641C\u7D22 \u2192 \u67E5\u770B\u8BE6\u60C5 \u2192 \u52A0\u5165\u8D2D\u7269\u8F66 \u2192 \u7ED3\u8D26 \u2192 \u8DDF\u8E2A\u8BA2\u5355
-- \u7528\u6237\u4EFB\u52A1\uFF08\u6BCF\u4E2A\u6D3B\u52A8\u4E0B\u65B9\uFF09\uFF1A
-  - \u6D4F\u89C8\uFF1A\u6309\u7C7B\u522B\u7B5B\u9009\u3001\u6309\u4EF7\u683C\u6392\u5E8F\u3001\u67E5\u770B\u63A8\u8350
-  - \u641C\u7D22\uFF1A\u5173\u952E\u8BCD\u641C\u7D22\u3001\u8BED\u97F3\u641C\u7D22\u3001\u6761\u5F62\u7801\u626B\u63CF
-  - \u67E5\u770B\u8BE6\u60C5\uFF1A\u9605\u8BFB\u63CF\u8FF0\u3001\u67E5\u770B\u8BC4\u8BBA\u3001\u67E5\u770B\u76F8\u5173\u5546\u54C1
-  - \u52A0\u5165\u8D2D\u7269\u8F66\uFF1A\u9009\u62E9\u6570\u91CF\u3001\u9009\u62E9\u53D8\u4F53\u3001\u4FDD\u5B58\u4EE5\u5907\u540E\u7528
-  - \u7ED3\u8D26\uFF1A\u8F93\u5165\u9001\u8D27\u4FE1\u606F\u3001\u9009\u62E9\u4ED8\u6B3E\u65B9\u5F0F\u3001\u5E94\u7528\u4F18\u60E0\u5238
-  - \u8DDF\u8E2A\uFF1A\u67E5\u770B\u72B6\u6001\u3001\u8054\u7CFB\u652F\u6301\u3001\u7533\u8BF7\u9000\u8D27
-- \u4F18\u5148\u7EA7\u7EA7\u522B\uFF08\u5782\u76F4\uFF09\uFF1A
-  - MVP\uFF08\u9876\u884C\uFF0C\u5FC5\u987B\u6709\uFF09
-  - Release 2\uFF08\u4E2D\u95F4\u884C\uFF09
-  - Future\uFF08\u5E95\u884C\uFF0C\u6700\u597D\u6709\uFF09
-- \u4F7F\u7528\u4FBF\u5229\u8D34\u98CE\u683C\uFF0C\u6309\u4F18\u5148\u7EA7\u989C\u8272\u7F16\u7801
-- \u4FDD\u6301\u7EC4\u7EC7\u6709\u5E8F\uFF0C\u6613\u4E8E\u626B\u63CF`,
+    estimatedTime: "10 分钟",
+    prompt: `为在线购物应用创建用户故事地图：
+- 用户活动（顶层，从左到右）：
+  - 浏览商品 → 搜索 → 查看详情 → 加入购物车 → 结账 → 跟踪订单
+- 用户任务（每个活动下方）：
+  - 浏览：按类别筛选、按价格排序、查看推荐
+  - 搜索：关键词搜索、语音搜索、条形码扫描
+  - 查看详情：阅读描述、查看评论、查看相关商品
+  - 加入购物车：选择数量、选择变体、保存以备后用
+  - 结账：输入送货信息、选择付款方式、应用优惠券
+  - 跟踪：查看状态、联系支持、申请退货
+- 优先级级别（垂直）：
+  - MVP（顶行，必须有）
+  - Release 2（中间行）
+  - Future（底行，最好有）
+- 使用便利贴风格，按优先级颜色编码
+- 保持组织有序，易于扫描`,
     brief: {
       intent: "draft",
       tone: "playful",
@@ -555,41 +555,41 @@ const DIAGRAM_TEMPLATES = [
   // 15. Incident Response Runbook
   {
     id: "incident-response",
-    title: "\u4E8B\u4EF6\u54CD\u5E94\u8FD0\u884C\u624B\u518C",
-    description: "\u5B89\u5168\u4E8B\u4EF6\u54CD\u5E94\u6D41\u7A0B\uFF0C\u4ECE\u68C0\u6D4B\u5230\u6062\u590D",
+    title: "事件响应运行手册",
+    description: "安全事件响应流程，从检测到恢复",
     category: "security",
-    tags: ["\u5B89\u5168", "\u4E8B\u4EF6", "SRE"],
+    tags: ["安全", "事件", "SRE"],
     difficulty: "advanced",
     icon: "Shield",
     gradient: {
       from: "#10b981",
       to: "#059669"
     },
-    estimatedTime: "15 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4E8B\u4EF6\u54CD\u5E94\u8FD0\u884C\u624B\u518C\uFF1A
-- \u68C0\u6D4B\u9636\u6BB5\uFF1A
-  - \u76D1\u63A7\u8B66\u62A5\u89E6\u53D1 \u6216 \u7528\u6237\u62A5\u544A
-  - \u5F85\u547D\u5DE5\u7A0B\u5E08\u6536\u5230\u4F20\u547C
-  - \u521D\u59CB\u8BC4\u4F30\uFF1A\u4E25\u91CD\u7A0B\u5EA6 (P0/P1/P2/P3)
-- \u5206\u6D41\u9636\u6BB5\uFF1A
-  - P0 (\u4E25\u91CD)\uFF1A\u7EC4\u5EFA\u4F5C\u6218\u5BA4\uFF0C\u901A\u77E5\u9AD8\u7BA1
-  - P1 (\u9AD8)\uFF1A\u6307\u6D3E\u4E8B\u4EF6\u6307\u6325\u5B98\uFF0C\u521B\u5EFA\u4E8B\u4EF6\u9891\u9053
-  - P2/P3\uFF1A\u6807\u51C6\u5F85\u547D\u5904\u7406
-- \u8C03\u67E5\uFF1A
-  - \u6536\u96C6\u65E5\u5FD7 \u2192 \u8BC6\u522B\u6839\u672C\u539F\u56E0 \u2192 \u8BC4\u4F30\u5F71\u54CD\u8303\u56F4
-  - \u5E76\u884C\uFF1A\u5BA2\u6237\u6C9F\u901A\uFF0C\u72B6\u6001\u9875\u66F4\u65B0
-- \u904F\u5236\uFF1A
-  - \u9694\u79BB\u53D7\u5F71\u54CD\u7CFB\u7EDF \u2192 \u5B9E\u65BD\u4E34\u65F6\u4FEE\u590D
-  - \u51B3\u7B56\uFF1A\u6211\u4EEC\u53EF\u4EE5\u5C31\u5730\u4FEE\u8865 \u8FD8\u662F \u9700\u8981\u56DE\u6EDA\uFF1F
-- \u89E3\u51B3\uFF1A
-  - \u90E8\u7F72\u4FEE\u590D \u2192 \u5728 Staging \u9A8C\u8BC1 \u2192 \u63A8\u51FA\u5230\u751F\u4EA7
-  - \u76D1\u63A7\u5173\u952E\u6307\u6807 \u2192 \u786E\u8BA4\u89E3\u51B3
-- \u4E8B\u540E\u603B\u7ED3\uFF1A
-  - \u64B0\u5199\u4E8B\u4EF6\u62A5\u544A \u2192 \u65E0\u8D23\u5BA1\u67E5 \u2192 \u884C\u52A8\u9879
-  - \u66F4\u65B0\u8FD0\u884C\u624B\u518C \u2192 \u5206\u4EAB\u7ECF\u9A8C
-- \u6CF3\u9053\uFF1A\u5F85\u547D\u4EBA\u5458\u3001\u4E8B\u4EF6\u6307\u6325\u5B98\u3001\u5DE5\u7A0B\u3001\u6C9F\u901A\u3001\u9886\u5BFC\u5C42
-- \u5305\u542B\u5347\u7EA7\u8DEF\u5F84\u3001\u6C9F\u901A\u6A21\u677F
-- \u6309\u4E25\u91CD\u7A0B\u5EA6\u989C\u8272\u7F16\u7801`,
+    estimatedTime: "15 分钟",
+    prompt: `创建事件响应运行手册：
+- 检测阶段：
+  - 监控警报触发 或 用户报告
+  - 待命工程师收到传呼
+  - 初始评估：严重程度 (P0/P1/P2/P3)
+- 分流阶段：
+  - P0 (严重)：组建作战室，通知高管
+  - P1 (高)：指派事件指挥官，创建事件频道
+  - P2/P3：标准待命处理
+- 调查：
+  - 收集日志 → 识别根本原因 → 评估影响范围
+  - 并行：客户沟通，状态页更新
+- 遏制：
+  - 隔离受影响系统 → 实施临时修复
+  - 决策：我们可以就地修补 还是 需要回滚？
+- 解决：
+  - 部署修复 → 在 Staging 验证 → 推出到生产
+  - 监控关键指标 → 确认解决
+- 事后总结：
+  - 撰写事件报告 → 无责审查 → 行动项
+  - 更新运行手册 → 分享经验
+- 泳道：待命人员、事件指挥官、工程、沟通、领导层
+- 包含升级路径、沟通模板
+- 按严重程度颜色编码`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -600,40 +600,40 @@ const DIAGRAM_TEMPLATES = [
   // 16. Network Architecture
   {
     id: "network-architecture",
-    title: "\u7F51\u7EDC\u67B6\u6784",
-    description: "\u4F01\u4E1A\u7F51\u7EDC\u62D3\u6251\uFF0C\u5305\u542BDMZ\u3001\u9632\u706B\u5899\u3001VPC\u7B49",
+    title: "网络架构",
+    description: "企业网络拓扑，包含DMZ、防火墙、VPC等",
     category: "security",
-    tags: ["\u7F51\u7EDC", "\u57FA\u7840\u8BBE\u65BD", "\u5B89\u5168"],
+    tags: ["网络", "基础设施", "安全"],
     difficulty: "advanced",
     icon: "Server",
     gradient: {
       from: "#10b981",
       to: "#059669"
     },
-    estimatedTime: "15 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4F01\u4E1A\u7F51\u7EDC\u67B6\u6784\uFF1A
-- \u5916\u90E8\u533A\u57DF\uFF08\u4E92\u8054\u7F51\uFF09\uFF1A
-  - \u7528\u6237 \u2192 CDN \u2192 WAF \u2192 \u8D1F\u8F7D\u5747\u8861\u5668
-- DMZ\uFF08\u975E\u519B\u4E8B\u533A\uFF09\uFF1A
-  - \u9762\u5411\u516C\u4F17\u7684 Web \u670D\u52A1\u5668
-  - \u53CD\u5411\u4EE3\u7406 / API \u7F51\u5173
-  - \u9632\u706B\u5899\u89C4\u5219\uFF1A\u4EC5\u5F00\u653E\u7AEF\u53E3 80/443
-- \u5185\u90E8\u533A\u57DF\uFF08\u79C1\u6709 VPC\uFF09\uFF1A
-  - \u5E94\u7528\u670D\u52A1\u5668\uFF08\u79C1\u6709\u5B50\u7F51\uFF09
-  - \u6570\u636E\u5E93\u96C6\u7FA4\uFF08\u9694\u79BB\u5B50\u7F51\uFF09
-  - \u5185\u90E8\u670D\u52A1\uFF08\u6D88\u606F\u961F\u5217\u3001\u7F13\u5B58\uFF09
-- \u7BA1\u7406\u533A\u57DF\uFF1A
-  - \u5821\u5792\u673A\uFF08\u8DF3\u677F\u673A\uFF09
-  - \u76D1\u63A7\u548C\u65E5\u5FD7\u670D\u52A1\u5668
-  - \u7BA1\u7406\u5458\u5DE5\u4F5C\u7AD9
-- \u5B89\u5168\u5C42\uFF1A
-  - \u6BCF\u4E2A\u533A\u57DF\u4E4B\u95F4\u7684\u9632\u706B\u5899
-  - \u7528\u4E8E\u8FDC\u7A0B\u8BBF\u95EE\u7684 VPN
-  - IDS/IPS \u4F20\u611F\u5668
-  - \u4F7F\u7528 VLAN \u8FDB\u884C\u7F51\u7EDC\u5206\u6BB5
-- \u663E\u793A IP \u8303\u56F4\u3001\u5B89\u5168\u7EC4\u3001\u6D41\u91CF\u7BAD\u5934
-- \u5305\u542B\u5907\u4EFD/\u5BB9\u707E\u7AD9\u70B9\u8FDE\u63A5
-- \u4F7F\u7528\u4E13\u4E1A\u7684\u7F51\u7EDC\u56FE\u7B26\u53F7`,
+    estimatedTime: "15 分钟",
+    prompt: `创建企业网络架构：
+- 外部区域（互联网）：
+  - 用户 → CDN → WAF → 负载均衡器
+- DMZ（非军事区）：
+  - 面向公众的 Web 服务器
+  - 反向代理 / API 网关
+  - 防火墙规则：仅开放端口 80/443
+- 内部区域（私有 VPC）：
+  - 应用服务器（私有子网）
+  - 数据库集群（隔离子网）
+  - 内部服务（消息队列、缓存）
+- 管理区域：
+  - 堡垒机（跳板机）
+  - 监控和日志服务器
+  - 管理员工作站
+- 安全层：
+  - 每个区域之间的防火墙
+  - 用于远程访问的 VPN
+  - IDS/IPS 传感器
+  - 使用 VLAN 进行网络分段
+- 显示 IP 范围、安全组、流量箭头
+- 包含备份/容灾站点连接
+- 使用专业的网络图符号`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -644,35 +644,35 @@ const DIAGRAM_TEMPLATES = [
   // 17. Feature Release Process
   {
     id: "feature-release",
-    title: "\u529F\u80FD\u53D1\u5E03\u6D41\u7A0B",
-    description: "\u65B0\u529F\u80FD\u53D1\u5E03\u7684\u5B8C\u6574\u6D41\u7A0B\uFF0C\u4ECE\u5F00\u53D1\u5230\u4E0A\u7EBF",
+    title: "功能发布流程",
+    description: "新功能发布的完整流程，从开发到上线",
     category: "development",
-    tags: ["\u53D1\u5E03", "\u529F\u80FD", "\u90E8\u7F72"],
+    tags: ["发布", "功能", "部署"],
     difficulty: "intermediate",
     icon: "Rocket",
     gradient: {
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u529F\u80FD\u53D1\u5E03\u6D41\u7A0B\uFF1A
-- \u5F00\u53D1\u9636\u6BB5\uFF1A
-  - \u529F\u80FD\u89C4\u5212 \u2192 \u8BBE\u8BA1\u8BC4\u5BA1 \u2192 \u5F00\u53D1 \u2192 \u4EE3\u7801\u5BA1\u67E5
-- \u6D4B\u8BD5\u9636\u6BB5\uFF1A
-  - \u5355\u5143\u6D4B\u8BD5 \u2192 \u96C6\u6210\u6D4B\u8BD5 \u2192 QA \u6D4B\u8BD5
-  - \u51B3\u7B56\uFF1A\u901A\u8FC7/\u5931\u8D25\uFF08\u5982\u679C\u5931\u8D25\uFF0C\u8FD4\u56DE\u5F00\u53D1\uFF09
-- \u9884\u53D1\u5E03\uFF1A
-  - \u529F\u80FD\u6807\u5FD7\u914D\u7F6E
-  - \u90E8\u7F72\u5230 Staging \u2192 \u5229\u76CA\u76F8\u5173\u8005\u6F14\u793A \u2192 \u53CD\u9988
-- \u53D1\u5E03\uFF1A
-  - \u9010\u6B65\u63A8\u51FA\uFF1A5% \u2192 25% \u2192 50% \u2192 100%
-  - \u5728\u6BCF\u4E2A\u9636\u6BB5\u76D1\u63A7\u6307\u6807
-  - \u51B3\u7B56\u70B9\uFF1A\u7EE7\u7EED/\u6682\u505C/\u56DE\u6EDA
-- \u53D1\u5E03\u540E\uFF1A
-  - \u7528\u6237\u53CD\u9988\u6536\u96C6 \u2192 \u5206\u6790\u5BA1\u67E5 \u2192 \u8FED\u4EE3\u89C4\u5212
-- \u6CF3\u9053\uFF1APM\u3001\u5DE5\u7A0B\u3001QA\u3001DevOps\u3001\u652F\u6301
-- \u5305\u542B\u56DE\u6EDA\u7A0B\u5E8F
-- \u6DFB\u52A0\u76D1\u63A7\u68C0\u67E5\u70B9`,
+    estimatedTime: "10 分钟",
+    prompt: `创建功能发布流程：
+- 开发阶段：
+  - 功能规划 → 设计评审 → 开发 → 代码审查
+- 测试阶段：
+  - 单元测试 → 集成测试 → QA 测试
+  - 决策：通过/失败（如果失败，返回开发）
+- 预发布：
+  - 功能标志配置
+  - 部署到 Staging → 利益相关者演示 → 反馈
+- 发布：
+  - 逐步推出：5% → 25% → 50% → 100%
+  - 在每个阶段监控指标
+  - 决策点：继续/暂停/回滚
+- 发布后：
+  - 用户反馈收集 → 分析审查 → 迭代规划
+- 泳道：PM、工程、QA、DevOps、支持
+- 包含回滚程序
+- 添加监控检查点`,
     brief: {
       intent: "draft",
       tone: "balanced",
@@ -683,30 +683,30 @@ const DIAGRAM_TEMPLATES = [
   // 18. SWOT to Action Plan
   {
     id: "swot-analysis",
-    title: "SWOT \u8F6C\u884C\u52A8\u8BA1\u5212",
-    description: "SWOT\u5206\u6790\u8F6C\u5316\u4E3A\u53EF\u6267\u884C\u7684\u884C\u52A8\u8BA1\u5212",
+    title: "SWOT 转行动计划",
+    description: "SWOT分析转化为可执行的行动计划",
     category: "business",
-    tags: ["\u6218\u7565", "\u89C4\u5212", "\u5206\u6790"],
+    tags: ["战略", "规划", "分析"],
     difficulty: "intermediate",
     icon: "Target",
     gradient: {
       from: "#3b82f6",
       to: "#1d4ed8"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4E00\u4E2A SWOT \u5206\u6790\u5E76\u8F6C\u5316\u4E3A\u884C\u52A8\u8BA1\u5212\uFF1A
-- \u56DB\u4E2A\u8C61\u9650\uFF1A\u4F18\u52BF\u3001\u52A3\u52BF\u3001\u673A\u4F1A\u3001\u5A01\u80C1
-- \u6BCF\u4E2A\u8C61\u9650\u6709 3-4 \u4E2A\u9879\u76EE
-- \u4E2D\u5FC3\uFF1A\u6218\u7565\u76EE\u6807
-- \u4ECE SWOT \u5230\u884C\u52A8\u7684\u8FDE\u63A5\uFF1A
-  - \u4F18\u52BF + \u673A\u4F1A \u2192 \u589E\u957F\u6218\u7565
-  - \u4F18\u52BF + \u5A01\u80C1 \u2192 \u9632\u5FA1\u6218\u7565
-  - \u52A3\u52BF + \u673A\u4F1A \u2192 \u6539\u8FDB\u9886\u57DF
-  - \u52A3\u52BF + \u5A01\u80C1 \u2192 \u5E94\u6025\u8BA1\u5212
-- \u4F7F\u7528\u989C\u8272\u7F16\u7801\uFF0C\u4E3A\u6BCF\u4E2A\u884C\u52A8\u6DFB\u52A0\u6E05\u6670\u6807\u7B7E
-- \u6DFB\u52A0\u4F18\u5148\u7EA7\u6307\u793A\u5668\uFF08\u9AD8/\u4E2D/\u4F4E\uFF09
-- \u4FDD\u6301\u6218\u7565\u6027\u548C\u53EF\u64CD\u4F5C\u6027
-- \u5305\u542B\u65F6\u95F4\u7EBF\u4F30\u8BA1`,
+    estimatedTime: "10 分钟",
+    prompt: `创建一个 SWOT 分析并转化为行动计划：
+- 四个象限：优势、劣势、机会、威胁
+- 每个象限有 3-4 个项目
+- 中心：战略目标
+- 从 SWOT 到行动的连接：
+  - 优势 + 机会 → 增长战略
+  - 优势 + 威胁 → 防御战略
+  - 劣势 + 机会 → 改进领域
+  - 劣势 + 威胁 → 应急计划
+- 使用颜色编码，为每个行动添加清晰标签
+- 添加优先级指示器（高/中/低）
+- 保持战略性和可操作性
+- 包含时间线估计`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -717,36 +717,36 @@ const DIAGRAM_TEMPLATES = [
   // 19. A/B Test Planning
   {
     id: "ab-testing",
-    title: "A/B \u6D4B\u8BD5\u89C4\u5212",
-    description: "A/B\u6D4B\u8BD5\u8BBE\u8BA1\uFF0C\u5305\u542B\u5047\u8BBE\u3001\u53D8\u91CF\u3001\u6210\u529F\u6307\u6807",
+    title: "A/B 测试规划",
+    description: "A/B测试设计，包含假设、变量、成功指标",
     category: "product",
-    tags: ["\u6D4B\u8BD5", "\u5B9E\u9A8C", "\u5206\u6790"],
+    tags: ["测试", "实验", "分析"],
     difficulty: "intermediate",
     icon: "TestTube",
     gradient: {
       from: "#ec4899",
       to: "#be185d"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA A/B \u6D4B\u8BD5\u89C4\u5212\u6D41\u7A0B\uFF1A
-- \u5047\u8BBE\uFF1A\u201C\u5C06 CTA \u6309\u94AE\u989C\u8272\u4ECE\u84DD\u8272\u6539\u4E3A\u7EFF\u8272\u5C06\u4F7F\u8F6C\u5316\u7387\u63D0\u9AD8 15%\u201D
-- \u6D4B\u8BD5\u8BBE\u7F6E\uFF1A
-  - \u5BF9\u7167\u7EC4 (50%)\uFF1A\u84DD\u8272\u6309\u94AE
-  - \u5B9E\u9A8C\u7EC4 (50%)\uFF1A\u7EFF\u8272\u6309\u94AE
-  - \u6837\u672C\u91CF\u8BA1\u7B97\uFF1A\u6BCF\u4E2A\u53D8\u4F53\u9700\u8981 10,000 \u540D\u7528\u6237
-  - \u6301\u7EED\u65F6\u95F4\uFF1A\u8FD0\u884C 2 \u5468
-- \u6307\u6807\uFF1A
-  - \u4E3B\u8981\uFF1A\u8F6C\u5316\u7387 (%)
-  - \u6B21\u8981\uFF1A\u70B9\u51FB\u7387\u3001\u9875\u9762\u505C\u7559\u65F6\u95F4\u3001\u8DF3\u51FA\u7387
-- \u5B9E\u65BD\uFF1A
-  - \u529F\u80FD\u6807\u5FD7\u8BBE\u7F6E \u2192 \u6D41\u91CF\u5206\u5272 \u2192 \u4E8B\u4EF6\u8DDF\u8E2A
-- \u76D1\u63A7\uFF1A
-  - \u6BCF\u65E5\u68C0\u67E5 \u2192 \u7EDF\u8BA1\u663E\u8457\u6027\u6D4B\u8BD5 \u2192 \u63D0\u524D\u505C\u6B62\u89C4\u5219
-- \u5206\u6790\uFF1A
-  - \u8BA1\u7B97\u63D0\u5347 \u2192 \u7F6E\u4FE1\u533A\u95F4 \u2192 P \u503C
-  - \u51B3\u7B56\uFF1A\u53D1\u5E03\u83B7\u80DC\u8005 / \u7EE7\u7EED\u6D4B\u8BD5 / \u8FED\u4EE3
-- \u63A8\u51FA\uFF1A\u9010\u6B65\u90E8\u7F72\u83B7\u80DC\u8005
-- \u5305\u542B\u8FB9\u7F18\u60C5\u51B5\u7684\u51B3\u7B56\u6811\uFF08\u4F8B\u5982\uFF0C\u6CA1\u6709\u660E\u663E\u7684\u83B7\u80DC\u8005\uFF0C\u8D1F\u9762\u7ED3\u679C\uFF09`,
+    estimatedTime: "10 分钟",
+    prompt: `创建 A/B 测试规划流程：
+- 假设：“将 CTA 按钮颜色从蓝色改为绿色将使转化率提高 15%”
+- 测试设置：
+  - 对照组 (50%)：蓝色按钮
+  - 实验组 (50%)：绿色按钮
+  - 样本量计算：每个变体需要 10,000 名用户
+  - 持续时间：运行 2 周
+- 指标：
+  - 主要：转化率 (%)
+  - 次要：点击率、页面停留时间、跳出率
+- 实施：
+  - 功能标志设置 → 流量分割 → 事件跟踪
+- 监控：
+  - 每日检查 → 统计显著性测试 → 提前停止规则
+- 分析：
+  - 计算提升 → 置信区间 → P 值
+  - 决策：发布获胜者 / 继续测试 / 迭代
+- 推出：逐步部署获胜者
+- 包含边缘情况的决策树（例如，没有明显的获胜者，负面结果）`,
     brief: {
       intent: "draft",
       tone: "balanced",
@@ -757,35 +757,35 @@ const DIAGRAM_TEMPLATES = [
   // 20. Database Schema Design
   {
     id: "database-schema",
-    title: "\u6570\u636E\u5E93\u67B6\u6784\u8BBE\u8BA1",
-    description: "\u6570\u636E\u5E93\u5173\u7CFB\u6A21\u578B\uFF0C\u5305\u542B\u8868\u3001\u5B57\u6BB5\u3001\u5173\u7CFB",
+    title: "数据库架构设计",
+    description: "数据库关系模型，包含表、字段、关系",
     category: "development",
-    tags: ["\u6570\u636E\u5E93", "ERD", "\u67B6\u6784"],
+    tags: ["数据库", "ERD", "架构"],
     difficulty: "intermediate",
     icon: "Database",
     gradient: {
       from: "#8b5cf6",
       to: "#6d28d9"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4E00\u4E2A\u7535\u5B50\u5546\u52A1\u6570\u636E\u5E93\u67B6\u6784 (ERD)\uFF1A
-- \u8868\uFF1A
+    estimatedTime: "10 分钟",
+    prompt: `创建一个电子商务数据库架构 (ERD)：
+- 表：
   - Users: id (PK), email, password_hash, created_at
   - Products: id (PK), name, description, price, inventory
   - Orders: id (PK), user_id (FK), status, total_amount, created_at
   - OrderItems: id (PK), order_id (FK), product_id (FK), quantity, price
-  - Categories: id (PK), name, parent_id (FK - \u81EA\u5F15\u7528)
+  - Categories: id (PK), name, parent_id (FK - 自引用)
   - Reviews: id (PK), product_id (FK), user_id (FK), rating, comment
-- \u5173\u7CFB\uFF1A
+- 关系：
   - Users 1:N Orders
   - Orders 1:N OrderItems
   - Products 1:N OrderItems
   - Products 1:N Reviews
   - Users 1:N Reviews
-  - Categories 1:N Products (\u901A\u8FC7\u8FDE\u63A5\u8868\u591A\u5BF9\u591A)
-- \u663E\u793A PK/FK\u3001\u6570\u636E\u7C7B\u578B\u3001\u7D22\u5F15\u3001\u7EA6\u675F
-- \u4F7F\u7528\u6807\u51C6 ERD \u7B26\u53F7
-- \u6DFB\u52A0\u57FA\u6570\u6807\u7B7E`,
+  - Categories 1:N Products (通过连接表多对多)
+- 显示 PK/FK、数据类型、索引、约束
+- 使用标准 ERD 符号
+- 添加基数标签`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -796,39 +796,39 @@ const DIAGRAM_TEMPLATES = [
   // 21. Security Audit Flow
   {
     id: "security-audit",
-    title: "\u5B89\u5168\u5BA1\u8BA1\u6D41\u7A0B",
-    description: "\u5B89\u5168\u5BA1\u8BA1\u6D41\u7A0B\uFF0C\u4ECE\u8303\u56F4\u5B9A\u4E49\u5230\u62A5\u544A\u53D1\u5E03",
+    title: "安全审计流程",
+    description: "安全审计流程，从范围定义到报告发布",
     category: "security",
-    tags: ["\u5B89\u5168", "\u5BA1\u8BA1", "\u5408\u89C4"],
+    tags: ["安全", "审计", "合规"],
     difficulty: "intermediate",
     icon: "ShieldCheck",
     gradient: {
       from: "#10b981",
       to: "#059669"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u5B89\u5168\u5BA1\u8BA1\u5DE5\u4F5C\u6D41\uFF1A
-- \u89C4\u5212\u9636\u6BB5\uFF1A
-  - \u5B9A\u4E49\u5BA1\u8BA1\u8303\u56F4 \u2192 \u9009\u62E9\u6846\u67B6\uFF08SOC2, ISO27001 \u7B49\uFF09
-  - \u521B\u5EFA\u5BA1\u8BA1\u6E05\u5355 \u2192 \u5B89\u6392\u8BBF\u8C08
-- \u6570\u636E\u6536\u96C6\uFF1A
-  - \u6587\u6863\u5BA1\u67E5\uFF1A\u653F\u7B56\u3001\u7A0B\u5E8F\u3001\u67B6\u6784\u56FE
-  - \u6280\u672F\u626B\u63CF\uFF1A\u6F0F\u6D1E\u626B\u63CF\u3001\u6E17\u900F\u6D4B\u8BD5\u3001\u4EE3\u7801\u5BA1\u67E5
-  - \u8BBF\u8C08\uFF1AIT \u56E2\u961F\u3001\u5B89\u5168\u56E2\u961F\u3001\u7BA1\u7406\u5C42
-- \u8BC4\u4F30\uFF1A
-  - \u63A7\u5236\u8BC4\u4F30\uFF1A\u6709\u6548 / \u9700\u8981\u6539\u8FDB / \u65E0\u6548
-  - \u98CE\u9669\u8BC4\u7EA7\uFF1A\u4E25\u91CD / \u9AD8 / \u4E2D / \u4F4E
-  - \u8BC1\u636E\u6536\u96C6\uFF1A\u622A\u56FE\u3001\u65E5\u5FD7\u3001\u914D\u7F6E
-- \u53D1\u73B0\uFF1A
-  - \u8BC6\u522B\u5DEE\u8DDD \u2192 \u6620\u5C04\u5230\u5408\u89C4\u8981\u6C42
-  - \u5EFA\u8BAE\u8865\u6551\u63AA\u65BD \u2192 \u6309\u98CE\u9669\u786E\u5B9A\u4F18\u5148\u7EA7
-- \u62A5\u544A\uFF1A
-  - \u8D77\u8349\u5BA1\u8BA1\u62A5\u544A \u2192 \u4E0E\u5229\u76CA\u76F8\u5173\u8005\u5BA1\u67E5 \u2192 \u5B9A\u7A3F
-  - \u5411\u9886\u5BFC\u5C42\u6F14\u793A \u2192 \u53D1\u5E03\u6B63\u5F0F\u62A5\u544A
-- \u8865\u6551\u8DDF\u8E2A\uFF1A
-  - \u521B\u5EFA\u884C\u52A8\u8BA1\u5212 \u2192 \u5206\u914D\u8D1F\u8D23\u4EBA \u2192 \u8BBE\u5B9A\u622A\u6B62\u65E5\u671F
-  - \u540E\u7EED\u5BA1\u8BA1 \u2192 \u9A8C\u8BC1\u5173\u95ED
-- \u6CF3\u9053\uFF1A\u5BA1\u8BA1\u5458\u3001IT/\u5B89\u5168\u56E2\u961F\u3001\u7BA1\u7406\u5C42`,
+    estimatedTime: "10 分钟",
+    prompt: `创建安全审计工作流：
+- 规划阶段：
+  - 定义审计范围 → 选择框架（SOC2, ISO27001 等）
+  - 创建审计清单 → 安排访谈
+- 数据收集：
+  - 文档审查：政策、程序、架构图
+  - 技术扫描：漏洞扫描、渗透测试、代码审查
+  - 访谈：IT 团队、安全团队、管理层
+- 评估：
+  - 控制评估：有效 / 需要改进 / 无效
+  - 风险评级：严重 / 高 / 中 / 低
+  - 证据收集：截图、日志、配置
+- 发现：
+  - 识别差距 → 映射到合规要求
+  - 建议补救措施 → 按风险确定优先级
+- 报告：
+  - 起草审计报告 → 与利益相关者审查 → 定稿
+  - 向领导层演示 → 发布正式报告
+- 补救跟踪：
+  - 创建行动计划 → 分配负责人 → 设定截止日期
+  - 后续审计 → 验证关闭
+- 泳道：审计员、IT/安全团队、管理层`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -839,39 +839,39 @@ const DIAGRAM_TEMPLATES = [
   // 22. Access Control Matrix
   {
     id: "access-control",
-    title: "\u8BBF\u95EE\u63A7\u5236\u77E9\u9635",
-    description: "\u57FA\u4E8E\u89D2\u8272\u7684\u8BBF\u95EE\u63A7\u5236(RBAC)\u6743\u9650\u77E9\u9635",
+    title: "访问控制矩阵",
+    description: "基于角色的访问控制(RBAC)权限矩阵",
     category: "security",
-    tags: ["\u5B89\u5168", "RBAC", "\u6743\u9650"],
+    tags: ["安全", "RBAC", "权限"],
     difficulty: "intermediate",
     icon: "Lock",
     gradient: {
       from: "#10b981",
       to: "#059669"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA RBAC \u8BBF\u95EE\u63A7\u5236\u77E9\u9635\uFF1A
-- \u89D2\u8272\uFF08\u884C\uFF09\uFF1A
-  - \u7BA1\u7406\u5458\uFF1A\u5B8C\u5168\u7CFB\u7EDF\u8BBF\u95EE\u6743\u9650
-  - \u7ECF\u7406\uFF1A\u90E8\u95E8\u7EA7\u8BBF\u95EE\u6743\u9650
-  - \u5F00\u53D1\u4EBA\u5458\uFF1A\u4EE3\u7801\u548C\u5F00\u53D1\u73AF\u5883\u8BBF\u95EE\u6743\u9650
-  - \u5206\u6790\u5E08\uFF1A\u53EA\u8BFB\u6570\u636E\u8BBF\u95EE\u6743\u9650
-  - \u8BBF\u5BA2\uFF1A\u6709\u9650\u7684\u516C\u5171\u8BBF\u95EE\u6743\u9650
-- \u8D44\u6E90\uFF08\u5217\uFF09\uFF1A
-  - \u7528\u6237\u7BA1\u7406\u3001\u914D\u7F6E\u3001\u4EE3\u7801\u4ED3\u5E93\u3001\u751F\u4EA7\u6570\u636E\u5E93
-  - Staging \u73AF\u5883\u3001\u5206\u6790\u4EEA\u8868\u677F\u3001\u8D22\u52A1\u62A5\u544A\u3001\u5BA1\u8BA1\u65E5\u5FD7
-- \u6743\u9650\uFF08\u5355\u5143\u683C\uFF09\uFF1A
-  - C (\u521B\u5EFA)\u3001R (\u8BFB\u53D6)\u3001U (\u66F4\u65B0)\u3001D (\u5220\u9664)\u3001X (\u6267\u884C)
-- \u77E9\u9635\u5E03\u5C40\uFF1A
-  - \u7BA1\u7406\u5458\uFF1A\u6240\u6709\u8D44\u6E90\u7684 CRUDX
-  - \u7ECF\u7406\uFF1A\u90E8\u95E8\u8D44\u6E90\u7684 CRUD\uFF0C\u5176\u4ED6\u8D44\u6E90\u7684 R
-  - \u5F00\u53D1\u4EBA\u5458\uFF1A\u4EE3\u7801/Staging \u7684 CRUDX\uFF0C\u751F\u4EA7\u73AF\u5883\u7684 R
-  - \u5206\u6790\u5E08\uFF1A\u5206\u6790/\u62A5\u544A\u7684 R\uFF0C\u65E0\u914D\u7F6E\u8BBF\u95EE\u6743\u9650
-  - \u8BBF\u5BA2\uFF1A\u4EC5\u516C\u5171\u8D44\u6E90\u7684 R
-- \u5305\u542B\u5BA1\u6279\u5DE5\u4F5C\u6D41\uFF1A
-  - \u63D0\u5347\u6743\u9650\u8BF7\u6C42 \u2192 \u7ECF\u7406\u6279\u51C6 \u2192 \u9650\u65F6\u6388\u6743
-  - \u663E\u793A\u89D2\u8272\u4E4B\u95F4\u7684\u7EE7\u627F\u5173\u7CFB
-- \u989C\u8272\u7F16\u7801\uFF1A\u7EFF\u8272\uFF08\u5141\u8BB8\uFF09\u3001\u7EA2\u8272\uFF08\u62D2\u7EDD\uFF09\u3001\u9EC4\u8272\uFF08\u9700\u8981\u6279\u51C6\uFF09`,
+    estimatedTime: "10 分钟",
+    prompt: `创建 RBAC 访问控制矩阵：
+- 角色（行）：
+  - 管理员：完全系统访问权限
+  - 经理：部门级访问权限
+  - 开发人员：代码和开发环境访问权限
+  - 分析师：只读数据访问权限
+  - 访客：有限的公共访问权限
+- 资源（列）：
+  - 用户管理、配置、代码仓库、生产数据库
+  - Staging 环境、分析仪表板、财务报告、审计日志
+- 权限（单元格）：
+  - C (创建)、R (读取)、U (更新)、D (删除)、X (执行)
+- 矩阵布局：
+  - 管理员：所有资源的 CRUDX
+  - 经理：部门资源的 CRUD，其他资源的 R
+  - 开发人员：代码/Staging 的 CRUDX，生产环境的 R
+  - 分析师：分析/报告的 R，无配置访问权限
+  - 访客：仅公共资源的 R
+- 包含审批工作流：
+  - 提升权限请求 → 经理批准 → 限时授权
+  - 显示角色之间的继承关系
+- 颜色编码：绿色（允许）、红色（拒绝）、黄色（需要批准）`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -882,36 +882,36 @@ const DIAGRAM_TEMPLATES = [
   // 23. Workshop Facilitation
   {
     id: "workshop-facilitation",
-    title: "\u5DE5\u4F5C\u574A\u5F15\u5BFC\u6D41\u7A0B",
-    description: "\u5DE5\u4F5C\u574A\u6D41\u7A0B\u8BBE\u8BA1\uFF0C\u5305\u542B\u7834\u51B0\u3001\u6D3B\u52A8\u3001\u4EA7\u51FA",
+    title: "工作坊引导流程",
+    description: "工作坊流程设计，包含破冰、活动、产出",
     category: "creative",
-    tags: ["\u5DE5\u4F5C\u574A", "\u5F15\u5BFC", "\u534F\u4F5C"],
+    tags: ["工作坊", "引导", "协作"],
     difficulty: "intermediate",
     icon: "Users",
     gradient: {
       from: "#f59e0b",
       to: "#d97706"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4E00\u4E2A 2 \u5C0F\u65F6\u7684\u5DE5\u4F5C\u574A\u5F15\u5BFC\u6D41\u7A0B\uFF1A
-- \u51C6\u5907\u5DE5\u4F5C\uFF08\u5DE5\u4F5C\u574A\u524D\uFF09\uFF1A
-  - \u53D1\u9001\u8BAE\u7A0B \u2192 \u51C6\u5907\u6750\u6599 \u2192 \u8BBE\u7F6E\u5DE5\u5177\uFF08Miro, Zoom\uFF09
-- \u4ECB\u7ECD\uFF0815 \u5206\u949F\uFF09\uFF1A
-  - \u6B22\u8FCE\u4E0E\u80CC\u666F \u2192 \u7834\u51B0\u6D3B\u52A8 \u2192 \u5BA1\u67E5\u76EE\u6807
-- \u6D3B\u52A8 1\uFF1A\u95EE\u9898\u754C\u5B9A\uFF0830 \u5206\u949F\uFF09\uFF1A
-  - \u4E2A\u4EBA\u5934\u8111\u98CE\u66B4\uFF085 \u5206\u949F\uFF09\u2192 \u7ED3\u5BF9\u5206\u4EAB\uFF0810 \u5206\u949F\uFF09\u2192 \u5C0F\u7EC4\u8BA8\u8BBA\uFF0815 \u5206\u949F\uFF09
-  - \u4EA7\u51FA\uFF1A\u95EE\u9898\u9648\u8FF0
-- \u4F11\u606F\uFF0810 \u5206\u949F\uFF09
-- \u6D3B\u52A8 2\uFF1A\u89E3\u51B3\u65B9\u6848\u6784\u601D\uFF0840 \u5206\u949F\uFF09\uFF1A
-  - \u75AF\u72C2 8 \u5206\u949F\u5FEB\u901F\u8349\u56FE \u2192 \u60F3\u6CD5\u6295\u7968 \u2192 \u6536\u655B\u5230\u524D 3 \u540D
-  - \u4EA7\u51FA\uFF1A\u89E3\u51B3\u65B9\u6848\u6982\u5FF5
-- \u6D3B\u52A8 3\uFF1A\u884C\u52A8\u8BA1\u5212\uFF0820 \u5206\u949F\uFF09\uFF1A
-  - \u786E\u5B9A\u540E\u7EED\u6B65\u9AA4 \u2192 \u5206\u914D\u8D1F\u8D23\u4EBA \u2192 \u8BBE\u5B9A\u65F6\u95F4\u8868
-  - \u4EA7\u51FA\uFF1A\u884C\u52A8\u8BA1\u5212
-- \u603B\u7ED3\uFF085 \u5206\u949F\uFF09\uFF1A
-  - \u56DE\u987E\u5173\u952E\u51B3\u7B56 \u2192 \u5206\u4EAB\u6210\u679C \u2192 \u5B89\u6392\u540E\u7EED\u8DDF\u8FDB
-- \u5305\u542B\u5F15\u5BFC\u8005\u63D0\u793A\u3001\u65F6\u95F4\u63D0\u793A\u3001\u5907\u7528\u6D3B\u52A8
-- \u663E\u793A\u865A\u62DF\u4E0E\u9762\u5BF9\u9762\u53D8\u5316\u7684\u5E76\u884C\u8F68\u9053`,
+    estimatedTime: "10 分钟",
+    prompt: `创建一个 2 小时的工作坊引导流程：
+- 准备工作（工作坊前）：
+  - 发送议程 → 准备材料 → 设置工具（Miro, Zoom）
+- 介绍（15 分钟）：
+  - 欢迎与背景 → 破冰活动 → 审查目标
+- 活动 1：问题界定（30 分钟）：
+  - 个人头脑风暴（5 分钟）→ 结对分享（10 分钟）→ 小组讨论（15 分钟）
+  - 产出：问题陈述
+- 休息（10 分钟）
+- 活动 2：解决方案构思（40 分钟）：
+  - 疯狂 8 分钟快速草图 → 想法投票 → 收敛到前 3 名
+  - 产出：解决方案概念
+- 活动 3：行动计划（20 分钟）：
+  - 确定后续步骤 → 分配负责人 → 设定时间表
+  - 产出：行动计划
+- 总结（5 分钟）：
+  - 回顾关键决策 → 分享成果 → 安排后续跟进
+- 包含引导者提示、时间提示、备用活动
+- 显示虚拟与面对面变化的并行轨道`,
     brief: {
       intent: "draft",
       tone: "playful",
@@ -922,34 +922,34 @@ const DIAGRAM_TEMPLATES = [
   // 24. Strategic Canvas
   {
     id: "strategic-canvas",
-    title: "\u6218\u7565\u753B\u5E03",
-    description: "\u6218\u7565\u753B\u5E03\uFF0C\u7EFC\u5408\u5C55\u793A\u5546\u4E1A\u7B56\u7565\u5168\u8C8C",
+    title: "战略画布",
+    description: "战略画布，综合展示商业策略全貌",
     category: "creative",
-    tags: ["\u6218\u7565", "\u5546\u4E1A\u6A21\u5F0F", "\u89C4\u5212"],
+    tags: ["战略", "商业模式", "规划"],
     difficulty: "advanced",
     icon: "Layers",
     gradient: {
       from: "#f59e0b",
       to: "#d97706"
     },
-    estimatedTime: "15 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4E00\u4E2A\u7ED3\u5408\u591A\u79CD\u6846\u67B6\u7684\u6218\u7565\u753B\u5E03\uFF1A
-- \u4E2D\u5FC3\uFF1A\u516C\u53F8\u613F\u666F\u4E0E\u4F7F\u547D
-- \u8C61\u9650 1\uFF08\u5DE6\u4E0A\uFF09\uFF1A\u5E02\u573A\u5206\u6790
-  - TAM/SAM/SOM \u2192 \u589E\u957F\u8D8B\u52BF \u2192 \u7ADE\u4E89\u683C\u5C40
-- \u8C61\u9650 2\uFF08\u53F3\u4E0A\uFF09\uFF1A\u4EF7\u503C\u4E3B\u5F20
-  - \u5BA2\u6237\u7EC6\u5206 \u2192 \u5F85\u529E\u4EFB\u52A1 (Jobs-to-be-done) \u2192 \u72EC\u7279\u4EF7\u503C
-- \u8C61\u9650 3\uFF08\u5DE6\u4E0B\uFF09\uFF1A\u5546\u4E1A\u6A21\u5F0F
-  - \u6536\u5165\u6765\u6E90 \u2192 \u6210\u672C\u7ED3\u6784 \u2192 \u5173\u952E\u5408\u4F5C\u4F19\u4F34
-- \u8C61\u9650 4\uFF08\u53F3\u4E0B\uFF09\uFF1A\u6267\u884C\u8BA1\u5212
-  - OKR \u2192 \u5173\u952E\u4E3E\u63AA \u2192 \u8DEF\u7EBF\u56FE\u91CC\u7A0B\u7891
-- \u8FDE\u63A5\u5143\u7D20\uFF1A
-  - \u4ECE\u5E02\u573A\u5206\u6790\u5230\u4EF7\u503C\u4E3B\u5F20\uFF1A\u6D1E\u5BDF\u7BAD\u5934
-  - \u4ECE\u4EF7\u503C\u4E3B\u5F20\u5230\u5546\u4E1A\u6A21\u5F0F\uFF1A\u53D8\u73B0\u8DEF\u5F84
-  - \u4ECE\u5546\u4E1A\u6A21\u5F0F\u5230\u6267\u884C\uFF1A\u8D44\u6E90\u5206\u914D
-- \u5305\u542B\u6BCF\u4E2A\u8C61\u9650\u7684 KPI
-- \u4F7F\u7528\u4F01\u4E1A\u914D\u8272\u65B9\u6848\uFF0C\u6E05\u6670\u7684\u5C42\u7EA7
-- \u4E3A\u9AD8\u98CE\u9669/\u9AD8\u56DE\u62A5\u4E3E\u63AA\u6DFB\u52A0\u201C\u6218\u7565\u62BC\u6CE8\u201D\u9AD8\u4EAE`,
+    estimatedTime: "15 分钟",
+    prompt: `创建一个结合多种框架的战略画布：
+- 中心：公司愿景与使命
+- 象限 1（左上）：市场分析
+  - TAM/SAM/SOM → 增长趋势 → 竞争格局
+- 象限 2（右上）：价值主张
+  - 客户细分 → 待办任务 (Jobs-to-be-done) → 独特价值
+- 象限 3（左下）：商业模式
+  - 收入来源 → 成本结构 → 关键合作伙伴
+- 象限 4（右下）：执行计划
+  - OKR → 关键举措 → 路线图里程碑
+- 连接元素：
+  - 从市场分析到价值主张：洞察箭头
+  - 从价值主张到商业模式：变现路径
+  - 从商业模式到执行：资源分配
+- 包含每个象限的 KPI
+- 使用企业配色方案，清晰的层级
+- 为高风险/高回报举措添加“战略押注”高亮`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -960,37 +960,37 @@ const DIAGRAM_TEMPLATES = [
   // 25. Design System Workflow
   {
     id: "design-system",
-    title: "\u8BBE\u8BA1\u7CFB\u7EDF\u5DE5\u4F5C\u6D41",
-    description: "\u8BBE\u8BA1\u7CFB\u7EDF\u7684\u521B\u5EFA\u3001\u7EF4\u62A4\u548C\u4F7F\u7528\u6D41\u7A0B",
+    title: "设计系统工作流",
+    description: "设计系统的创建、维护和使用流程",
     category: "product",
-    tags: ["\u8BBE\u8BA1\u7CFB\u7EDF", "\u7528\u6237\u4F53\u9A8C", "\u534F\u4F5C"],
+    tags: ["设计系统", "用户体验", "协作"],
     difficulty: "advanced",
     icon: "Palette",
     gradient: {
       from: "#ec4899",
       to: "#be185d"
     },
-    estimatedTime: "12 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u8BBE\u8BA1\u7CFB\u7EDF\u5DE5\u4F5C\u6D41\uFF1A
-- \u57FA\u7840\u5C42\uFF1A
-  - \u8BBE\u8BA1\u4EE4\u724C\uFF1A\u989C\u8272\u3001\u6392\u7248\u3001\u95F4\u8DDD\u3001\u9634\u5F71
-  - \u6307\u5357\uFF1A\u65E0\u969C\u788D\u3001\u8BED\u6C14\u3001\u539F\u5219
-- \u7EC4\u4EF6\u5C42\uFF1A
-  - \u539F\u5B50\uFF1A\u6309\u94AE\u3001\u8F93\u5165\u6846\u3001\u56FE\u6807\u3001\u5FBD\u7AE0
-  - \u5206\u5B50\uFF1A\u8868\u5355\u5B57\u6BB5\u3001\u5361\u7247\u6807\u9898\u3001\u641C\u7D22\u680F
-  - \u7EC4\u7EC7\uFF1A\u5BFC\u822A\u3001\u8868\u5355\u3001\u6570\u636E\u8868
-- \u6587\u6863\uFF1A
-  - Storybook \u2192 \u7EC4\u4EF6\u89C4\u8303 \u2192 \u4F7F\u7528\u6307\u5357 \u2192 \u4EE3\u7801\u793A\u4F8B
-- \u8D21\u732E\u6D41\u7A0B\uFF1A
-  - \u8BBE\u8BA1\u5E08\u63D0\u8BAE\u65B0\u7EC4\u4EF6 \u2192 \u8BBE\u8BA1\u8BC4\u5BA1 \u2192 \u539F\u578B
-  - \u5DE5\u7A0B\u5E08\u6784\u5EFA \u2192 \u4EE3\u7801\u5BA1\u67E5 \u2192 \u6D4B\u8BD5 \u2192 \u53D1\u5E03\u5230 npm
-  - \u66F4\u65B0 Figma \u5E93 \u2192 \u66F4\u65B0 Storybook \u2192 \u901A\u77E5\u56E2\u961F
-- \u6D88\u8D39\u5DE5\u4F5C\u6D41\uFF1A
-  - \u4EA7\u54C1\u56E2\u961F\u8BF7\u6C42\u7EC4\u4EF6 \u2192 \u5148\u68C0\u67E5\u5E93
-  - \u627E\u5230\uFF1A\u4F7F\u7528\u73B0\u6709 \u2192 \u901A\u8FC7 props \u81EA\u5B9A\u4E49
-  - \u672A\u627E\u5230\uFF1A\u63D0\u4EA4\u8BF7\u6C42 \u6216 \u6784\u5EFA\u81EA\u5B9A\u4E49\uFF08\u9700\u8BC4\u5BA1\uFF09
-- \u6CF3\u9053\uFF1A\u8BBE\u8BA1\u56E2\u961F\u3001\u5DE5\u7A0B\u3001\u4EA7\u54C1\u56E2\u961F
-- \u663E\u793A\u6539\u8FDB\u7684\u53CD\u9988\u5FAA\u73AF`,
+    estimatedTime: "12 分钟",
+    prompt: `创建设计系统工作流：
+- 基础层：
+  - 设计令牌：颜色、排版、间距、阴影
+  - 指南：无障碍、语气、原则
+- 组件层：
+  - 原子：按钮、输入框、图标、徽章
+  - 分子：表单字段、卡片标题、搜索栏
+  - 组织：导航、表单、数据表
+- 文档：
+  - Storybook → 组件规范 → 使用指南 → 代码示例
+- 贡献流程：
+  - 设计师提议新组件 → 设计评审 → 原型
+  - 工程师构建 → 代码审查 → 测试 → 发布到 npm
+  - 更新 Figma 库 → 更新 Storybook → 通知团队
+- 消费工作流：
+  - 产品团队请求组件 → 先检查库
+  - 找到：使用现有 → 通过 props 自定义
+  - 未找到：提交请求 或 构建自定义（需评审）
+- 泳道：设计团队、工程、产品团队
+- 显示改进的反馈循环`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -1001,35 +1001,35 @@ const DIAGRAM_TEMPLATES = [
   // 26. Analytics Dashboard Flow
   {
     id: "analytics-dashboard",
-    title: "\u5206\u6790\u4EEA\u8868\u677F\u6570\u636E\u6D41",
-    description: "\u6570\u636E\u5206\u6790\u4EEA\u8868\u677F\u7684\u6570\u636E\u6D41\u548C\u4EA4\u4E92\u903B\u8F91",
+    title: "分析仪表板数据流",
+    description: "数据分析仪表板的数据流和交互逻辑",
     category: "product",
-    tags: ["\u5206\u6790", "\u4EEA\u8868\u677F", "\u6570\u636E"],
+    tags: ["分析", "仪表板", "数据"],
     difficulty: "intermediate",
     icon: "BarChart",
     gradient: {
       from: "#ec4899",
       to: "#be185d"
     },
-    estimatedTime: "10 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u5206\u6790\u4EEA\u8868\u677F\u6570\u636E\u6D41\uFF1A
-- \u6570\u636E\u6E90\uFF1A
-  - \u5E94\u7528\u6570\u636E\u5E93 \u2192 ETL \u6D41\u6C34\u7EBF \u2192 \u6570\u636E\u4ED3\u5E93
-  - \u4E8B\u4EF6\u8DDF\u8E2A \u2192 \u5B9E\u65F6\u6D41 \u2192 \u5206\u6790\u6570\u636E\u5E93
-  - \u5916\u90E8 API \u2192 \u7F13\u5B58\u5C42 \u2192 \u805A\u5408\u670D\u52A1
-- \u5904\u7406\u5C42\uFF1A
-  - \u8BA1\u5212\u4EFB\u52A1\uFF1A\u6BCF\u65E5/\u6BCF\u5468/\u6BCF\u6708\u805A\u5408
-  - \u5B9E\u65F6\u5904\u7406\uFF1A\u7528\u6237\u4F1A\u8BDD\u3001\u5B9E\u65F6\u6307\u6807
-- \u4EEA\u8868\u677F\u7EC4\u4EF6\uFF1A
-  - KPI \u5361\u7247\uFF1A\u7528\u6237\u3001\u6536\u5165\u3001\u8F6C\u5316\u7387\u3001\u6D41\u5931\u7387
-  - \u56FE\u8868\uFF1A\u65F6\u95F4\u5E8F\u5217\uFF08\u6298\u7EBF\uFF09\u3001\u5206\u5E03\uFF08\u67F1\u72B6\uFF09\u3001\u7FA4\u7EC4\uFF08\u70ED\u56FE\uFF09
-  - \u8FC7\u6EE4\u5668\uFF1A\u65E5\u671F\u8303\u56F4\u3001\u7EC6\u5206\u3001\u5730\u533A\u3001\u5E73\u53F0
-- \u4EA4\u4E92\u6D41\u7A0B\uFF1A
-  - \u7528\u6237\u9009\u62E9\u8FC7\u6EE4\u5668 \u2192 \u67E5\u8BE2\u6784\u5EFA\u5668 \u2192 \u7F13\u5B58\u68C0\u67E5
-  - \u7F13\u5B58\u547D\u4E2D\uFF1A\u8FD4\u56DE\u7F13\u5B58\u6570\u636E\uFF08\u5FEB\u901F\u8DEF\u5F84\uFF09
-  - \u7F13\u5B58\u672A\u547D\u4E2D\uFF1A\u67E5\u8BE2\u6570\u636E\u5E93 \u2192 \u8F6C\u6362\u6570\u636E \u2192 \u66F4\u65B0\u7F13\u5B58 \u2192 \u8FD4\u56DE
-- \u5305\u542B\u5EF6\u8FDF SLA\u3001\u5237\u65B0\u7B56\u7565\u3001\u4E0B\u94BB\u8DEF\u5F84
-- \u6DFB\u52A0\u6570\u636E\u8D28\u91CF\u68C0\u67E5\u70B9`,
+    estimatedTime: "10 分钟",
+    prompt: `创建分析仪表板数据流：
+- 数据源：
+  - 应用数据库 → ETL 流水线 → 数据仓库
+  - 事件跟踪 → 实时流 → 分析数据库
+  - 外部 API → 缓存层 → 聚合服务
+- 处理层：
+  - 计划任务：每日/每周/每月聚合
+  - 实时处理：用户会话、实时指标
+- 仪表板组件：
+  - KPI 卡片：用户、收入、转化率、流失率
+  - 图表：时间序列（折线）、分布（柱状）、群组（热图）
+  - 过滤器：日期范围、细分、地区、平台
+- 交互流程：
+  - 用户选择过滤器 → 查询构建器 → 缓存检查
+  - 缓存命中：返回缓存数据（快速路径）
+  - 缓存未命中：查询数据库 → 转换数据 → 更新缓存 → 返回
+- 包含延迟 SLA、刷新策略、下钻路径
+- 添加数据质量检查点`,
     brief: {
       intent: "draft",
       tone: "enterprise",
@@ -1040,10 +1040,10 @@ const DIAGRAM_TEMPLATES = [
   // 27. Meeting Decision Flow
   {
     id: "meeting-decision",
-    title: "\u4F1A\u8BAE\u51B3\u7B56\u6D41\u7A0B",
-    description: "\u4F1A\u8BAE\u51B3\u7B56\u6D41\u7A0B\uFF0C\u4ECE\u8BAE\u9898\u8BA8\u8BBA\u5230\u884C\u52A8\u9879\u5206\u914D",
+    title: "会议决策流程",
+    description: "会议决策流程，从议题讨论到行动项分配",
     category: "business",
-    tags: ["\u4F1A\u8BAE", "\u51B3\u7B56", "\u884C\u52A8\u9879"],
+    tags: ["会议", "决策", "行动项"],
     difficulty: "beginner",
     isNew: true,
     icon: "MessageSquare",
@@ -1051,18 +1051,18 @@ const DIAGRAM_TEMPLATES = [
       from: "#3b82f6",
       to: "#1d4ed8"
     },
-    estimatedTime: "5 \u5206\u949F",
-    prompt: `\u521B\u5EFA\u4F1A\u8BAE\u51B3\u7B56\u6D41\u7A0B\uFF1A
-- \u8BAE\u7A0B\u5BA1\u67E5 \u2192 \u8BA8\u8BBA \u2192 \u51B3\u7B56\u70B9
-- \u51B3\u7B56\u7ED3\u679C\uFF1A
-  - \u6279\u51C6\uFF1A\u521B\u5EFA\u884C\u52A8\u9879 \u2192 \u5206\u914D\u8D1F\u8D23\u4EBA \u2192 \u8BBE\u5B9A\u622A\u6B62\u65E5\u671F
-  - \u9700\u8981\u66F4\u591A\u4FE1\u606F\uFF1A\u5B89\u6392\u540E\u7EED\u8DDF\u8FDB \u2192 \u5206\u914D\u7814\u7A76\u4EFB\u52A1
-  - \u62D2\u7EDD\uFF1A\u8BB0\u5F55\u539F\u56E0 \u2192 \u5F52\u6863
-- \u5E76\u884C\u8F68\u9053\uFF1A\u4F1A\u8BAE\u8BB0\u5F55 \u2192 \u4E0E\u5229\u76CA\u76F8\u5173\u8005\u5206\u4EAB
-- \u4F1A\u8BAE\u540E\uFF1A\u8DDF\u8E2A\u884C\u52A8\u9879 \u2192 \u5728\u622A\u6B62\u65E5\u671F\u524D\u53D1\u9001\u63D0\u9192
-- \u4F7F\u7528\u6CF3\u9053\u8868\u793A\u89D2\u8272\uFF1A\u5F15\u5BFC\u8005\u3001\u53C2\u4E0E\u8005\u3001\u884C\u52A8\u8D1F\u8D23\u4EBA
-- \u5305\u542B\u51B3\u7B56\u6807\u51C6\u548C\u6295\u7968\u673A\u5236
-- \u6DFB\u52A0\u540E\u7EED\u8DDF\u8E2A\u5FAA\u73AF`,
+    estimatedTime: "5 分钟",
+    prompt: `创建会议决策流程：
+- 议程审查 → 讨论 → 决策点
+- 决策结果：
+  - 批准：创建行动项 → 分配负责人 → 设定截止日期
+  - 需要更多信息：安排后续跟进 → 分配研究任务
+  - 拒绝：记录原因 → 归档
+- 并行轨道：会议记录 → 与利益相关者分享
+- 会议后：跟踪行动项 → 在截止日期前发送提醒
+- 使用泳道表示角色：引导者、参与者、行动负责人
+- 包含决策标准和投票机制
+- 添加后续跟踪循环`,
     brief: {
       intent: "draft",
       tone: "balanced",

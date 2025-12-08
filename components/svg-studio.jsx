@@ -25,11 +25,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 const TOOL_CONFIG = [
-  { id: "select", label: "\u9009\u62E9", icon: MousePointer2 },
-  { id: "rect", label: "\u77E9\u5F62", icon: Square },
-  { id: "ellipse", label: "\u5706/\u692D\u5706", icon: Circle },
-  { id: "line", label: "\u7EBF\u6761", icon: Minus },
-  { id: "text", label: "\u6587\u672C", icon: Type }
+  { id: "select", label: "选择", icon: MousePointer2 },
+  { id: "rect", label: "矩形", icon: Square },
+  { id: "ellipse", label: "圆/椭圆", icon: Circle },
+  { id: "line", label: "线条", icon: Minus },
+  { id: "text", label: "文本", icon: Type }
 ];
 const GRID_SIZE = 12;
 const SNAP_RADIUS = 14;
@@ -677,7 +677,7 @@ function SvgStudio() {
         type: "text",
         x: point.x,
         y: point.y,
-        text: "\u53CC\u51FB\u7F16\u8F91\u6587\u672C",
+        text: "双击编辑文本",
         fill: "#0f172a",
         fontSize: 16
       });
@@ -828,7 +828,7 @@ function SvgStudio() {
     try {
       await navigator.clipboard.writeText(svg);
     } catch (error) {
-      console.error("\u590D\u5236 SVG \u5931\u8D25", error);
+      console.error("复制 SVG 失败", error);
     }
   };
   const handleImportFile = async (event) => {

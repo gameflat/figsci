@@ -107,7 +107,7 @@ const DiagramToolCard = memo(({
     }
   }, [displayDiagramXml]);
   const currentState = localState || state;
-  const statusLabel = currentState === "output-available" ? "\u5DF2\u5B8C\u6210" : currentState === "output-error" ? "\u751F\u6210\u5931\u8D25" : currentState === "input-streaming" ? "\u751F\u6210\u4E2D" : currentState === "stopped" ? "\u5DF2\u6682\u505C" : currentState || "\u7B49\u5F85\u4E2D";
+  const statusLabel = currentState === "output-available" ? "已完成" : currentState === "output-error" ? "生成失败" : currentState === "input-streaming" ? "生成中" : currentState === "stopped" ? "已暂停" : currentState || "等待中";
   const statusClass = cn(
     "rounded-full border px-2 py-0.5 text-[11px] font-medium",
     currentState === "output-available" && "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -119,21 +119,21 @@ const DiagramToolCard = memo(({
   const statusMessage = (() => {
     if (toolCallError) return toolCallError;
     if (currentState === "output-error") {
-      return output || "\u56FE\u8868\u751F\u6210\u5931\u8D25\uFF0C\u8BF7\u4FEE\u6539\u63D0\u793A\u8BCD\u6216\u91CD\u65B0\u4E0A\u4F20\u7D20\u6750\u540E\u91CD\u8BD5\u3002";
+      return output || "图表生成失败，请修改提示词或重新上传素材后重试。";
     }
     if (currentState === "stopped") {
-      return "\u56FE\u8868\u751F\u6210\u5DF2\u6682\u505C\uFF0C\u53EF\u4EE5\u70B9\u51FB\u300C\u91CD\u65B0\u751F\u6210\u300D\u7EE7\u7EED\u3002";
+      return "图表生成已暂停，可以点击「重新生成」继续。";
     }
     if (currentState === "output-available") {
       if (autoCompletedByStreamEnd) {
-        return "\u6D41\u5F0F\u8F93\u51FA\u5DF2\u7ED3\u675F\uFF0C\u56FE\u8868\u5DF2\u81EA\u52A8\u5E94\u7528\u5230\u753B\u5E03\u3002";
+        return "流式输出已结束，图表已自动应用到画布。";
       }
-      return "\u56FE\u8868\u751F\u6210\u5B8C\u6210\uFF0C\u5DF2\u5B9E\u65F6\u6E32\u67D3\u5230\u753B\u5E03\u3002";
+      return "图表生成完成，已实时渲染到画布。";
     }
     if (currentState === "input-streaming") {
-      return "AI \u6B63\u5728\u751F\u6210\u56FE\u8868\uFF0C\u753B\u5E03\u5B9E\u65F6\u66F4\u65B0\u4E2D\u2026";
+      return "AI 正在生成图表，画布实时更新中…";
     }
-    return "\u7B49\u5F85\u6A21\u578B\u8F93\u51FA\u56FE\u8868\u5185\u5BB9\u2026";
+    return "等待模型输出图表内容…";
   })();
   return <div
     className="my-2 w-full max-w-[min(720px,90%)] rounded-lg bg-white/80 border border-slate-200/60 px-4 py-3 text-xs text-slate-600"
@@ -141,7 +141,7 @@ const DiagramToolCard = memo(({
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                        {toolName === "display_diagram" || toolName === "display_svg" ? "\u56FE\u8868\u751F\u6210\u5B8C\u6210" : "\u5DE5\u5177\u6267\u884C\u5B8C\u6210"}
+                        {toolName === "display_diagram" || toolName === "display_svg" ? "图表生成完成" : "工具执行完成"}
                     </div>
                 </div>
                 <span className={statusClass}>{statusLabel}</span>
@@ -208,14 +208,14 @@ const DiagramToolCard = memo(({
     onClick={handleCopyClick}
     className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
   >
-                        {copiedKind === "xml" ? "\u5DF2\u590D\u5236 XML" : "\u590D\u5236 XML"}
+                        {copiedKind === "xml" ? "已复制 XML" : "复制 XML"}
                     </button>}
                 {displaySvg && <button
     type="button"
     onClick={handleCopySvgClick}
     className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
   >
-                        {copiedKind === "svg" ? "\u5DF2\u590D\u5236 SVG" : "\u590D\u5236 SVG"}
+                        {copiedKind === "svg" ? "已复制 SVG" : "复制 SVG"}
                     </button>}
                 {currentState === "input-streaming" && onStopAll && <button
     type="button"
@@ -292,7 +292,7 @@ function ChatMessageDisplay({
     const result = onDisplayDiagram(convertedXml, { toolCallId });
     if (result && typeof result.catch === "function") {
       result.catch((error2) => {
-        console.error("\u6D41\u5F0F\u6E32\u67D3\u5931\u8D25:", error2);
+        console.error("流式渲染失败:", error2);
       });
     }
   }, [onDisplayDiagram]);
@@ -329,7 +329,7 @@ function ChatMessageDisplay({
     try {
       await navigator.clipboard.writeText(xml);
     } catch (error2) {
-      console.error("\u590D\u5236 XML \u5931\u8D25\uFF1A", error2);
+      console.error("复制 XML 失败：", error2);
     }
   }, []);
   useEffect(() => {
@@ -466,16 +466,16 @@ function ChatMessageDisplay({
       onClick={toggleExpanded}
       className="text-[11px] text-slate-500 transition hover:text-slate-700"
     >
-                                    {isExpanded ? "\u9690\u85CF\u53C2\u6570" : "\u663E\u793A\u53C2\u6570"}
+                                    {isExpanded ? "隐藏参数" : "显示参数"}
                                 </button>}
                         </div>
                     </div>
                     {renderInputContent()}
                     <div className="mt-1.5 text-xs">
                         {state === "input-streaming" ? <div className="h-3.5 w-3.5 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" /> : state === "output-available" ? <div className="text-emerald-600">
-                                {output || (toolName === "display_diagram" ? "\u56FE\u8868\u751F\u6210\u5B8C\u6210" : toolName === "edit_diagram" ? "\u56FE\u8868\u7F16\u8F91\u5B8C\u6210" : "\u5DE5\u5177\u6267\u884C\u5B8C\u6210")}
+                                {output || (toolName === "display_diagram" ? "图表生成完成" : toolName === "edit_diagram" ? "图表编辑完成" : "工具执行完成")}
                             </div> : state === "output-error" ? <div className="text-red-600">
-                                {output || (toolName === "display_diagram" ? "\u751F\u6210\u56FE\u8868\u65F6\u51FA\u9519" : toolName === "edit_diagram" ? "\u7F16\u8F91\u56FE\u8868\u65F6\u51FA\u9519" : "\u5DE5\u5177\u6267\u884C\u51FA\u9519")}
+                                {output || (toolName === "display_diagram" ? "生成图表时出错" : toolName === "edit_diagram" ? "编辑图表时出错" : "工具执行出错")}
                             </div> : null}
                     </div>
                     <div className="rounded-lg bg-slate-50 px-2.5 py-2">
@@ -600,7 +600,7 @@ function ChatMessageDisplay({
       const hasPreview = result.status === "ok" && (Boolean(previewSvgSrc) || Boolean(previewImageSrc) || Boolean(previewUrl));
       const isActive = activePreview?.requestId === entry.requestId && activePreview?.resultId === result.id;
       const isActiveBranch = activeBranchId && result.branchId === activeBranchId;
-      const badgeLabel = isActiveBranch ? "\u4F7F\u7528\u4E2D" : null;
+      const badgeLabel = isActiveBranch ? "使用中" : null;
       return <div
         key={cardKey}
         className={cn(
@@ -654,7 +654,7 @@ function ChatMessageDisplay({
                                                         </> : <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
                                                             暂无预览
                                                         </div> : <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
-                                                        {result.status === "loading" ? "\u6B63\u5728\u751F\u6210\u2026" : result.status === "cancelled" ? "\u5DF2\u6682\u505C" : "\u751F\u6210\u5931\u8D25"}
+                                                        {result.status === "loading" ? "正在生成…" : result.status === "cancelled" ? "已暂停" : "生成失败"}
                                                     </div>}
                                             </div>
 
@@ -663,7 +663,7 @@ function ChatMessageDisplay({
       }
                                             <div className="absolute left-2 top-2">
                                                 <span className="inline-flex items-center rounded-md bg-white/90 backdrop-blur-sm border border-slate-200/50 px-2 py-1 text-[11px] font-medium text-slate-700">
-                                                    {result.slot === "A" ? "\u6A21\u578B A" : "\u6A21\u578B B"}
+                                                    {result.slot === "A" ? "模型 A" : "模型 B"}
                                                 </span>
                                             </div>
 
@@ -766,7 +766,7 @@ function ChatMessageDisplay({
                                         {result.status === "error" && <div className="px-3 py-2 bg-red-50 border-t border-red-100">
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="text-[11px] text-red-700 leading-relaxed">
-                                                        {result.error ?? "\u8C03\u7528\u6A21\u578B\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u6216\u8C03\u6574\u63D0\u793A\u8BCD\u3002"}
+                                                        {result.error ?? "调用模型失败，请稍后重试或调整提示词。"}
                                                     </div>
                                                     {onComparisonRetry && <Button
         type="button"
@@ -799,7 +799,7 @@ function ChatMessageDisplay({
                                         {result.status === "cancelled" && <div className="px-3 py-2 bg-amber-50 border-t border-amber-100">
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="text-[11px] text-amber-700 leading-relaxed">
-                                                        {result.error ?? "\u751F\u6210\u5DF2\u6682\u505C"}
+                                                        {result.error ?? "生成已暂停"}
                                                     </div>
                                                     {onComparisonRetry && <Button
         type="button"
