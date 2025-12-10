@@ -111,7 +111,9 @@ export function ChatInputOptimized({
 
     // Handle keyboard shortcuts and paste events
     const handleKeyDown = (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        // Enter: 发送消息（阻止默认换行行为）
+        // Shift+Enter: 换行（允许默认行为，不处理）
+        if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             const form = e.currentTarget.closest("form");
             if (form && input.trim() && status !== "streaming") {

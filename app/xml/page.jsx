@@ -199,7 +199,7 @@ function XmlCodePanel() {
 
 export default function XmlCodePage() {
     return (
-        <div className="flex min-h-screen flex-col bg-slate-50">
+        <div className="flex h-screen flex-col bg-slate-50 overflow-hidden">
             <WorkspaceNav />
             <XmlCodePanel />
         </div>

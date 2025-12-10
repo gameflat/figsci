@@ -1,0 +1,401 @@
+---
+alwaysApply: false
+description: 性能优化规范，包括 React 性能优化、代码分割、懒加载等最佳实践
+---
+
+# 性能优化规范
+
+## 基本原则
+
+1. **优先考虑用户体验**，确保应用响应迅速
+2. **使用 React 性能优化技术**，减少不必要的重新渲染
+3. **合理使用代码分割和懒加载**，减少初始加载时间
+4. **优化资源加载**，使用适当的缓存策略
+
+## React 性能优化
+
+### 1. 使用 useMemo 优化计算
+
+```javascript
+// ✅ 对于昂贵的计算，使用 useMemo
+const filteredItems = useMemo(() => {
+  return items.filter(item => 
+    item.category === selectedCategory &&
+    item.tags.some(tag => activeTags.includes(tag))
+  );
+}, [items, selectedCategory, activeTags]);
+
+// ✅ 对于对象和数组，使用 useMemo 避免不必要的重新创建
+const contextValue = useMemo(() => ({
+  value,
+  setValue,
+  action,
+}), [value, setValue, action]);
+```
+
+### 2. 使用 useCallback 优化回调
+
+```javascript
+// ✅ 对于传递给子组件的回调，使用 useCallback
+const handleClick = useCallback(() => {
+  // 处理逻辑
+}, [dependencies]);
+
+// ✅ 对于事件处理，如果依赖项稳定，使用 useCallback
+const handleSubmit = useCallback((e) => {
+  e.preventDefault();
+  onSubmit(data);
+}, [data, onSubmit]);
+```
+
+### 3. 使用 React.memo 优化组件
+
+```javascript
+// ✅ 对于纯展示组件，使用 React.memo
+const MemoizedItem = React.memo(({ item, onSelect }) => {
+  return (
+    <div onClick={() => onSelect(item.id)}>
+      {item.name}
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // 自定义比较函数（可选）
+  return prevProps.item.id === nextProps.item.id;
+});
+
+// ✅ 在列表中使用
+{items.map(item => (
+  <MemoizedItem 
+    key={item.id} 
+    item={item} 
+    onSelect={handleSelect}
+  />
+))}
+```
+
+### 4. 避免在渲染中创建对象
+
+```javascript
+// ❌ 避免在渲染中创建新对象
+function Component({ items }) {
+  return (
+    <ChildComponent 
+      style={{ margin: 10 }} // 每次渲染都创建新对象
+      config={{ items }} // 每次渲染都创建新对象
+    />
+  );
+}
+
+// ✅ 使用 useMemo 或提取到组件外部
+const defaultStyle = { margin: 10 };
+
+function Component({ items }) {
+  const config = useMemo(() => ({ items }), [items]);
+  
+  return (
+    <ChildComponent 
+      style={defaultStyle}
+      config={config}
+    />
+  );
+}
+```
+
+## 代码分割和懒加载
+
+### 1. 动态导入组件
+
+```javascript
+// ✅ 使用 dynamic import 进行代码分割
+import dynamic from 'next/dynamic';
+
+const HeavyComponent = dynamic(() => import('./heavy-component'), {
+  loading: () => <div>加载中...</div>,
+  ssr: false, // 如果组件不需要 SSR
+});
+
+// ✅ 在组件中使用
+function Page() {
+  return (
+    <div>
+      <HeavyComponent />
+    </div>
+  );
+}
+```
+
+### 2. 路由级别的代码分割
+
+```javascript
+// ✅ Next.js 自动进行路由级别的代码分割
+// app/page.jsx - 自动分割
+// app/xml/page.jsx - 自动分割
+// app/ppt/page.jsx - 自动分割
+```
+
+### 3. 条件加载组件
+
+```javascript
+// ✅ 只在需要时加载组件
+const [showHeavyComponent, setShowHeavyComponent] = useState(false);
+
+{showHeavyComponent && (
+  <Suspense fallback={<div>加载中...</div>}>
+    <HeavyComponent />
+  </Suspense>
+)}
+```
+
+## 列表渲染优化
+
+### 1. 虚拟滚动
+
+```javascript
+// ✅ 对于大量列表项，使用虚拟滚动
+import { useVirtualizer } from "@tanstack/react-virtual";
+
+const parentRef = useRef(null);
+
+const virtualizer = useVirtualizer({
+  count: items.length,
+  getScrollElement: () => parentRef.current,
+  estimateSize: () => 200, // 估计每个项目高度
+  overscan: 5, // 额外渲染的项目数
+});
+
+return (
+  <div ref={parentRef} style={{ height: '600px', overflow: 'auto' }}>
+    {virtualizer.getVirtualItems().map((virtualItem) => (
+      <div
+        key={virtualItem.key}
+        style={{
+          height: `${virtualItem.size}px`,
+          transform: `translateY(${virtualItem.start}px)`,
+        }}
+      >
+        <ItemComponent item={items[virtualItem.index]} />
+      </div>
+    ))}
+  </div>
+);
+```
+
+### 2. 分页加载
+
+```javascript
+// ✅ 使用分页减少初始渲染数量
+const [visibleCount, setVisibleCount] = useState(12);
+const PAGE_SIZE = 12;
+
+const visibleItems = items.slice(0, visibleCount);
+const hasMore = visibleCount < items.length;
+
+const loadMore = () => {
+  setVisibleCount(prev => prev + PAGE_SIZE);
+};
+
+return (
+  <div>
+    {visibleItems.map(item => (
+      <ItemComponent key={item.id} item={item} />
+    ))}
+    {hasMore && (
+      <button onClick={loadMore}>加载更多</button>
+    )}
+  </div>
+);
+```
+
+## 防抖和节流
+
+### 1. 防抖（Debounce）
+
+```javascript
+// ✅ 使用防抖优化频繁操作
+import { useMemo } from 'react';
+
+const debouncedSearch = useMemo(
+  () => debounce((query) => {
+    performSearch(query);
+  }, 300),
+  []
+);
+
+// 在输入时使用
+const handleInputChange = (e) => {
+  const query = e.target.value;
+  setSearchQuery(query);
+  debouncedSearch(query);
+};
+
+// 清理防抖函数
+useEffect(() => {
+  return () => {
+    debouncedSearch.cancel();
+  };
+}, [debouncedSearch]);
+```
+
+### 2. 节流（Throttle）
+
+```javascript
+// ✅ 使用节流优化滚动事件
+const throttledScroll = useMemo(
+  () => throttle((e) => {
+    updateScrollPosition(e.target.scrollTop);
+  }, 100),
+  []
+);
+
+useEffect(() => {
+  const element = scrollRef.current;
+  element?.addEventListener('scroll', throttledScroll);
+  
+  return () => {
+    element?.removeEventListener('scroll', throttledScroll);
+  };
+}, [throttledScroll]);
+```
+
+## 资源加载优化
+
+### 1. 图片优化
+
+```javascript
+// ✅ 使用 Next.js Image 组件优化图片
+import Image from 'next/image';
+
+<Image
+  src="/image.png"
+  alt="描述"
+  width={800}
+  height={600}
+  loading="lazy" // 懒加载
+  placeholder="blur" // 模糊占位符
+/>
+```
+
+### 2. 字体优化
+
+```javascript
+// ✅ 在 layout.jsx 中优化字体加载
+import { Inter } from 'next/font/google';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap', // 优化字体显示
+  preload: true,
+});
+```
+
+### 3. 资源预加载
+
+```javascript
+// ✅ 预加载关键资源
+<link rel="preload" href="/critical.css" as="style" />
+<link rel="preload" href="/critical.js" as="script" />
+```
+
+## 状态管理优化
+
+### 1. 避免不必要的状态更新
+
+```javascript
+// ✅ 只在值真正改变时更新状态
+const handleUpdate = useCallback((newValue) => {
+  setState(prev => {
+    if (prev.value === newValue) {
+      return prev; // 避免不必要的更新
+    }
+    return { ...prev, value: newValue };
+  });
+}, []);
+```
+
+### 2. 批量状态更新
+
+```javascript
+// ✅ React 18+ 自动批量更新
+const handleMultipleUpdates = () => {
+  setValue1("new1");
+  setValue2("new2");
+  setValue3("new3");
+  // React 会将这三个更新合并为一次重新渲染
+};
+```
+
+### 3. 使用 Context 选择器
+
+```javascript
+// ✅ 避免 Context 值变化导致所有消费者重新渲染
+const MyContext = createContext();
+
+// 使用多个 Context 分离关注点
+const ValueContext = createContext();
+const ActionsContext = createContext();
+
+// 或者使用 useMemo 优化 Context 值
+const contextValue = useMemo(() => ({
+  value,
+  setValue,
+}), [value]);
+```
+
+## 网络请求优化
+
+### 1. 请求去重
+
+```javascript
+// ✅ 避免重复请求相同数据
+const requestCache = new Map();
+
+async function fetchData(key) {
+  if (requestCache.has(key)) {
+    return requestCache.get(key);
+  }
+  
+  const promise = fetch(`/api/data/${key}`).then(res => res.json());
+  requestCache.set(key, promise);
+  
+  return promise;
+}
+```
+
+### 2. 请求取消
+
+```javascript
+// ✅ 使用 AbortController 取消请求
+useEffect(() => {
+  const controller = new AbortController();
+  
+  fetch('/api/data', { signal: controller.signal })
+    .then(res => res.json())
+    .then(data => setData(data))
+    .catch(err => {
+      if (err.name !== 'AbortError') {
+        console.error(err);
+      }
+    });
+  
+  return () => {
+    controller.abort();
+  };
+}, []);
+```
+
+## 参考实现
+
+参考以下文件作为性能优化示例：
+- [contexts/diagram-context.jsx](mdc:contexts/diagram-context.jsx) - 防抖和节流使用
+- [components/template-gallery.jsx](mdc:components/template-gallery.jsx) - 列表渲染优化
+- [hooks/use-chat-state.js](mdc:hooks/use-chat-state.js) - 状态管理优化
+
+## 避免的实践
+
+- ❌ 在渲染函数中进行复杂计算（应使用 useMemo）
+- ❌ 每次渲染都创建新对象或数组（应使用 useMemo）
+- ❌ 缺少 key 属性或使用索引作为 key（列表渲染）
+- ❌ 一次性渲染大量列表项（应使用虚拟滚动或分页）
+- ❌ 不清理事件监听器（可能导致内存泄漏）
+- ❌ 不取消未完成的请求（可能导致竞态条件）
+- ❌ 加载不必要的资源（应使用代码分割和懒加载）

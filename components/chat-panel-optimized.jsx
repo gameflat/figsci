@@ -108,6 +108,11 @@ function ChatPanelOptimized({
     clearConversation,
     toggleCompactMode
   } = useChatState();
+  // 聊天消息滚动容器 ref，用于自动滚动到底部
+  const messagesScrollRef = useRef(null);
+  // 跟踪用户是否手动滚动，如果用户手动滚动到顶部，则不再自动滚动
+  const userScrolledRef = useRef(false);
+  const isNearBottomRef = useRef(true);
   const {
     activeBranch,
     activeBranchId,
@@ -666,6 +671,86 @@ function ChatPanelOptimized({
       });
     }
   }, [showHistory, status, isComparisonRunning, handleStopAll]);
+
+  // 检查是否接近底部（距离底部 100px 以内）
+  const checkIsNearBottom = useCallback(() => {
+    const scrollContainer = messagesScrollRef.current;
+    if (!scrollContainer) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    return distanceFromBottom < 100;
+  }, []);
+
+  // 自动滚动到最新消息
+  const scrollToBottom = useCallback((smooth = true, force = false) => {
+    const scrollContainer = messagesScrollRef.current;
+    if (!scrollContainer) return;
+    
+    // 如果用户手动滚动到顶部，且不是强制滚动，则不自动滚动
+    if (!force && userScrolledRef.current && !isNearBottomRef.current) {
+      return;
+    }
+    
+    scrollContainer.scrollTo({
+      top: scrollContainer.scrollHeight,
+      behavior: smooth ? "smooth" : "auto"
+    });
+    
+    // 滚动后更新状态
+    isNearBottomRef.current = true;
+    if (force) {
+      // 强制滚动时（新消息），重置用户滚动标记
+      userScrolledRef.current = false;
+    }
+  }, []);
+
+  // 监听滚动事件，检测用户是否手动滚动
+  useEffect(() => {
+    const scrollContainer = messagesScrollRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      const isNearBottom = checkIsNearBottom();
+      isNearBottomRef.current = isNearBottom;
+      
+      // 如果用户滚动到顶部附近，标记为用户手动滚动
+      if (!isNearBottom) {
+        userScrolledRef.current = true;
+      } else {
+        // 如果滚动回到底部，重置标记
+        userScrolledRef.current = false;
+      }
+    };
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll);
+    };
+  }, [checkIsNearBottom]);
+
+  // 当消息变化时自动滚动到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      // 使用 setTimeout 确保 DOM 更新完成后再滚动
+      const timer = setTimeout(() => {
+        scrollToBottom(true, true); // 新消息时强制滚动
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length, scrollToBottom]);
+
+  // 流式生成时也自动滚动（仅在接近底部时）
+  useEffect(() => {
+    if (status === "streaming") {
+      const interval = setInterval(() => {
+        // 只有在接近底部时才自动滚动
+        if (isNearBottomRef.current) {
+          scrollToBottom(false, false); // 流式生成时使用 instant 滚动
+        }
+      }, 500); // 每 500ms 检查一次，减少频率
+      return () => clearInterval(interval);
+    }
+  }, [status, scrollToBottom]);
   const onFormSubmit = useCallback(
     async (event) => {
       event.preventDefault();
@@ -1136,8 +1221,13 @@ ${input}` : input;
                                     </span>
                                 </div>}
                             <div
-    className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl  bg-white px-2.5 py-2 pb-28"
-    style={{ maxHeight: "100%" }}
+    ref={messagesScrollRef}
+    className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl bg-white px-2.5 py-2 pb-28"
+    style={{ 
+      maxHeight: "100%",
+      // 让滚动条更早显示：设置最小高度，当内容超过这个高度时就会显示滚动条
+      minHeight: "200px"
+    }}
   >
                                 <ChatMessageDisplay
     messages={messages}

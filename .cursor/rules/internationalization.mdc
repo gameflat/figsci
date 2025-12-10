@@ -1,0 +1,390 @@
+---
+alwaysApply: false
+description: 国际化（i18n）规范，包括翻译系统使用和多语言支持最佳实践
+---
+
+# 国际化（i18n）规范
+
+## 基本原则
+
+1. **优先使用中文**，但保留国际化支持能力
+2. **所有用户可见的文本应该通过翻译系统**，而不是硬编码
+3. **翻译键应该清晰、有层次**，便于维护和查找
+4. **支持参数化翻译**，支持动态内容插入
+
+## 翻译系统架构
+
+### 1. 核心组件
+
+参考 [contexts/locale-context.jsx](mdc:contexts/locale-context.jsx) 和 [locales/translations.js](mdc:locales/translations.js)：
+
+- **LocaleContext**: 提供全局语言状态管理
+- **translations.js**: 存储所有翻译文本
+- **useLocale Hook**: 在组件中使用翻译
+
+### 2. 支持的语言
+
+```javascript
+// ✅ 当前支持的语言
+type Locale = "zh" | "en";
+
+// 中文是默认语言
+const DEFAULT_LOCALE = "zh";
+```
+
+## 在组件中使用翻译
+
+### 1. 基本使用
+
+```javascript
+"use client";
+import { useLocale } from "@/contexts/locale-context";
+
+/**
+ * @param {Object} props
+ */
+export function MyComponent(props) {
+  const { t, locale, setLocale } = useLocale();
+  
+  return (
+    <div>
+      <h1>{t("common.title")}</h1>
+      <p>{t("common.description")}</p>
+      <button onClick={() => setLocale(locale === "zh" ? "en" : "zh")}>
+        {t("locale.switchTo")}
+      </button>
+    </div>
+  );
+}
+```
+
+### 2. 参数化翻译
+
+```javascript
+// ✅ 支持参数替换
+const { t } = useLocale();
+
+// 翻译文本: "欢迎，{name}！"
+const message = t("common.welcome", { name: "张三" });
+// 结果: "欢迎，张三！"
+
+// 翻译文本: "共 {count} 条记录"
+const countMessage = t("common.recordCount", { count: 42 });
+// 结果: "共 42 条记录"
+```
+
+### 3. 嵌套键访问
+
+```javascript
+// ✅ 支持嵌套键访问
+const { t } = useLocale();
+
+// 访问 common.title
+t("common.title");
+
+// 访问 nav.workspace
+t("nav.workspace");
+```
+
+## 翻译键组织规范
+
+### 1. 键名结构
+
+参考 [locales/translations.js](mdc:locales/translations.js)，翻译键应该按功能模块组织：
+
+```javascript
+export const zhTranslations = {
+  // ✅ 通用文本
+  common: {
+    title: "Figsci 智能流程图",
+    loading: "加载中...",
+    error: "错误",
+    // ...
+  },
+  
+  // ✅ 导航相关
+  nav: {
+    workspace: "画图工作室",
+    xmlCode: "XML 代码",
+    // ...
+  },
+  
+  // ✅ 工作区相关
+  workspace: {
+    focusCanvas: "专注画布",
+    showChat: "显示聊天",
+    // ...
+  },
+  
+  // ✅ 聊天面板相关
+  chat: {
+    title: "智能助手",
+    placeholder: "输入消息...",
+    // ...
+  },
+};
+```
+
+### 2. 键名命名规范
+
+```javascript
+// ✅ 使用 camelCase
+common: {
+  loadingMessage: "加载中...",
+  errorMessage: "发生错误",
+}
+
+// ✅ 使用有意义的名称
+chat: {
+  sendButton: "发送",
+  clearButton: "清空",
+  placeholder: "输入消息...",
+}
+
+// ❌ 避免过于简短或模糊的键名
+common: {
+  msg: "消息", // 不够清晰
+  txt: "文本", // 不够清晰
+}
+```
+
+## 添加新翻译
+
+### 1. 在 translations.js 中添加
+
+```javascript
+// ✅ 在对应的模块中添加翻译
+export const zhTranslations = {
+  common: {
+    // ... 现有翻译
+    newKey: "新的翻译文本",
+  },
+  
+  chat: {
+    // ... 现有翻译
+    newFeature: "新功能",
+  },
+};
+
+export const enTranslations = {
+  common: {
+    // ... 现有翻译
+    newKey: "New Translation Text",
+  },
+  
+  chat: {
+    // ... 现有翻译
+    newFeature: "New Feature",
+  },
+};
+```
+
+### 2. 在组件中使用
+
+```javascript
+// ✅ 使用新添加的翻译键
+const { t } = useLocale();
+
+return (
+  <div>
+    <p>{t("common.newKey")}</p>
+    <button>{t("chat.newFeature")}</button>
+  </div>
+);
+```
+
+## 语言切换
+
+### 1. 语言切换组件
+
+参考 [components/language-switcher.jsx](mdc:components/language-switcher.jsx)：
+
+```javascript
+"use client";
+import { useLocale } from "@/contexts/locale-context";
+
+export function LanguageSwitcher() {
+  const { locale, setLocale, t } = useLocale();
+  
+  const toggleLocale = () => {
+    setLocale(locale === "zh" ? "en" : "zh");
+  };
+  
+  return (
+    <button onClick={toggleLocale}>
+      {locale === "zh" ? "English" : "中文"}
+    </button>
+  );
+}
+```
+
+### 2. 语言持久化
+
+语言偏好会自动保存到 localStorage，参考 [contexts/locale-context.jsx](mdc:contexts/locale-context.jsx)：
+
+```javascript
+// ✅ 自动保存语言偏好
+const setLocale = (newLocale) => {
+  setLocaleState(newLocale);
+  localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+  document.documentElement.lang = newLocale === "zh" ? "zh-CN" : "en";
+};
+```
+
+## 翻译函数实现
+
+### 1. 基本翻译函数
+
+参考 [contexts/locale-context.jsx](mdc:contexts/locale-context.jsx)：
+
+```javascript
+/**
+ * 获取翻译文本
+ * @param {string} key - 翻译键
+ * @param {Locale} locale - 语言代码
+ * @returns {string}
+ */
+function getTranslation(key, locale) {
+  const translations = locale === "zh" ? zhTranslations : enTranslations;
+  
+  // 支持嵌套键，如 "common.title"
+  const keys = key.split(".");
+  let value = translations;
+  
+  for (const k of keys) {
+    value = value?.[k];
+    if (value === undefined) {
+      console.warn(`Translation key "${key}" not found for locale "${locale}"`);
+      return key; // 返回键名作为后备
+    }
+  }
+  
+  return typeof value === "string" ? value : key;
+}
+```
+
+### 2. 参数替换
+
+```javascript
+/**
+ * 翻译函数，支持参数替换
+ * @param {string} key - 翻译键
+ * @param {Record<string, string | number>} [params] - 参数对象
+ * @returns {string}
+ */
+const t = (key, params) => {
+  let translation = getTranslation(key, locale);
+  
+  // 支持参数替换，如 {count}
+  if (params) {
+    Object.entries(params).forEach(([paramKey, paramValue]) => {
+      translation = translation.replace(
+        new RegExp(`\\{${paramKey}\\}`, 'g'),
+        String(paramValue)
+      );
+    });
+  }
+  
+  return translation;
+};
+```
+
+## 最佳实践
+
+### 1. 避免硬编码文本
+
+```javascript
+// ❌ 避免硬编码中文文本
+export function Button() {
+  return <button>提交</button>;
+}
+
+// ✅ 使用翻译系统
+export function Button() {
+  const { t } = useLocale();
+  return <button>{t("common.submit")}</button>;
+}
+```
+
+### 2. 处理缺失的翻译
+
+```javascript
+// ✅ 翻译函数会自动处理缺失的键
+const message = t("nonexistent.key");
+// 如果键不存在，会返回键名 "nonexistent.key" 并在控制台警告
+```
+
+### 3. 条件翻译
+
+```javascript
+// ✅ 根据语言显示不同内容
+const { locale, t } = useLocale();
+
+return (
+  <div>
+    {locale === "zh" ? (
+      <p>中文特定内容</p>
+    ) : (
+      <p>English-specific content</p>
+    )}
+  </div>
+);
+```
+
+### 4. 格式化翻译
+
+```javascript
+// ✅ 使用参数化翻译处理格式化
+const { t } = useLocale();
+
+// 翻译文本: "共 {count} 条记录，用时 {time} 秒"
+const message = t("common.stats", { 
+  count: 42, 
+  time: 3.5 
+});
+```
+
+## 扩展支持更多语言
+
+### 1. 添加新语言
+
+```javascript
+// ✅ 在 translations.js 中添加新语言
+export const jaTranslations = {
+  common: {
+    title: "Figsci インテリジェントフローチャート",
+    loading: "読み込み中...",
+    // ...
+  },
+};
+
+// ✅ 更新 Locale 类型
+type Locale = "zh" | "en" | "ja";
+
+// ✅ 更新翻译函数
+function getTranslation(key, locale) {
+  const translations = 
+    locale === "zh" ? zhTranslations :
+    locale === "en" ? enTranslations :
+    locale === "ja" ? jaTranslations :
+    zhTranslations; // 默认使用中文
+  // ...
+}
+```
+
+## 参考实现
+
+参考以下文件作为标准实现示例：
+- [contexts/locale-context.jsx](mdc:contexts/locale-context.jsx) - 国际化上下文实现
+- [locales/translations.js](mdc:locales/translations.js) - 翻译文件结构
+- [components/language-switcher.jsx](mdc:components/language-switcher.jsx) - 语言切换组件
+- [docs/i18n-guide.md](mdc:docs/i18n-guide.md) - 国际化指南文档
+
+## 避免的实践
+
+- ❌ 硬编码用户可见的文本（应该使用翻译系统）
+- ❌ 使用模糊的翻译键名（应该清晰表达含义）
+- ❌ 缺少某些语言的翻译（应该提供完整翻译）
+- ❌ 不处理缺失的翻译键（应该提供后备机制）
+- ❌ 在翻译文本中包含 HTML（应该使用组件）
+- ❌ 不保存用户语言偏好（应该持久化到 localStorage）

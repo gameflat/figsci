@@ -1,0 +1,290 @@
+---
+alwaysApply: false
+description: 环境变量管理规范，包括配置、使用和安全最佳实践
+---
+
+# 环境变量管理规范
+
+## 基本原则
+
+1. **敏感信息必须存储在环境变量中**，绝不硬编码在代码中
+2. **使用 `env.example` 作为配置模板**，提供清晰的配置说明
+3. **区分服务端和客户端环境变量**，使用 `NEXT_PUBLIC_` 前缀标识客户端变量
+4. **所有环境变量必须有默认值或明确的错误提示**
+
+## 环境变量命名规范
+
+### 1. 客户端环境变量
+
+```javascript
+// ✅ 客户端环境变量必须以 NEXT_PUBLIC_ 开头
+NEXT_PUBLIC_DRAWIO_BASE_URL=https://app.diagrams.net
+NEXT_PUBLIC_ENABLE_PHOTON_CHARGE=false
+NEXT_PUBLIC_DEFAULT_MODELS='[...]'
+
+// ❌ 避免暴露敏感信息给客户端
+NEXT_PUBLIC_API_KEY=xxx // 错误！API Key 不应该暴露给客户端
+```
+
+### 2. 服务端环境变量
+
+```javascript
+// ✅ 服务端环境变量不使用 NEXT_PUBLIC_ 前缀
+OPENAI_API_KEY=your-api-key-here
+SYSTEM_LLM_API_KEY=your-system-api-key
+BOHRIUM_DEV_ACCESS_KEY=your-access-key
+
+// ✅ 使用描述性的名称
+AWS_ACCESS_KEY_ID=your-access-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-1
+```
+
+### 3. 配置分组
+
+参考 [env.example](mdc:env.example)，环境变量应该按功能分组：
+
+```bash
+# ===== LLM Provider API Keys =====
+OPENAI_API_KEY=...
+GOOGLE_GENERATIVE_AI_API_KEY=...
+
+# ===== AWS Bedrock Configuration =====
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+
+# ===== Optional Configuration =====
+NEXT_PUBLIC_DRAWIO_BASE_URL=...
+```
+
+## 环境变量使用模式
+
+### 1. 在 API 路由中使用
+
+```javascript
+// ✅ 在服务端代码中直接使用
+const apiKey = process.env.OPENAI_API_KEY;
+
+if (!apiKey) {
+  return Response.json(
+    { error: "未配置 OPENAI_API_KEY" },
+    { status: 500 }
+  );
+}
+
+// ✅ 使用默认值
+const baseUrl = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL || "https://app.diagrams.net";
+```
+
+### 2. 在客户端组件中使用
+
+```javascript
+// ✅ 客户端只能访问 NEXT_PUBLIC_ 前缀的变量
+const drawioUrl = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL;
+
+// ❌ 客户端无法访问服务端环境变量
+const apiKey = process.env.OPENAI_API_KEY; // undefined
+```
+
+### 3. 在工具库中使用
+
+参考 [lib/env-models.js](mdc:lib/env-models.js) 和 [lib/system-models.js](mdc:lib/system-models.js)：
+
+```javascript
+// ✅ 提供清晰的错误提示
+export function parseDefaultModelsFromEnv() {
+  const envValue = process.env.NEXT_PUBLIC_DEFAULT_MODELS;
+  
+  if (!envValue) {
+    return [];
+  }
+  
+  try {
+    const parsed = JSON.parse(envValue);
+    if (!Array.isArray(parsed)) {
+      console.warn("NEXT_PUBLIC_DEFAULT_MODELS 必须是 JSON 数组格式");
+      return [];
+    }
+    return parsed;
+  } catch (error) {
+    console.error("解析 NEXT_PUBLIC_DEFAULT_MODELS 失败:", error);
+    return [];
+  }
+}
+
+// ✅ 检查必需的环境变量
+export function hasSystemModelCredentials() {
+  return !!(
+    process.env.ENABLE_SYSTEM_MODELS === 'true' &&
+    process.env.SYSTEM_LLM_BASE_URL &&
+    process.env.SYSTEM_LLM_API_KEY
+  );
+}
+```
+
+## 环境变量验证
+
+### 1. 启动时验证
+
+```javascript
+// ✅ 在应用启动时验证必需的环境变量
+function validateEnvironmentVariables() {
+  const required = [
+    // 根据实际需求添加必需的环境变量
+  ];
+  
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    console.warn(`缺少以下环境变量: ${missing.join(", ")}`);
+    console.warn("应用可能无法正常工作");
+  }
+}
+
+// 在应用启动时调用
+if (typeof window === "undefined") {
+  validateEnvironmentVariables();
+}
+```
+
+### 2. 运行时验证
+
+```javascript
+// ✅ 在使用前验证环境变量
+async function callAPI() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY 未配置");
+  }
+  
+  // 使用 API Key
+}
+```
+
+## 环境变量文档
+
+### 1. env.example 文件
+
+参考 [env.example](mdc:env.example)，每个环境变量应该包含：
+
+```bash
+# 变量名称
+# 用途说明
+# 获取方式（如适用）
+# 默认值（如适用）
+# 示例值
+OPENAI_API_KEY=your-openai-api-key-here
+# Get it from: https://platform.openai.com/api-keys
+```
+
+### 2. 配置说明
+
+```bash
+# ✅ 提供清晰的配置说明
+# ===== 系统内置模型配置 =====
+# System Built-in Model Configuration
+# 
+# 系统内置模型允许用户直接使用系统提供的 LLM，无需配置自己的 API Key
+# 敏感信息（如 API Key）存储在服务端环境变量中，不会暴露给客户端
+#
+# 注意：
+# - 如果启用系统模型，用户仍可以选择配置自己的自定义模型
+# - 必须同时配置 ENABLE_SYSTEM_MODELS、SYSTEM_LLM_BASE_URL 和 SYSTEM_LLM_API_KEY
+# - 如果任意一项缺失，系统模型功能不会启用
+```
+
+## 安全性最佳实践
+
+### 1. 敏感信息保护
+
+```javascript
+// ✅ 敏感信息只存储在服务端环境变量中
+// 服务端代码
+const apiKey = process.env.OPENAI_API_KEY; // 安全
+
+// ❌ 不要暴露给客户端
+const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY; // 危险！
+
+// ✅ 客户端配置应该是不敏感的
+const baseUrl = process.env.NEXT_PUBLIC_DRAWIO_BASE_URL; // 安全
+```
+
+### 2. 环境变量检查
+
+```javascript
+// ✅ 在代码中检查环境变量是否存在
+if (!process.env.REQUIRED_VAR) {
+  console.error("缺少必需的环境变量: REQUIRED_VAR");
+  // 提供明确的错误提示
+}
+
+// ✅ 使用可选链和默认值
+const value = process.env.OPTIONAL_VAR || "default-value";
+```
+
+### 3. 生产环境配置
+
+```javascript
+// ✅ 区分开发和生产环境
+const isDevelopment = process.env.NODE_ENV === 'development';
+const isProduction = process.env.NODE_ENV === 'production';
+
+// ✅ 生产环境使用更严格的配置
+const timeout = isProduction 
+  ? parseInt(process.env.PRODUCTION_TIMEOUT || '300')
+  : parseInt(process.env.DEV_TIMEOUT || '60');
+```
+
+## 配置管理
+
+### 1. 默认配置
+
+```javascript
+// ✅ 提供合理的默认值
+const config = {
+  drawioBaseUrl: process.env.NEXT_PUBLIC_DRAWIO_BASE_URL || "https://app.diagrams.net",
+  drawioViewerUrl: process.env.NEXT_PUBLIC_DRAWIO_VIEWER_URL || "https://viewer.diagrams.net",
+  enablePhotonCharge: process.env.NEXT_PUBLIC_ENABLE_PHOTON_CHARGE === 'true',
+};
+```
+
+### 2. 配置验证函数
+
+```javascript
+// ✅ 创建配置验证函数
+export function validateConfig() {
+  const errors = [];
+  
+  if (process.env.ENABLE_SYSTEM_MODELS === 'true') {
+    if (!process.env.SYSTEM_LLM_BASE_URL) {
+      errors.push("启用系统模型时，必须配置 SYSTEM_LLM_BASE_URL");
+    }
+    if (!process.env.SYSTEM_LLM_API_KEY) {
+      errors.push("启用系统模型时，必须配置 SYSTEM_LLM_API_KEY");
+    }
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+```
+
+## 参考实现
+
+参考以下文件作为标准实现示例：
+- [env.example](mdc:env.example) - 环境变量配置模板
+- [lib/env-models.js](mdc:lib/env-models.js) - 环境变量解析示例
+- [lib/system-models.js](mdc:lib/system-models.js) - 系统模型配置管理
+- [app/api/chat/route.js](mdc:app/api/chat/route.js) - API 路由中的环境变量使用
+
+## 避免的实践
+
+- ❌ 在代码中硬编码敏感信息（API Key、密码等）
+- ❌ 将敏感信息暴露给客户端（使用 NEXT_PUBLIC_ 前缀）
+- ❌ 缺少环境变量文档（应该在 env.example 中说明）
+- ❌ 不验证环境变量（可能导致运行时错误）
+- ❌ 在生产环境使用开发环境的配置
+- ❌ 将 .env.local 文件提交到版本控制（应该在 .gitignore 中）

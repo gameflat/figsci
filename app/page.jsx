@@ -192,7 +192,7 @@ useEffect(() => {
   // 因为 Draw.io 和复杂的布局在移动端体验不佳
   if (isMobile) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-100">
+      <div className="flex h-screen flex-col bg-gray-100 overflow-hidden">
         {/* 工作区导航栏 */}
         <WorkspaceNav />
         {/* 移动端提示内容 */}
@@ -377,8 +377,8 @@ useEffect(() => {
     : "1fr";
   // ========== JSX 渲染 ==========
   return (
-    <div className="bg-gray-100">
-      <section className="flex min-h-screen flex-col">
+    <div className="bg-gray-100 h-screen overflow-hidden">
+      <section className="flex h-full flex-col">
         {/* 
           工作区导航栏（当前被注释掉）
           如果需要显示顶部导航，取消注释即可

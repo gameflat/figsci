@@ -1,0 +1,384 @@
+---
+alwaysApply: false
+description: 安全性规范，包括 API Key 管理、敏感信息处理、输入验证等最佳实践
+---
+
+# 安全性规范
+
+## 基本原则
+
+1. **敏感信息绝不暴露给客户端**，API Key 等必须存储在服务端
+2. **所有用户输入必须验证和清理**，防止注入攻击
+3. **使用 HTTPS 传输敏感数据**，避免中间人攻击
+4. **实施适当的访问控制**，验证用户权限
+
+## API Key 管理
+
+### 1. 服务端存储
+
+```javascript
+// ✅ API Key 只存储在服务端环境变量中
+// .env.local (服务端)
+OPENAI_API_KEY=sk-xxx
+SYSTEM_LLM_API_KEY=sk-xxx
+
+// ❌ 绝不暴露给客户端
+// 错误示例
+NEXT_PUBLIC_OPENAI_API_KEY=sk-xxx // 危险！
+```
+
+### 2. API Key 使用
+
+```javascript
+// ✅ 在 API 路由中使用
+export async function POST(req) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    return Response.json(
+      { error: "API Key 未配置" },
+      { status: 500 }
+    );
+  }
+  
+  // 使用 API Key 调用外部服务
+  const response = await fetch('https://api.openai.com/v1/...', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+  });
+  
+  return Response.json(await response.json());
+}
+
+// ❌ 不要在客户端代码中使用服务端环境变量
+// 客户端代码
+const apiKey = process.env.OPENAI_API_KEY; // undefined，无法访问
+```
+
+### 3. API Key 验证
+
+```javascript
+// ✅ 验证 API Key 格式
+function validateApiKey(apiKey) {
+  if (!apiKey || typeof apiKey !== 'string') {
+    return false;
+  }
+  
+  // 根据不同的 API 提供商验证格式
+  if (apiKey.startsWith('sk-')) {
+    return apiKey.length > 20; // OpenAI 格式
+  }
+  
+  if (apiKey.startsWith('sk-ant-')) {
+    return apiKey.length > 20; // Anthropic 格式
+  }
+  
+  return true; // 其他格式
+}
+```
+
+## 输入验证和清理
+
+### 1. 参数验证
+
+```javascript
+// ✅ 使用 Zod 验证输入
+import { z } from "zod/v3";
+
+const requestSchema = z.object({
+  message: z.string().min(1).max(10000),
+  modelId: z.string().min(1),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
+export async function POST(req) {
+  try {
+    const body = await req.json();
+    const validated = requestSchema.parse(body);
+    
+    // 使用验证后的数据
+    const { message, modelId, temperature } = validated;
+    
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return Response.json(
+        { error: "参数验证失败", details: error.errors },
+        { status: 400 }
+      );
+    }
+    throw error;
+  }
+}
+```
+
+### 2. 字符串清理
+
+```javascript
+// ✅ 清理用户输入
+function sanitizeInput(input) {
+  if (typeof input !== 'string') {
+    return '';
+  }
+  
+  // 移除潜在的危险字符
+  return input
+    .trim()
+    .replace(/[<>]/g, '') // 移除 HTML 标签字符
+    .slice(0, 10000); // 限制长度
+}
+
+// ✅ 验证 URL
+function validateUrl(url) {
+  try {
+    const parsed = new URL(url);
+    // 只允许 https
+    if (parsed.protocol !== 'https:') {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+```
+
+### 3. XML 内容验证
+
+```javascript
+// ✅ 验证 Draw.io XML 内容
+import { validateDiagramXML } from "@/lib/diagram-validation";
+
+export async function POST(req) {
+  const { xml } = await req.json();
+  
+  if (!xml || typeof xml !== 'string') {
+    return Response.json(
+      { error: "无效的 XML 内容" },
+      { status: 400 }
+    );
+  }
+  
+  // 验证 XML 格式
+  const validation = validateDiagramXML(xml);
+  if (!validation.isValid) {
+    return Response.json(
+      { error: "XML 格式无效", details: validation.errors },
+      { status: 400 }
+    );
+  }
+  
+  // 处理验证后的 XML
+}
+```
+
+## 错误处理安全
+
+### 1. 错误信息不泄露敏感信息
+
+```javascript
+// ✅ 不泄露敏感信息的错误处理
+try {
+  const response = await fetch('https://api.example.com', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API 请求失败: ${response.status}`);
+  }
+  
+} catch (error) {
+  // ❌ 不要暴露 API Key
+  // console.error("API Key:", apiKey); // 危险！
+  
+  // ✅ 只记录错误类型，不记录敏感信息
+  console.error("API 请求失败:", error.message);
+  
+  // ✅ 返回用户友好的错误消息
+  return Response.json(
+    { error: "API 请求失败，请稍后重试" },
+    { status: 500 }
+  );
+}
+```
+
+### 2. 开发环境 vs 生产环境
+
+```javascript
+// ✅ 区分开发和生产环境的错误详情
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+return Response.json(
+  {
+    error: "内部服务器错误",
+    message: errorMessage,
+    // 只在开发环境显示详细错误
+    ...(isDevelopment && { 
+      details: error.stack,
+      path: error.path,
+    }),
+  },
+  { status: 500 }
+);
+```
+
+## 内容安全策略（CSP）
+
+### 1. 设置 CSP 头
+
+```javascript
+// ✅ 在 next.config.mjs 中设置 CSP
+const securityHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: `
+      default-src 'self';
+      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://app.diagrams.net;
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: https:;
+      connect-src 'self' https://api.openai.com https://api.anthropic.com;
+    `.replace(/\s{2,}/g, ' ').trim()
+  },
+];
+
+export default {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+    ];
+  },
+};
+```
+
+## 跨站请求伪造（CSRF）防护
+
+### 1. 验证请求来源
+
+```javascript
+// ✅ 验证请求来源（Next.js 内置保护）
+export async function POST(req) {
+  // Next.js 自动验证同源请求
+  // 对于跨域请求，需要额外的验证
+  
+  const origin = req.headers.get('origin');
+  const allowedOrigins = [
+    'https://yourdomain.com',
+    'https://app.yourdomain.com',
+  ];
+  
+  if (origin && !allowedOrigins.includes(origin)) {
+    return Response.json(
+      { error: "不允许的请求来源" },
+      { status: 403 }
+    );
+  }
+  
+  // 处理请求
+}
+```
+
+## 速率限制
+
+### 1. API 请求速率限制
+
+```javascript
+// ✅ 实施速率限制
+const rateLimitMap = new Map();
+
+function checkRateLimit(identifier, maxRequests = 10, windowMs = 60000) {
+  const now = Date.now();
+  const record = rateLimitMap.get(identifier);
+  
+  if (!record) {
+    rateLimitMap.set(identifier, {
+      count: 1,
+      resetAt: now + windowMs,
+    });
+    return true;
+  }
+  
+  if (now > record.resetAt) {
+    record.count = 1;
+    record.resetAt = now + windowMs;
+    return true;
+  }
+  
+  if (record.count >= maxRequests) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
+
+export async function POST(req) {
+  const clientId = req.headers.get('x-client-id') || 'anonymous';
+  
+  if (!checkRateLimit(clientId, 10, 60000)) {
+    return Response.json(
+      { error: "请求过于频繁，请稍后重试" },
+      { status: 429 }
+    );
+  }
+  
+  // 处理请求
+}
+```
+
+## 敏感数据清理
+
+### 1. 日志记录安全
+
+```javascript
+// ✅ 清理日志中的敏感信息
+function sanitizeForLogging(data) {
+  const sensitiveKeys = ['apiKey', 'password', 'token', 'secret'];
+  
+  const sanitized = { ...data };
+  sensitiveKeys.forEach(key => {
+    if (sanitized[key]) {
+      sanitized[key] = '***REDACTED***';
+    }
+  });
+  
+  return sanitized;
+}
+
+// 使用
+console.log("Request data:", sanitizeForLogging(requestData));
+```
+
+### 2. 响应数据清理
+
+```javascript
+// ✅ 清理响应中的敏感信息
+function sanitizeResponse(response) {
+  const { apiKey, internalId, ...publicData } = response;
+  return publicData;
+}
+
+return Response.json(sanitizeResponse(data));
+```
+
+## 参考实现
+
+参考以下文件作为安全性实现示例：
+- [app/api/chat/route.js](mdc:app/api/chat/route.js) - API Key 使用和错误处理
+- [lib/diagram-validation.js](mdc:lib/diagram-validation.js) - 输入验证
+- [lib/server-models.js](mdc:lib/server-models.js) - 服务端模型配置
+
+## 避免的实践
+
+- ❌ 在客户端代码中存储或使用 API Key
+- ❌ 在错误消息中暴露敏感信息（API Key、密码等）
+- ❌ 不验证用户输入（可能导致注入攻击）
+- ❌ 信任客户端发送的数据（应该始终验证）
+- ❌ 在日志中记录敏感信息（应该清理）
+- ❌ 使用 HTTP 传输敏感数据（应该使用 HTTPS）
+- ❌ 缺少速率限制（可能导致滥用）
+- ❌ 不清理响应数据（可能泄露内部信息）

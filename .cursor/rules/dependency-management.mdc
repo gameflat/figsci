@@ -1,0 +1,332 @@
+---
+alwaysApply: false
+description: 依赖管理规范，包括包选择、版本管理、更新策略等最佳实践
+---
+
+# 依赖管理规范
+
+## 基本原则
+
+1. **优先使用项目已有的依赖**，避免重复引入
+2. **选择维护活跃、社区认可的开源包**
+3. **保持依赖版本的一致性**，使用 lockfile 锁定版本
+4. **定期更新依赖**，修复安全漏洞和获取新功能
+
+## 包管理器
+
+### 1. 使用 pnpm
+
+项目使用 pnpm 作为包管理器，参考 [package.json](mdc:package.json)：
+
+```bash
+# ✅ 安装依赖
+pnpm install
+
+# ✅ 添加新依赖
+pnpm add package-name
+
+# ✅ 添加开发依赖
+pnpm add -D package-name
+
+# ✅ 更新依赖
+pnpm update
+
+# ✅ 移除依赖
+pnpm remove package-name
+```
+
+### 2. Lockfile 管理
+
+```bash
+# ✅ 提交 pnpm-lock.yaml 到版本控制
+# 确保团队成员使用相同的依赖版本
+
+# ❌ 不要忽略 lockfile
+# .gitignore 中不应该包含 pnpm-lock.yaml
+```
+
+## 依赖选择
+
+### 1. 优先使用项目已有依赖
+
+```javascript
+// ✅ 检查项目是否已有相关依赖
+// 查看 package.json 中的 dependencies 和 devDependencies
+
+// ✅ 使用项目已有的工具库
+import { z } from "zod/v3"; // 项目已使用 zod
+import { cn } from "@/lib/utils"; // 项目已有工具函数
+```
+
+### 2. 选择依赖的标准
+
+```javascript
+// ✅ 选择标准：
+// 1. 维护活跃（最近更新在 6 个月内）
+// 2. 社区认可（GitHub stars、npm 下载量）
+// 3. 类型支持（TypeScript 或 JSDoc）
+// 4. 文档完善
+// 5. 包体积小（避免引入大型依赖）
+
+// ✅ 示例：选择轻量级的工具库
+import { nanoid } from "nanoid"; // 轻量级 ID 生成器
+
+// ❌ 避免：引入大型框架
+// import * as lodash from "lodash"; // 太大，应该使用具体函数
+```
+
+### 3. 避免重复依赖
+
+```javascript
+// ✅ 检查是否有功能重复的依赖
+// 例如：项目已有 clsx，就不需要 classnames
+
+// ✅ 使用项目已有的工具函数
+import { cn } from "@/lib/utils"; // 项目已有
+
+// ❌ 避免引入功能重复的包
+// import classNames from "classnames"; // 功能重复
+```
+
+## 版本管理
+
+### 1. 版本范围策略
+
+参考 [package.json](mdc:package.json)：
+
+```json
+{
+  "dependencies": {
+    // ✅ 使用精确版本或小版本范围
+    "next": "15.2.3", // 精确版本
+    "react": "^19.0.0", // 允许补丁版本更新
+    "zod": "^3.25.76", // 允许补丁版本更新
+    
+    // ✅ 避免使用大版本范围
+    // "package": "*" // 危险，可能引入破坏性更新
+    // "package": "^1.0.0" // 可能引入破坏性更新
+  }
+}
+```
+
+### 2. 版本锁定
+
+```bash
+# ✅ 使用 lockfile 锁定版本
+# pnpm-lock.yaml 会自动生成并锁定所有依赖版本
+
+# ✅ 提交 lockfile 到版本控制
+git add pnpm-lock.yaml
+git commit -m "chore: update dependencies"
+```
+
+### 3. 更新依赖
+
+```bash
+# ✅ 检查过时的依赖
+pnpm outdated
+
+# ✅ 更新单个依赖
+pnpm update package-name
+
+# ✅ 更新所有依赖（谨慎使用）
+pnpm update
+
+# ✅ 更新到最新版本（可能包含破坏性更新）
+pnpm update --latest
+```
+
+## 依赖分类
+
+### 1. 生产依赖（dependencies）
+
+```json
+{
+  "dependencies": {
+    // ✅ 运行时必需的依赖
+    "next": "15.2.3",
+    "react": "^19.0.0",
+    "ai": "^5.0.89",
+    "zod": "^3.25.76"
+  }
+}
+```
+
+### 2. 开发依赖（devDependencies）
+
+```json
+{
+  "devDependencies": {
+    // ✅ 开发时需要的依赖
+    "eslint": "^9.14.0",
+    "typescript": "^5",
+    "@types/react": "^19"
+  }
+}
+```
+
+### 3. 可选依赖（optionalDependencies）
+
+```json
+{
+  "optionalDependencies": {
+    // ✅ 可选依赖，安装失败不影响项目运行
+    "optional-package": "^1.0.0"
+  }
+}
+```
+
+## 依赖更新策略
+
+### 1. 安全更新
+
+```bash
+# ✅ 优先更新有安全漏洞的依赖
+pnpm audit
+
+# ✅ 修复安全漏洞
+pnpm audit fix
+```
+
+### 2. 功能更新
+
+```bash
+# ✅ 定期检查并更新依赖
+# 建议每月检查一次
+
+# ✅ 更新前先测试
+# 1. 创建新分支
+# 2. 更新依赖
+# 3. 运行测试
+# 4. 检查是否有破坏性变更
+```
+
+### 3. 破坏性更新
+
+```bash
+# ✅ 处理破坏性更新
+# 1. 查看包的 CHANGELOG
+# 2. 阅读迁移指南
+# 3. 逐步迁移代码
+# 4. 充分测试
+```
+
+## 依赖大小优化
+
+### 1. 使用 Tree Shaking
+
+```javascript
+// ✅ 使用命名导入（支持 tree shaking）
+import { specificFunction } from "large-library";
+
+// ❌ 避免默认导入整个库
+import LargeLibrary from "large-library"; // 可能包含未使用的代码
+```
+
+### 2. 按需导入
+
+```javascript
+// ✅ 按需导入组件
+import { Button } from "@/components/ui/button";
+
+// ❌ 避免导入整个模块
+// import * as UI from "@/components/ui"; // 可能包含未使用的代码
+```
+
+### 3. 代码分割
+
+```javascript
+// ✅ 使用动态导入进行代码分割
+const HeavyComponent = dynamic(() => import('./heavy-component'));
+
+// ✅ Next.js 自动进行路由级别的代码分割
+// app/page.jsx - 自动分割
+// app/xml/page.jsx - 自动分割
+```
+
+## 依赖审查
+
+### 1. 添加新依赖前的检查清单
+
+```bash
+# ✅ 检查清单：
+# 1. 是否已有类似功能的依赖？
+# 2. 包的维护状态如何？
+# 3. 包的大小是否合理？
+# 4. 是否有安全漏洞？
+# 5. 是否有 TypeScript 类型支持？
+# 6. 文档是否完善？
+```
+
+### 2. 审查现有依赖
+
+```bash
+# ✅ 定期审查依赖
+# 1. 检查是否有未使用的依赖
+pnpm list --depth=0
+
+# 2. 检查依赖大小
+pnpm list --depth=0 --json | jq '.[] | {name: .name, size: .size}'
+
+# 3. 检查安全漏洞
+pnpm audit
+```
+
+## 常见依赖说明
+
+### 1. 核心框架
+
+```json
+{
+  "next": "15.2.3", // Next.js 框架
+  "react": "^19.0.0", // React 库
+  "react-dom": "^19.0.0" // React DOM 渲染
+}
+```
+
+### 2. AI SDK
+
+```json
+{
+  "ai": "^5.0.89", // Vercel AI SDK
+  "@ai-sdk/openai": "^2.0.19", // OpenAI 适配器
+  "@ai-sdk/react": "^2.0.22" // React Hooks
+}
+```
+
+### 3. UI 组件
+
+```json
+{
+  "@radix-ui/react-dialog": "^1.1.6", // 对话框组件
+  "@radix-ui/react-tooltip": "^1.1.8", // 工具提示组件
+  "lucide-react": "^0.483.0" // 图标库
+}
+```
+
+### 4. 工具库
+
+```json
+{
+  "zod": "^3.25.76", // 数据验证
+  "clsx": "^2.1.1", // 类名工具
+  "nanoid": "^5.0.7" // ID 生成器
+}
+```
+
+## 参考实现
+
+参考以下文件了解项目的依赖使用：
+- [package.json](mdc:package.json) - 依赖配置
+- [pnpm-lock.yaml](mdc:pnpm-lock.yaml) - 版本锁定文件
+- [next.config.mjs](mdc:next.config.mjs) - Next.js 配置
+
+## 避免的实践
+
+- ❌ 引入功能重复的依赖（应该使用已有依赖）
+- ❌ 使用未维护的包（应该选择活跃维护的包）
+- ❌ 忽略 lockfile（应该提交到版本控制）
+- ❌ 使用 `*` 版本范围（应该使用精确版本或小版本范围）
+- ❌ 不更新有安全漏洞的依赖（应该及时修复）
+- ❌ 引入大型依赖而不考虑包大小（应该选择轻量级替代方案）
+- ❌ 不审查依赖的许可证（应该确保兼容项目许可证）
