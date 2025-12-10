@@ -46,14 +46,14 @@ description: 模板系统规范，包括模板数据结构、筛选、排序等�
 
 ```javascript
 const template = {
-  id: "employee-onboarding",
-  title: "新员工入职流程",
-  description: "新员工入职流程，从 Offer 到正式开始工作",
-  category: "business",
-  tags: ["人力资源", "入职", "流程"],
+  id: "graphical-abstract-template",
+  title: "通用图形化摘要模板",
+  description: "适用于各类期刊的标准图形化摘要布局，概括研究背景、方法和结论",
+  category: "schematic",
+  tags: ["图形化摘要", "概述", "布局"],
   difficulty: "beginner",
   isPopular: true,
-  icon: "UserPlus",
+  icon: "Workflow",
   gradient: {
     from: "#3b82f6",
     to: "#1d4ed8"

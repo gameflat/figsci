@@ -4,42 +4,93 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
+  Activity,
+  Atom,
   Badge,
   BarChart,
+  Beaker,
+  BookMarked,
+  BookOpen,
+  Box,
+  Boxes,
   Briefcase,
+  Brush,
   Bug,
   Building,
+  Calendar,
+  CalendarDays,
   CheckCircle,
   Clock,
+  Cloud,
+  CloudUpload,
   Code2,
+  Cog,
+  Container,
+  Cpu,
   Database,
+  Dna,
+  Eye,
+  EyeOff,
+  FileCode,
+  FileText,
+  Fingerprint,
+  FlaskConical,
+  Folder,
+  FolderTree,
+  Gauge,
   GitBranch,
+  GitMerge,
+  Globe,
+  GraduationCap,
+  Hammer,
+  HardDrive,
+  Hourglass,
+  Key,
+  KeyRound,
   Layers,
   Lightbulb,
+  LineChart,
+  Link,
+  Link2,
   Lock,
   Map,
   MessageSquare,
+  Microscope,
   Network,
   Package,
   Palette,
+  PenTool,
+  PieChart,
   Repeat,
   Rocket,
   Route,
+  Search,
   Server,
+  Settings,
+  Settings2,
+  Share2,
   Shield,
   ShieldCheck,
   Sparkles,
   Star,
   Target,
   TestTube,
+  Thermometer,
+  Timer,
+  TrendingDown,
+  TrendingUp,
+  TreePine,
   UserPlus,
   Users,
+  Wand2,
   Workflow,
+  Wrench,
   Zap,
 } from "lucide-react";
 
 // Icon mapping for templates
 const ICON_MAP = {
+  // 原有图标
   UserPlus,
   Workflow,
   GitBranch,
@@ -70,6 +121,67 @@ const ICON_MAP = {
   Palette,
   BarChart,
   MessageSquare,
+  // 流程/图表类
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  LineChart,
+  PieChart,
+  Gauge,
+  // 文档/内容类
+  FileText,
+  FileCode,
+  BookOpen,
+  BookMarked,
+  // 组织/结构类
+  FolderTree,
+  Folder,
+  TreePine,
+  // 连接/关系类
+  Link,
+  Link2,
+  GitMerge,
+  Share2,
+  // 时间/计划类
+  Calendar,
+  CalendarDays,
+  Timer,
+  Hourglass,
+  // 创意/设计类
+  PenTool,
+  Brush,
+  Wand2,
+  // 系统/架构类
+  Box,
+  Boxes,
+  Container,
+  Cpu,
+  HardDrive,
+  Cloud,
+  CloudUpload,
+  // 安全/权限类
+  Key,
+  KeyRound,
+  Fingerprint,
+  Eye,
+  EyeOff,
+  // 其他实用类
+  Settings,
+  Settings2,
+  Cog,
+  Wrench,
+  Hammer,
+  // 科研类图标
+  Atom,           // 原子（物理、化学研究）
+  Dna,            // DNA（生物学、遗传学研究）
+  FlaskConical,   // 锥形瓶（化学实验）
+  Beaker,         // 烧杯（实验）
+  Microscope,     // 显微镜（生物学、医学研究）
+  TestTube,       // 试管（实验）
+  Thermometer,    // 温度计（测量、气象研究）
+  GraduationCap,  // 毕业帽（学术、教育）
+  Globe,          // 地球仪（地理、环境科学）
+  Search,         // 搜索（研究、探索）
 };
 
 /**
