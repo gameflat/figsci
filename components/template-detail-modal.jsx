@@ -86,9 +86,9 @@ export function TemplateDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!max-w-[95vw] h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="!max-w-[1200px] h-[80vh] p-0 gap-0 overflow-hidden flex flex-col [&>button]:hidden">
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between border-b bg-white/95 backdrop-blur-sm px-6 py-4">
+        <div className="flex-shrink-0 flex items-center justify-between border-b bg-white/95 backdrop-blur-sm px-6 py-4">
           <DialogHeader className="flex-1">
             <DialogTitle className="text-xl font-semibold text-slate-900 flex items-center gap-2">
               {template.title}
@@ -146,48 +146,50 @@ export function TemplateDetailModal({
         </div>
 
         {/* Main Content */}
-        <div className="flex h-full pt-[88px]">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Left: Preview */}
-          <div className="flex-1 bg-slate-50 p-8 overflow-auto">
-            <div className="h-full flex items-center justify-center">
-              <div
-                className={cn(
-                  "relative w-full max-w-3xl rounded-xl border-2 border-slate-200 shadow-xl transition-transform duration-300 cursor-zoom-in",
-                  imageZoomed && "scale-150 cursor-zoom-out"
-                )}
-                onClick={() => setImageZoomed(!imageZoomed)}
-                style={{
-                  background: `linear-gradient(135deg, ${template.gradient.from} 0%, ${template.gradient.to} 100%)`,
-                  aspectRatio: "16/10",
-                }}
-              >
-                {template.previewUrl ? (
-                  <div
-                    className="absolute inset-0 bg-cover bg-center rounded-xl"
-                    style={{ backgroundImage: `url(${template.previewUrl})` }}
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <div className="text-6xl mb-4">{template.icon}</div>
-                      <div className="text-2xl font-semibold">{template.title}</div>
+          <div className="w-[500px] bg-slate-50 flex flex-col overflow-hidden border-r">
+            <div className="flex-1 min-h-0 overflow-y-auto p-6">
+              <div className="flex items-center justify-center min-h-full py-4">
+                <div
+                  className={cn(
+                    "relative w-full max-w-full rounded-xl border-2 border-slate-200 shadow-xl transition-transform duration-300 cursor-zoom-in",
+                    imageZoomed && "scale-150 cursor-zoom-out"
+                  )}
+                  onClick={() => setImageZoomed(!imageZoomed)}
+                  style={{
+                    background: `linear-gradient(135deg, ${template.gradient.from} 0%, ${template.gradient.to} 100%)`,
+                    aspectRatio: "16/10",
+                  }}
+                >
+                  {template.previewUrl ? (
+                    <div
+                      className="absolute inset-0 bg-cover bg-center rounded-xl"
+                      style={{ backgroundImage: `url(${template.previewUrl})` }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <div className="text-6xl mb-4">{template.icon}</div>
+                        <div className="text-2xl font-semibold">{template.title}</div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Zoom Hint */}
-                <div className="absolute top-4 right-4 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5">
-                  <ZoomIn className="h-3.5 w-3.5" />
-                  点击{imageZoomed ? "缩小" : "放大"}
+                  {/* Zoom Hint */}
+                  <div className="absolute top-4 right-4 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5">
+                    <ZoomIn className="h-3.5 w-3.5" />
+                    点击{imageZoomed ? "缩小" : "放大"}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Right: Details */}
-          <div className="w-[380px] bg-white border-l flex flex-col h-full overflow-hidden">
+          <div className="flex-1 bg-white flex flex-col overflow-hidden min-w-0">
             {/* Info Section */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-6">
               {/* Meta Info */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm">
@@ -307,7 +309,7 @@ export function TemplateDetailModal({
             </div>
 
             {/* Action Buttons */}
-            <div className="border-t bg-white px-6 py-4 space-y-3">
+            <div className="flex-shrink-0 border-t bg-white px-6 py-4 space-y-3">
               {/* Primary Action */}
               <Button
                 onClick={() => {
