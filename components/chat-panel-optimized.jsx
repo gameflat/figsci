@@ -187,6 +187,7 @@ function ChatPanelOptimized({
   // 生成请求体中的模型配置
   // 系统模型：发送 useSystemModel + systemModelId
   // 自定义模型：发送完整的 modelRuntime
+  // 自定义 API：发送 customApiUrl + customApiKey（用于模板匹配等场景）
   const buildModelRequestBody = useCallback(
     (model) => {
       if (!model) {
@@ -202,9 +203,37 @@ function ChatPanelOptimized({
       }
       
       // 自定义模型：发送完整配置
-      return {
+      // 默认使用当前选中的模型配置（通过 modelRuntime）
+      const requestBody = {
         modelRuntime: model,
       };
+      
+      // 方式 1：使用环境变量配置的模板匹配专用 API（推荐）
+      // 在 .env.local 或 .env 文件中设置：
+      // NEXT_PUBLIC_TEMPLATE_MATCH_API_URL=https://api.your-custom-ai.com/v1/chat/completions
+      // NEXT_PUBLIC_TEMPLATE_MATCH_API_KEY=your-api-key-here
+      // NEXT_PUBLIC_TEMPLATE_MATCH_MODEL=your-model-name (可选，默认使用当前模型)
+      if (typeof window !== "undefined") {
+        const templateMatchApiUrl = process.env.NEXT_PUBLIC_TEMPLATE_MATCH_API_URL;
+        const templateMatchApiKey = process.env.NEXT_PUBLIC_TEMPLATE_MATCH_API_KEY;
+        
+        if (templateMatchApiUrl && templateMatchApiKey) {
+          requestBody.customApiUrl = templateMatchApiUrl;
+          requestBody.customApiKey = templateMatchApiKey;
+          requestBody.customModel = process.env.NEXT_PUBLIC_TEMPLATE_MATCH_MODEL || model.modelId || "gpt-4o-mini";
+        }
+      }
+      
+      // 方式 2：如果需要在代码中硬编码（不推荐，仅用于测试）
+      // 取消下面的注释并填入你的 API 配置
+      // 注意：这种方式会将 API Key 暴露在前端代码中，存在安全风险
+      // if (!requestBody.customApiUrl) {
+      //   requestBody.customApiUrl = "https://api.your-custom-ai.com/v1/chat/completions";
+      //   requestBody.customApiKey = "your-api-key-here";
+      //   requestBody.customModel = "your-model-name";
+      // }
+      
+      return requestBody;
     },
     []
   );
@@ -770,9 +799,92 @@ function ChatPanelOptimized({
       try {
         let chartXml = await onFetchChart();
         const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
-        const enrichedInput = briefContext.prompt.length > 0 ? `${briefContext.prompt}
+        
+        // 智能模板匹配：如果输入框有内容，调用 AI Agents 进行智能匹配和格式化
+        let finalInput = input;
+        let finalBrief = briefContext;
+        let matchedTemplateId = null;
+        
+        if (input.trim()) {
+          try {
+            // 调用智能模板匹配 API
+            const matchResponse = await fetch("/api/template-match", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userInput: input.trim(),
+                currentXml: chartXml,
+                modelRuntime: buildModelRequestBody(selectedModel),
+              }),
+            });
+            
+            if (matchResponse.ok) {
+              const matchResult = await matchResponse.json();
+              const CONFIDENCE_THRESHOLD = 0.8; // 置信度阈值
+              
+              // 只有当置信度 >= 0.8 且匹配到模板时才使用格式化后的提示词
+              if (matchResult.confidence >= CONFIDENCE_THRESHOLD && matchResult.templateId && matchResult.formattedPrompt) {
+                finalInput = matchResult.formattedPrompt;
+                matchedTemplateId = matchResult.templateId;
+                
+                // 如果匹配到模板，应用对应的 Brief 配置
+                if (matchResult.brief && Object.keys(matchResult.brief).length > 0) {
+                  // 合并 Brief 配置到 briefState
+                  setBriefState(prev => ({
+                    ...prev,
+                    ...(matchResult.brief.intent && { intent: matchResult.brief.intent }),
+                    ...(matchResult.brief.tone && { tone: matchResult.brief.tone }),
+                    ...(matchResult.brief.focus && { focus: matchResult.brief.focus }),
+                    ...(matchResult.brief.diagramTypes && { diagramTypes: matchResult.brief.diagramTypes }),
+                  }));
+                  
+                  // 更新 finalBrief（会在 useMemo 中自动重新计算）
+                  finalBrief = briefContext;
+                }
+                
+                // 获取模板名称用于日志显示
+                const { DIAGRAM_TEMPLATES } = await import("@/data/templates");
+                const matchedTemplate = DIAGRAM_TEMPLATES.find(t => t.id === matchResult.templateId);
+                const templateName = matchedTemplate ? matchedTemplate.title : matchResult.templateId;
+                
+                console.log(`[前端] ✅ 智能匹配模板成功`);
+                console.log(`[前端] 模板名称: ${templateName}`);
+                console.log(`[前端] 模板 ID: ${matchResult.templateId}`);
+                console.log(`[前端] 置信度: ${(matchResult.confidence * 100).toFixed(1)}%`);
+                console.log(`[前端] 匹配原因: ${matchResult.reason}`);
+              } else {
+                // 置信度低于阈值，不使用模板
+                let templateName = "无";
+                if (matchResult.templateId) {
+                  try {
+                    const { DIAGRAM_TEMPLATES } = await import("@/data/templates");
+                    const matchedTemplate = DIAGRAM_TEMPLATES.find(t => t.id === matchResult.templateId);
+                    templateName = matchedTemplate ? matchedTemplate.title : matchResult.templateId;
+                  } catch (e) {
+                    templateName = matchResult.templateId;
+                  }
+                }
+                console.log(`[前端] ⚠️  模板匹配置信度低于阈值`);
+                console.log(`[前端] 匹配到的模板: ${templateName} (ID: ${matchResult.templateId || "无"})`);
+                console.log(`[前端] 置信度: ${(matchResult.confidence * 100).toFixed(1)}% (阈值: ${(CONFIDENCE_THRESHOLD * 100).toFixed(0)}%)`);
+                console.log(`[前端] 匹配原因: ${matchResult.reason || "无"}`);
+                console.log(`[前端] 将使用原始输入，不应用模板`);
+              }
+            } else {
+              console.warn("模板匹配失败，使用原始输入:", await matchResponse.text());
+            }
+          } catch (matchError) {
+            // 模板匹配失败不影响主流程，使用原始输入
+            console.warn("模板匹配请求失败，使用原始输入:", matchError);
+          }
+        }
+        
+        // 构建最终的消息内容
+        const enrichedInput = finalBrief.prompt.length > 0 ? `${finalBrief.prompt}
 
-${input}` : input;
+${finalInput}` : finalInput;
         const parts = [{ type: "text", text: enrichedInput, displayText: input }];
         if (files.length > 0) {
           const attachments = await serializeAttachments(files);
@@ -806,12 +918,14 @@ ${input}` : input;
       input,
       ensureBranchSelectionSettled,
       onFetchChart,
-      briefContext.prompt,
+      briefContext,
       files,
       sendMessage,
       selectedModel,
       setIsModelConfigOpen,
-      renderMode
+      renderMode,
+      buildModelRequestBody,
+      setBriefState
     ]
   );
   const handleInputChange = (e) => {

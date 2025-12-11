@@ -41,6 +41,16 @@ Figsci 是一个基于 Next.js 的 AI 驱动图表创建工具，提供"边聊�
 - `diagram-validation.js` - 图表验证
 - `svg.js` - SVG 处理工具
 
+### `/llm` - AI Agents 工作流
+- `/agents` - AI Agents 实现
+  - `template-matcher.js` - 模板匹配 Agent
+  - `prompt-formatter.js` - 提示词格式化 Agent
+  - `workflow.js` - 工作流编排
+- `/utils` - 工具函数
+  - `template-loader.js` - 模板加载工具
+- `/types` - 类型定义
+- 参考 [.cursor/rules/ai-agents-workflow.mdc](mdc:.cursor/rules/ai-agents-workflow.mdc) 了解详细架构
+
 ### `/hooks` - 自定义 React Hooks
 - `use-chat-state.js` - 聊天状态管理
 - `use-drawio-fallback.js` - Draw.io 降级处理

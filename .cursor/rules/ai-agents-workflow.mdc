@@ -1,0 +1,217 @@
+---
+description: AI Agents 工作流和智能模板匹配系统架构指南
+---
+
+# AI Agents 工作流规范
+
+## 概述
+
+Figsci 项目使用 AI Agents 工作流实现智能模板匹配和提示词格式化功能。系统位于 `llm/` 目录，使用 AI SDK 而非 LangChain。
+
+## 目录结构
+
+```
+llm/
+├── agents/              # AI Agents 实现
+│   ├── template-matcher.js    # 模板匹配 Agent
+│   ├── prompt-formatter.js     # 提示词格式化 Agent
+│   └── workflow.js            # 工作流编排
+├── utils/               # 工具函数
+│   └── template-loader.js      # 模板加载工具
+├── types/               # 类型定义
+│   └── index.js
+└── README.md            # 详细文档
+```
+
+## 核心组件
+
+### 1. 模板匹配 Agent (`llm/agents/template-matcher.js`)
+
+**功能**：分析用户输入，智能匹配最合适的模板
+
+**工作流程**：
+1. 获取所有可用模板
+2. 构建模板上下文信息（包含模板 ID、标题、描述、标签等）
+3. 使用 LLM 分析用户输入并匹配模板
+4. 如果 LLM 不可用或失败，降级到关键词匹配
+
+**支持的模型配置格式**：
+- 自定义 API：`{ customApiUrl, customApiKey, customModel }`
+- 系统模型：`{ useSystemModel: true, systemModelId }`
+- 自定义模型：`{ modelRuntime: { baseUrl, apiKey, modelId } }`
+- 直接配置：`{ baseUrl, apiKey, modelId }`
+
+**返回结果**：
+```javascript
+{
+  templateId: string,      // 匹配到的模板 ID（必须是实际 ID，如 "technical-roadmap"）
+  confidence: number,      // 匹配置信度 (0-1)
+  reason: string          // 匹配原因说明
+}
+```
+
+**关键特性**：
+- ✅ 支持序号到 ID 的自动转换（兼容处理）
+- ✅ 置信度阈值：0.8（低于阈值不使用模板）
+- ✅ 降级匹配：关键词匹配置信度为 0.85
+- ✅ 详细日志输出，便于调试
+
+### 2. 提示词格式化 Agent (`llm/agents/prompt-formatter.js`)
+
+**功能**：将用户输入按照模板格式生成规范的提示词
+
+**工作流程**：
+1. 获取匹配到的模板信息
+2. 使用 LLM 将用户输入格式化为模板格式
+3. 如果 LLM 不可用，使用简单拼接策略
+
+**支持的模型配置格式**：与模板匹配 Agent 相同
+
+**返回结果**：
+```javascript
+{
+  formattedPrompt: string,  // 格式化后的提示词
+  appliedBrief: Object      // 应用的 Brief 配置
+}
+```
+
+**关键特性**：
+- ✅ 支持自定义 API 和 AI SDK
+- ✅ 错误处理和降级策略
+- ✅ 详细日志输出
+
+### 3. 工作流编排 (`llm/agents/workflow.js`)
+
+**功能**：编排模板匹配和提示词格式化流程
+
+**工作流程**：
+1. 执行模板匹配
+2. 检查置信度（阈值 0.8）
+3. 如果置信度 >= 0.8，执行提示词格式化
+4. 如果置信度 < 0.8，返回原始输入，不使用模板
+
+**关键决策**：
+- 置信度 >= 0.8：使用模板并格式化提示词
+- 置信度 < 0.8：不使用模板，直接返回原始输入
+
+## API 接口
+
+### POST /api/template-match
+
+**功能**：智能模板匹配接口
+
+**请求体**：
+```javascript
+{
+  userInput: string,        // 用户输入的原始内容（必需）
+  currentXml?: string,       // 当前画布的 XML（可选）
+  modelRuntime?: {          // 模型运行时配置（可选）
+    customApiUrl?: string,
+    customApiKey?: string,
+    customModel?: string,
+    useSystemModel?: boolean,
+    systemModelId?: string,
+    modelRuntime?: { baseUrl, apiKey, modelId }
+  }
+}
+```
+
+**响应**：
+```javascript
+{
+  formattedPrompt: string,   // 格式化后的提示词
+  templateId: string | null, // 匹配到的模板 ID（如果置信度 < 0.8 则为 null）
+  brief: Object,            // 应用的 Brief 配置
+  confidence: number,        // 匹配置信度 (0-1)
+  reason: string            // 匹配原因说明
+}
+```
+
+## 模型配置优先级
+
+系统按以下优先级选择模型：
+
+1. **自定义 API**（如果提供 `customApiUrl` 和 `customApiKey`）
+2. **用户当前选中的模型**（通过 `modelRuntime` 传递）
+3. **系统模型**（如果启用）
+4. **降级到关键词匹配**（如果所有 API 都不可用）
+
+## 配置自定义 API
+
+### 方式 1：环境变量（推荐）
+
+在 `.env.local` 文件中配置：
+
+```env
+NEXT_PUBLIC_TEMPLATE_MATCH_API_URL=https://api.your-custom-ai.com/v1/chat/completions
+NEXT_PUBLIC_TEMPLATE_MATCH_API_KEY=your-api-key-here
+NEXT_PUBLIC_TEMPLATE_MATCH_MODEL=gpt-4o-mini
+```
+
+### 方式 2：代码配置
+
+在 `components/chat-panel-optimized.jsx` 的 `buildModelRequestBody` 函数中配置。
+
+## 关键设计决策
+
+### 1. 置信度阈值
+
+- **阈值**：0.8
+- **原因**：确保只有在高度匹配时才应用模板，避免不合适的模板影响用户体验
+- **实现**：在 `workflow.js` 中检查置信度
+
+### 2. 降级策略
+
+- **LLM 匹配失败** → 降级到关键词匹配（置信度 0.85）
+- **关键词匹配失败** → 使用默认热门模板（置信度 0.5）
+- **格式化失败** → 使用简单拼接策略
+
+### 3. 模板 ID 处理
+
+- **要求**：AI 必须返回实际的模板 ID（如 "technical-roadmap"），而不是序号（如 "模板 2"）
+- **兼容处理**：如果 AI 返回序号，自动转换为实际 ID
+- **验证**：确保返回的 ID 在模板列表中存在
+
+## 日志输出
+
+系统提供详细的日志输出，便于调试：
+
+- `🔄 使用 AI SDK 进行匹配...` - 开始调用 AI
+- `✅ AI SDK 调用成功` - AI 调用成功
+- `❌ AI SDK 调用失败` - AI 调用失败
+- `📝 AI 返回内容: ...` - 显示 AI 返回内容
+- `✅ JSON 解析成功` - JSON 解析成功
+- `⚠️ 降级到关键词匹配` - 降级提示
+
+## 参考实现
+
+- [llm/agents/template-matcher.js](mdc:llm/agents/template-matcher.js) - 模板匹配 Agent
+- [llm/agents/prompt-formatter.js](mdc:llm/agents/prompt-formatter.js) - 提示词格式化 Agent
+- [llm/agents/workflow.js](mdc:llm/agents/workflow.js) - 工作流编排
+- [app/api/template-match/route.js](mdc:app/api/template-match/route.js) - API 路由
+- [components/chat-panel-optimized.jsx](mdc:components/chat-panel-optimized.jsx) - 前端集成
+
+## 最佳实践
+
+1. **模型配置**：优先使用环境变量配置自定义 API，避免在代码中硬编码 API Key
+2. **错误处理**：所有 Agent 都应该有完善的错误处理和降级策略
+3. **日志记录**：使用统一的日志格式，便于调试和监控
+4. **类型安全**：使用 JSDoc 类型注释，确保类型安全
+5. **性能优化**：模板匹配会增加一次 LLM 调用，建议使用成本较低的模型（如 gpt-4o-mini）
+
+## 常见问题
+
+### Q: 为什么 AI 返回的模板 ID 无效？
+
+A: 可能 AI 返回了序号而不是实际 ID。系统会自动转换，但如果转换失败，会降级到关键词匹配。确保提示词中明确要求返回实际 ID。
+
+### Q: 如何提高匹配准确率？
+
+A: 
+1. 使用更好的模型（如 gpt-4o）
+2. 优化模板的描述和标签
+3. 调整置信度阈值（不推荐，可能影响用户体验）
+
+### Q: 模板匹配失败怎么办？
+
+A: 系统会自动降级到关键词匹配，如果关键词匹配也失败，会使用默认热门模板。所有降级都会在日志中记录。
