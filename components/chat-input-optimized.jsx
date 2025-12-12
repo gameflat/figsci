@@ -304,12 +304,12 @@ export function ChatInputOptimized({
                     ref={controlBarRef}
                     className="flex flex-nowrap items-center gap-2 px-3 pt-1 pb-1.5 overflow-hidden"
                 >
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0 mr-2">
                         <ButtonWithTooltip
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-[30px] w-[30px] rounded-full"
+                            className="h-[30px] w-[30px] rounded-full flex-shrink-0"
                             onClick={() => setShowClearDialog(true)}
                             tooltipContent="清空当前对话与图表"
                             disabled={status === "streaming"}
@@ -321,7 +321,7 @@ export function ChatInputOptimized({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-[30px] w-[30px] rounded-full"
+                            className="h-[30px] w-[30px] rounded-full flex-shrink-0"
                             onClick={() => onToggleHistory(true)}
                             disabled={
                                 status === "streaming" ||
@@ -335,12 +335,14 @@ export function ChatInputOptimized({
                     </div>
 
                     <div className="flex flex-nowrap items-center gap-2 flex-1 min-w-0 justify-end">
-                        <RenderModeToggle
-                            value={renderMode}
-                            onChange={onRenderModeChange}
-                            disabled={status === "streaming" || interactionLocked}
-                            iconOnly={isRenderModeIconOnly}
-                        />
+                        <div className="flex-shrink-0">
+                            <RenderModeToggle
+                                value={renderMode}
+                                onChange={onRenderModeChange}
+                                disabled={status === "streaming" || interactionLocked}
+                                iconOnly={isRenderModeIconOnly}
+                            />
+                        </div>
                         {!shouldHideModelSelector && (
                             <ModelSelector
                                 selectedModelKey={selectedModelKey}
@@ -358,7 +360,7 @@ export function ChatInputOptimized({
                                     <Button
                                         type="button"
                                         onClick={onStop}
-                                        className="h-[30px] min-w-[30px] gap-2 rounded-full bg-red-500 text-white text-[11px] shadow-sm transition hover:bg-red-600"
+                                        className="h-[30px] min-w-[30px] gap-2 rounded-full bg-red-500 text-white text-[11px] shadow-sm transition hover:bg-red-600 flex-shrink-0"
                                         size="sm"
                                         aria-label="暂停生成"
                                     >
@@ -366,44 +368,18 @@ export function ChatInputOptimized({
                                     </Button>
                                 ) : (
                                     <>
-                                        <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm flex-shrink-0">
-
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="h-[30px] gap-1 rounded-none border-0 bg-slate-900/10 px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-900/20 disabled:opacity-60"
-                                            disabled={
-                                                status === "streaming" ||
-                                                (!input.trim() && !isCompareLoading) ||
-                                                interactionLocked
-                                            }
-                                            onClick={onCompareRequest}
-                                            aria-label="使用当前提示词进行多模型对比"
-                                        >
-                                            {isCompareLoading ? (
-                                                <>
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    生成中…
-                                                </>
-                                            ) : (
-                                                <>
-                                                    对比
-                                                </>
-                                            )}
-                                        </Button>
-                                            <Button
+                                        {/* 只保留设置按钮，删除对比按钮 */}
+                                        <ButtonWithTooltip
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            className="h-[30px] w-[30px] rounded-none border-r border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                            className="h-[30px] w-[30px] rounded-full flex-shrink-0"
                                             onClick={onOpenComparisonConfig}
                                             disabled={status === "streaming" || interactionLocked}
-                                            aria-label="对比设置"
+                                            tooltipContent="模型设置"
                                         >
                                             <Settings className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                        </ButtonWithTooltip>
                                         <Button
                                             type="submit"
                                             disabled={

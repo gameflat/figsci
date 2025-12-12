@@ -1278,7 +1278,8 @@ ${finalInput}` : finalInput;
   >
                                     画图工作室
                                 </Link>
-                                <Link
+                                {/* XML 代码页面已注释掉，不再使用 */}
+                                {/* <Link
     href="/xml"
     className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-900"
   >
@@ -1286,7 +1287,7 @@ ${finalInput}` : finalInput;
                                     <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-600">
                                         实时预览
                                     </span>
-                                </Link>
+                                </Link> */}
                             </div>
                         </div>
                         <div className="flex items-center gap-1.5">

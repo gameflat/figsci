@@ -58,22 +58,23 @@ export const DEFAULT_BRIEF_STATE = {
 const BRIEF_MODE_OPTIONS = [
     {
         id: "guided",
-        title: "FlowBrief",
-        description: "",
-        helper: "",
+        title: "Figsci Brief",
+        description: "基于科研绘图最佳实践的智能配置",
+        helper: "自动优化图表以符合学术期刊标准",
     },
     {
         id: "free",
         title: "自由模式",
-        description: "",
-        helper: "",
+        description: "AI自主选择，仅保留基础规范",
+        helper: "适合探索性绘图和自定义需求",
     },
 ];
 
 export const Figsci_FREEFORM_GUARDRAILS = [
     "保持画面干净美观，优先单屏阅读，不要堆叠或线路缠绕。",
     "输出语法必须正确，连线完整、标签清晰，避免损坏的 XML/SVG。",
-    "完全依据用户输入自由选择图型与布局，不擅自添加业务假设。",
+    "完全依据用户输入自由选择图型与布局，不擅自添加科学假设。",
+    "确保图表符合学术期刊发表标准，使用专业术语和规范符号。",
 ];
 
 export const Figsci_FREEFORM_PROMPT = `默认出图守则（不附加 FlowBrief 偏好）：
@@ -81,144 +82,150 @@ export const Figsci_FREEFORM_PROMPT = `默认出图守则（不附加 FlowBrief 
 - Ensure syntax validity and connected arrows/labels; no broken XML/SVG/mermaid.
 - Choose whichever diagram type/layout best fits the user's text without adding extra assumptions.`;
 
-// INTENT 保持不变 - 这是核心功能
+// INTENT - 科研绘图任务模式
 export const INTENT_OPTIONS = [
     {
         id: "draft",
-        title: "空白起稿",
-        description: "从描述构建全新画布",
-        prompt: "Create a complete diagram from scratch with clear structure, meaningful labels, and logical organization.",
+        title: "新建图表",
+        description: "从研究描述构建全新的科研图表",
+        prompt: "Create a complete scientific diagram from scratch with clear structure, accurate scientific terminology, meaningful labels, and logical organization following academic standards.",
     },
     {
         id: "polish",
-        title: "结构整理",
-        description: "保持内容，优化布局",
-        prompt: "Preserve all existing information while improving alignment, grouping, spacing, and visual flow.",
+        title: "优化改进",
+        description: "保持科学内容，优化布局和可读性",
+        prompt: "Preserve all existing scientific information and data while improving alignment, grouping, spacing, visual flow, and readability for publication standards.",
     },
     {
         id: "explain",
-        title: "讲解拆解",
-        description: "分析逻辑并建议",
-        prompt: "Analyze the current diagram logic, provide insights, and suggest improvements.",
+        title: "机制解析",
+        description: "分析科学逻辑并建议改进方案",
+        prompt: "Analyze the current diagram's scientific logic, identify potential improvements for clarity and accuracy, and suggest enhancements that better represent the research concepts.",
     },
 ];
 
-// TONE 保持精简 - 5个经典风格足够
+// TONE - 科研绘图视觉风格
 export const TONE_OPTIONS = [
     {
         id: "balanced",
-        title: "中性简约",
-        description: "清晰、专业、通用",
+        title: "学术标准",
+        description: "符合 Nature/Science/CVPR 等顶刊顶会风格",
         prompt:
-            "Modern neutral design: Clean white/light gray background with systematic neutral palette (gray-50 to gray-900). Single primary accent (blue/indigo). 8px border-radius, 1-2px strokes, subtle shadows. 4.5:1 contrast minimum. 8px grid alignment. Clear visual hierarchy.",
+            "Academic standard design: Clean white/light gray background with systematic neutral palette (gray-50 to gray-900). Primary accent colors following Nature/Science/EAA journal standards (typically blue/indigo for methods, green for results, orange for conclusions). 8px border-radius, 1-2px strokes, subtle shadows. 4.5:1 contrast minimum. 8px grid alignment. Clear visual hierarchy suitable for scientific publications.",
     },
     {
         id: "playful",
-        title: "活力多彩",
-        description: "友好、轻松、有趣",
+        title: "图形摘要",
+        description: "适合 Graphical Abstract 的视觉风格",
         prompt:
-            "Vibrant friendly design: 2-3 complementary colors with soft gradients (10-20%). Rounded corners (12-16px), generous spacing (16-24px). Warm approachable tone with readable text. Friendly sans-serif, line-height 1.5-1.6.",
+            "Graphical abstract style: 2-3 complementary colors with soft gradients (10-20%) following Elsevier or Springer journal standards. Rounded corners (12-16px), generous spacing (16-24px). Engaging yet professional tone. Clear sans-serif fonts (Arial, Helvetica), line-height 1.5-1.6. Emphasize visual storytelling and research impact.",
     },
     {
         id: "enterprise",
-        title: "企业专业",
-        description: "权威、严谨、可信",
+        title: "严谨专业",
+        description: "高影响因子期刊标准",
         prompt:
-            "Professional enterprise: Conservative navy/slate colors, minimal accents. Generous white space (≥40px margins), strong grid alignment. Bold typography hierarchy. ≤10 key elements per view. Orthogonal layouts, clean arrows. 7:1 contrast for critical info.",
+            "High-impact journal standard: Conservative navy/slate/black colors, minimal but strategic accents. Generous white space (≥40px margins), strong grid alignment. Bold typography hierarchy using serif or professional sans-serif. ≤10 key elements per view for clarity. Orthogonal layouts, clean arrows. 7:1 contrast for critical scientific data. Emphasize precision and credibility.",
     },
     {
         id: "sketch",
-        title: "手绘草图",
-        description: "创意、灵活、非正式",
+        title: "概念草图",
+        description: "研究初期或提案阶段",
         prompt:
-            "Hand-drawn sketch: Rough organic strokes (2-3px varied), sketch-like shapes. Casual fonts, subtle texture, imperfect alignment. Muted pastels, pencil-like outlines. Playful annotations and arrows. Creative brainstorming feel over precision.",
+            "Conceptual sketch for early-stage research: Rough organic strokes (2-3px varied), sketch-like shapes suitable for brainstorming or grant proposals. Clear fonts, subtle texture, relaxed alignment. Muted pastels, pencil-like outlines. Annotations and arrows for conceptual development. Balance creativity with scientific accuracy.",
     },
     {
         id: "blueprint",
-        title: "技术蓝图",
-        description: "精确、技术、极简",
+        title: "技术精确",
+        description: "结构图、机制图、流程图的精确呈现",
         prompt:
-            "Technical blueprint: Off-white/light blue background, precise charcoal/dark blue lines (1px). Monospace or technical fonts. Tight grid (4px precision), minimal decoration. Single cyan/electric blue accent. No gradients/shadows. Emphasize technical accuracy and structure.",
+            "Technical precision for mechanisms and structures: Off-white/light blue background, precise charcoal/dark blue lines (1px). Monospace or technical serif fonts (Times, Garamond). Tight grid (4px precision), minimal decoration. Single cyan/electric blue accent for key components. No gradients/shadows. Emphasize technical accuracy, molecular structures, reaction mechanisms, or system architectures.",
     },
 ];
 
-// FOCUS 精简并通用化 - 从3个具体场景 → 3个通用原则
+// FOCUS - 科研绘图设计重点
 export const FOCUS_OPTIONS = [
     {
         id: "clarity",
-        title: "简洁清晰",
-        description: "最小化复杂度",
-        prompt: "Prioritize simplicity and clarity. Limit to 15-20 key elements. Use concise labels (2-5 words). Remove unnecessary decorations. Apply generous white space. Focus on essential information only.",
+        title: "清晰可读",
+        description: "确保信息传达准确，符合期刊要求",
+        prompt: "Prioritize scientific clarity and readability for publication. Limit to 15-20 key elements per diagram. Use concise, accurate scientific labels (2-5 words) with proper terminology. Remove unnecessary decorative elements. Apply generous white space (≥40px margins). Focus on essential research information only. Ensure all elements are distinguishable at publication resolution.",
     },
     {
         id: "flow",
-        title: "流向顺畅",
-        description: "统一方向，易追踪",
-        prompt: "Ensure consistent flow direction (left-to-right or top-to-bottom primary). Clear directional arrows. Return lines run underneath main flow. Logical progression easy to follow.",
+        title: "逻辑流程",
+        description: "科学流程的时间顺序和因果关系",
+        prompt: "Ensure consistent scientific flow direction (left-to-right for temporal, top-to-bottom for hierarchical, or circular for feedback loops). Use clear directional arrows indicating cause-effect relationships, energy transfer, or data flow. Return lines run underneath main flow. Logical progression easy to follow for readers. Annotate critical steps or decision points in scientific processes.",
     },
     {
         id: "hierarchy",
-        title: "层次分明",
-        description: "结构化分组",
-        prompt: "Group related elements using visual clusters, containers, or swimlanes. Clear visual hierarchy with size, color, position. Consistent spacing between groups. Label each major section.",
+        title: "结构层次",
+        description: "突出主要发现和核心机制",
+        prompt: "Group related scientific concepts using visual clusters, containers, or functional regions. Clear visual hierarchy with size, color intensity, or position emphasizing main findings or core mechanisms. Consistent spacing between groups (e.g., cellular compartments, system layers, experimental conditions). Label each major section with appropriate scientific terminology. Use color coding for different experimental groups, treatments, or biological processes.",
     },
 ];
 
-// DIAGRAM_TYPE - 添加"自动识别"作为推荐选项
+// DIAGRAM_TYPE - 科研绘图图表类型
 export const DIAGRAM_TYPE_OPTIONS = [
     {
         id: "auto",
         title: "智能识别",
-        description: "AI自动选择最合适的图表类型",
-        prompt: "Automatically select the most appropriate diagram type based on user requirements and content. Consider: workflow needs → activity diagram, system interactions → sequence diagram, architecture → component/deployment diagram, concepts → mind map, user experience → journey map, timeline → Gantt chart.",
+        description: "AI自动选择最合适的科研图表类型",
+        prompt: "Automatically select the most appropriate scientific diagram type based on research content and requirements. Consider: experimental procedures → process flowchart, molecular mechanisms → pathway diagram, system architectures → layered architecture, classifications → taxonomy tree, comparisons → comparison chart, timelines → Gantt/timeline, structures → exploded view or cross-section.",
     },
     {
         id: "activity",
-        title: "活动流程",
-        description: "业务流程、分支逻辑",
-        prompt: "Activity/process flowchart with decision points, parallel flows, and clear start/end. Annotate conditions and branches.",
+        title: "实验流程",
+        description: "实验步骤、方法学流程",
+        prompt: "Experimental process flowchart with sequential steps, decision points (e.g., quality control checkpoints), parallel experimental arms, and clear start/end points. Annotate experimental conditions, parameters, and branching logic. Include icons for instruments or key procedures.",
     },
     {
         id: "sequence",
-        title: "时序交互",
-        description: "系统调用、消息传递",
-        prompt: "Sequence diagram showing actors/services as lifelines. Emphasize request-response patterns and async callbacks.",
+        title: "信号通路",
+        description: "生物信号传递、分子级联反应",
+        prompt: "Signaling pathway or molecular cascade diagram showing molecules/proteins as nodes, interactions as arrows (activation/inhibition), feedback loops, and key regulatory points. Use standard biological notation (arrows, T-bars). Emphasize temporal sequence and cause-effect relationships.",
     },
     {
         id: "component",
-        title: "组件依赖",
-        description: "模块结构、接口关系",
-        prompt: "Component diagram showing subsystems, interfaces, and deployment boundaries. Indicate dependency directions.",
+        title: "系统架构",
+        description: "研究系统、模型框架的分层结构",
+        prompt: "System architecture diagram showing subsystems, modules, or functional layers (e.g., data layer, processing layer, application layer in computational research). Indicate interfaces, data flow directions, and component dependencies. Suitable for computational biology, AI model frameworks, or engineering systems.",
     },
     {
         id: "state",
-        title: "状态机",
-        description: "状态转换、生命周期",
-        prompt: "State machine showing object lifecycle, state transitions, guard conditions, and terminal states.",
+        title: "状态转换",
+        description: "细胞状态、分子构象、实验阶段",
+        prompt: "State transition diagram showing biological/chemical states (e.g., cell cycle phases, protein conformations, reaction intermediates), transition triggers, guard conditions, and terminal states. Use state machines for dynamic biological processes or chemical reactions.",
     },
     {
         id: "deployment",
-        title: "部署架构",
-        description: "服务器、网络拓扑",
-        prompt: "Deployment diagram with environment nodes, containers/services, network relationships. Mark security zones and ports.",
+        title: "技术路线",
+        description: "研究计划、技术路线图",
+        prompt: "Technical roadmap or research plan diagram with timeline stages, milestones, parallel research tracks, and dependencies. Show phases like literature review → hypothesis → methodology → experiments → analysis → conclusions. Include resource allocation or team assignments if relevant.",
     },
     {
         id: "mindmap",
-        title: "思维导图",
-        description: "概念发散、头脑风暴",
-        prompt: "Mind map with central topic branching into subtopics. Organic tree structure, hand-drawn feel optional.",
+        title: "概念关系",
+        description: "研究概念、分类体系、知识网络",
+        prompt: "Conceptual map or knowledge network with central research question/topic branching into related concepts, hypotheses, methods, or findings. Use tree or network structure. Suitable for literature reviews, conceptual frameworks, or taxonomy classifications.",
     },
     {
         id: "journey",
-        title: "用户旅程",
-        description: "体验阶段、触点分析",
-        prompt: "Customer journey showing stages, touchpoints, emotions, and responsible teams. Timeline-based flow.",
+        title: "研究流程",
+        description: "研究阶段、数据流转、工作流",
+        prompt: "Research workflow or data journey diagram showing stages from data collection → processing → analysis → visualization → publication. Include touchpoints, decision nodes, and feedback loops. Emphasize data provenance and experimental traceability.",
     },
     {
         id: "gantt",
-        title: "甘特排期",
-        description: "项目计划、时间依赖",
-        prompt: "Simplified Gantt chart with milestones, durations, and dependencies. Timeline visualization.",
+        title: "研究计划",
+        description: "项目时间线、里程碑、阶段规划",
+        prompt: "Research timeline or simplified Gantt chart with research phases, milestones (e.g., paper submission, conference deadlines), durations, and dependencies between tasks. Suitable for grant proposals, project management, or publication planning.",
+    },
+    {
+        id: "schematic",
+        title: "图形摘要",
+        description: "论文 Graphical Abstract、研究概述",
+        prompt: "Graphical abstract or schematic summary showing research background → methodology/mechanism → key findings in a horizontal three-panel layout. Use arrows to guide visual flow. Follow journal-specific style guidelines (Nature, Science, Cell, etc.). Include take-home message.",
     },
 ];
 
@@ -327,10 +334,10 @@ export function FigsciBrief({
             {isFreeMode ? (
                 <div className="space-y-3 rounded-xl border border-dashed border-slate-200 bg-white p-4">
                     <p className="text-sm font-semibold text-slate-800">
-                        自由模式：AI 直接按输入作图，不附加 FlowBrief。
+                        自由模式：AI 直接按输入作图，不附加Figsci Brief偏好。
                     </p>
                     <p className="text-xs text-slate-500">
-                        仅保留基础规范，确保结果清晰、整洁、语法正确。
+                        仅保留基础规范，确保结果清晰、整洁、语法正确，适合探索性绘图和自定义需求。
                     </p>
                     <div className="flex flex-col gap-2">
                         {Figsci_FREEFORM_GUARDRAILS.map((item, index) => (
@@ -571,15 +578,17 @@ export function FigsciBriefDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                     <DialogTitle>Figsci Brief 偏好配置</DialogTitle>
                     <DialogDescription>
-                        设定任务目标、视觉风格与设计重点，或切换到自由模式仅保留少量默认守则。
+                        设定科研绘图任务目标、视觉风格与设计重点，优化图表以符合学术期刊发表标准，或切换到自由模式进行探索性绘图。
                     </DialogDescription>
                 </DialogHeader>
-                <FigsciBrief state={state} onChange={onChange} disabled={disabled} />
-                <DialogFooter>
+                <div className="flex-1 overflow-y-auto min-h-0 pr-2 -mr-2">
+                    <FigsciBrief state={state} onChange={onChange} disabled={disabled} />
+                </div>
+                <DialogFooter className="flex-shrink-0">
                     <Button
                         type="button"
                         onClick={() => handleOpenChange(false)}

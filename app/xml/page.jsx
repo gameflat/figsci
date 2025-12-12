@@ -1,3 +1,7 @@
+// XML 代码页面已注释掉，不再使用
+// 整个文件内容已注释，如需恢复请取消注释
+
+/*
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -117,7 +121,7 @@ function XmlCodePanel() {
                     <p>操作说明：</p>
                     <ol className="space-y-1">
                         <li>1. 在画图工作室中生成或编辑图表。</li>
-                        <li>2. 点击“同步画布”确保获取最新 XML。</li>
+                        <li>2. 点击"同步画布"确保获取最新 XML。</li>
                         <li>3. 可复制或下载 XML 文件，集成到其他系统。</li>
                     </ol>
                 </div>
@@ -204,4 +208,10 @@ export default function XmlCodePage() {
             <XmlCodePanel />
         </div>
     );
+}
+*/
+
+// 临时导出空组件以避免路由错误（Next.js 需要导出默认组件）
+export default function XmlCodePage() {
+    return null;
 }

@@ -22,14 +22,15 @@ export function WorkspaceNav({ className }) {
             description: "Figsci Studio",
             icon: Workflow,
         },
-        {
-            id: "xml",
-            href: "/xml",
-            label: t("nav.xmlCode"),
-            description: "draw.io mxGraph XML 预览",
-            icon: FileCode2,
-            badge: t("common.experimental") || "实验功能",
-        },
+        // XML 代码页面已注释掉，不再使用
+        // {
+        //     id: "xml",
+        //     href: "/xml",
+        //     label: t("nav.xmlCode"),
+        //     description: "draw.io mxGraph XML 预览",
+        //     icon: FileCode2,
+        //     badge: t("common.experimental") || "实验功能",
+        // },
     ];
 
     return (
