@@ -15,6 +15,8 @@ public
 .env.production
 .env.development
 
+.cursorignore
+
 yarn.lock
 npm-debug.log*
 .pnpm-error.log*

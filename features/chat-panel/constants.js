@@ -32,7 +32,7 @@ const TOOLBAR_ACTIONS = {
     description: "调用灵感与述职模板"
   }
 };
-const TOOLBAR_PANELS = ["brief", "calibration", "actions"];
+const TOOLBAR_PANELS = ["calibration", "actions"];
 const QUICK_ACTIONS = [
   {
     id: "aws-refresh",
@@ -116,12 +116,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#fde68a",
       to: "#f97316"
     },
-    brief: {
-      intent: "draft",
-      tone: "sketch",
-      focus: ["hierarchy"],
-      diagramTypes: ["journey", "mindmap"]
-    }
   },
   {
     id: "enterprise-architecture-grid",
@@ -135,12 +129,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#93c5fd",
       to: "#1d4ed8"
     },
-    brief: {
-      intent: "draft",
-      tone: "enterprise",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["component", "deployment"]
-    }
   },
   {
     id: "customer-success-gallery",
@@ -154,12 +142,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#a5f3fc",
       to: "#14b8a6"
     },
-    brief: {
-      intent: "draft",
-      tone: "balanced",
-      focus: ["clarity"],
-      diagramTypes: ["journey", "activity"]
-    }
   },
   {
     id: "incident-response-loop",
@@ -173,12 +155,6 @@ const FLOW_SHOWCASE_PRESETS = [
       from: "#c084fc",
       to: "#7c3aed"
     },
-    brief: {
-      intent: "polish",
-      tone: "balanced",
-      focus: ["flow", "clarity"],
-      diagramTypes: ["activity", "state"]
-    }
   }
 ];
 export {
