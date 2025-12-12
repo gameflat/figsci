@@ -184,33 +184,9 @@ useEffect(() => {
   hydrateDiagramFromContext();
 }, [hydrateDiagramFromContext]);
   
-  // ========== 计算值 ==========
-  // 判断是否显示 Draw.io 编辑器（根据渲染模式）
-  const showDrawio = renderMode === "drawio";
-  // ========== 移动端提前返回 ==========
-  // 如果是移动设备，显示提示信息而不是完整的工作区
-  // 因为 Draw.io 和复杂的布局在移动端体验不佳
-  if (isMobile) {
-    return (
-      <div className="flex h-screen flex-col bg-gray-100 overflow-hidden">
-        {/* 工作区导航栏 */}
-        <WorkspaceNav />
-        {/* 移动端提示内容 */}
-        <div className="flex flex-1 items-center justify-center px-6">
-          <div className="text-center rounded-2xl border border-gray-200 bg-white/90 p-8 shadow-sm">
-            <h1 className="text-2xl font-semibold text-gray-800">
-              {t("workspace.mobileWarning")}
-            </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              {t("workspace.mobileHint")}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
   // ========== 主内容区域引用 ==========
   // 用于获取主内容区域的 DOM 元素，用于计算拖拽位置和滚动控制
+  // 注意：所有 hooks 必须在条件性返回之前调用，以遵守 React Hooks 规则
   const mainContentRef = React.useRef(null);
   
   /**
@@ -341,6 +317,35 @@ useEffect(() => {
       }
     };
   }, []);
+  
+  // ========== 计算值 ==========
+  // 判断是否显示 Draw.io 编辑器（根据渲染模式）
+  const showDrawio = renderMode === "drawio";
+  
+  // ========== 移动端提前返回 ==========
+  // 如果是移动设备，显示提示信息而不是完整的工作区
+  // 因为 Draw.io 和复杂的布局在移动端体验不佳
+  // 注意：必须在所有 hooks 调用之后才能进行条件性返回
+  if (isMobile) {
+    return (
+      <div className="flex h-screen flex-col bg-gray-100 overflow-hidden">
+        {/* 工作区导航栏 */}
+        <WorkspaceNav />
+        {/* 移动端提示内容 */}
+        <div className="flex flex-1 items-center justify-center px-6">
+          <div className="text-center rounded-2xl border border-gray-200 bg-white/90 p-8 shadow-sm">
+            <h1 className="text-2xl font-semibold text-gray-800">
+              {t("workspace.mobileWarning")}
+            </h1>
+            <p className="mt-2 text-sm text-gray-500">
+              {t("workspace.mobileHint")}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   /**
    * 开始调整聊天面板大小
    * 当用户在调整条上按下鼠标/触摸时调用
