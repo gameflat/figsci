@@ -9,21 +9,13 @@ import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/
 import { MODEL_COMPARE_SYSTEM_PROMPT_XML, MODEL_COMPARE_SYSTEM_PROMPT_SVG } from "@/lib/prompts";
 /**
  * buildUserPrompt
- * 构建用户提示，将用户指令、当前 XML 和 Brief 组织成结构化的提示文本
+ * 构建用户提示，将用户指令和当前 XML 组织成结构化的提示文本
  * @param {string} prompt - 用户的最新指令
  * @param {string} xml - 当前画布上的 XML（可选）
- * @param {string} brief - Figsci Brief 内容（可选）
  * @param {string} [renderMode="drawio"] - 渲染模式："drawio" 或 "svg"
  * @returns {string} 格式化后的用户提示文本
  */
-function buildUserPrompt(prompt, xml, brief, renderMode = "drawio") {
-  // 按顺序组织内容：先 Brief（如果有），再用户指令
-  const sections = [];
-  if (brief && brief.trim().length > 0) {
-    sections.push(brief.trim());
-  }
-  sections.push(prompt.trim());
-  
+function buildUserPrompt(prompt, xml, renderMode = "drawio") {
   // 构建结构化的提示文本，包含当前 XML 和用户指令
   return `当前图表 XML：
 """xml
@@ -32,7 +24,7 @@ ${xml ?? ""}
 
 用户最新指令：
 """md
-${sections.join("\n\n")}
+${prompt.trim()}
 """
 
 请输出 JSON（字段：summary, ${renderMode === "svg" ? "svg" : "xml"}），用于模型效果对比。`;
@@ -149,7 +141,6 @@ async function exportDiagramPreview(xml) {
  * - models: 模型配置数组（必需），每个模型包含 id、label、runtime
  * - prompt: 用户指令（必需）
  * - xml: 当前画布 XML（可选）
- * - brief: Figsci Brief 内容（可选）
  * - attachments: 附件数组（可选）
  * - renderMode: 渲染模式，"drawio" 或 "svg"（默认 "drawio"）
  * 
@@ -171,7 +162,6 @@ async function POST(req) {
       models,
       prompt,
       xml,
-      brief,
       attachments,
       renderMode = "drawio"
     } = await req.json();
@@ -222,7 +212,7 @@ async function POST(req) {
     const mode = renderMode === "svg" ? "svg" : "drawio";
     
     // 构建用户提示
-    const userPrompt = buildUserPrompt(prompt, xml ?? "", brief, mode);
+    const userPrompt = buildUserPrompt(prompt, xml ?? "", mode);
     const normalizedUserPrompt = userPrompt.trim();
     
     // 验证提示内容不为空

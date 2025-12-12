@@ -93,8 +93,8 @@ function XmlCodePanel() {
     };
 
     return (
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 lg:flex-row">
-            <section className="space-y-4 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm lg:w-1/3">
+        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6 lg:flex-row">
+            <section className="space-y-4 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-6 lg:w-1/3 lg:min-w-[320px]">
                 <div className="flex items-center gap-3">
                     <div className="rounded-full bg-slate-900/90 p-2 text-white">
                         <FileCode2 className="h-5 w-5" />
@@ -127,8 +127,8 @@ function XmlCodePanel() {
                 </div>
             </section>
 
-            <section className="flex flex-1 flex-col rounded-3xl border border-slate-200 bg-white/95 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+            <section className="flex flex-1 flex-col rounded-3xl border border-slate-200 bg-white/95 shadow-sm lg:min-w-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 sm:px-4 sm:py-3">
                     <div>
                         <p className="text-sm font-medium text-slate-900">
                             draw.io mxGraph XML
@@ -176,10 +176,10 @@ function XmlCodePanel() {
                     </div>
         </div>
 
-                {(errorMessage || infoMessage) && (
+                {                (errorMessage || infoMessage) && (
                     <div
                         className={cn(
-                            "mx-4 mt-3 rounded-2xl px-4 py-2 text-xs",
+                            "mx-3 mt-2 rounded-2xl px-3 py-2 text-xs sm:mx-4 sm:mt-3 sm:px-4",
                             infoMessage
                                 ? "border border-emerald-200 bg-emerald-50/80 text-emerald-700"
                                 : "border border-red-200 bg-red-50/80 text-red-700"
@@ -189,8 +189,8 @@ function XmlCodePanel() {
                     </div>
                 )}
 
-                <div className="flex-1 overflow-hidden px-4 py-4">
-                    <pre className="h-full overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-slate-100">
+                <div className="flex-1 overflow-hidden px-3 py-3 sm:px-4 sm:py-4">
+                    <pre className="h-full overflow-auto rounded-2xl bg-slate-950 p-3 text-xs text-slate-100 sm:p-4">
                         {xmlPreview
                             ? xmlPreview
                             : "等待来自画图工作室的 XML，同步后将在此处展示。"}
@@ -205,7 +205,9 @@ export default function XmlCodePage() {
     return (
         <div className="flex h-screen flex-col bg-slate-50 overflow-hidden">
             <WorkspaceNav />
-            <XmlCodePanel />
+            <div className="flex-1">
+                <XmlCodePanel />
+            </div>
         </div>
     );
 }

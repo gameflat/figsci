@@ -34,16 +34,6 @@ import { cn, formatXML, replaceXMLParts } from "@/lib/utils";
 import { buildSvgRootXml } from "@/lib/svg";
 import { QuickActionBar } from "@/components/quick-action-bar";
 import { FlowShowcaseGallery } from "./flow-showcase-gallery";
-import {
-  FigsciBriefLauncher,
-  FigsciBriefDialog,
-  DEFAULT_BRIEF_STATE,
-  FOCUS_OPTIONS,
-  INTENT_OPTIONS,
-  TONE_OPTIONS,
-  DIAGRAM_TYPE_OPTIONS,
-  Figsci_FREEFORM_PROMPT
-} from "./figsci-brief";
 import { ReportBlueprintTray } from "./report-blueprint-tray";
 import { CalibrationConsole } from "./calibration-console";
 import { useChatState } from "@/hooks/use-chat-state";
@@ -278,16 +268,12 @@ function ChatPanelOptimized({
   const [files, setFiles] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
-  const [briefState, setBriefState] = useState(() => ({
-    ...DEFAULT_BRIEF_STATE
-  }));
   const [commandTab, setCommandTab] = useState(
     "templates"
   );
   const [activeToolPanel, setActiveToolPanel] = useState(null);
   const [isToolSidebarOpen, setIsToolSidebarOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
-  const [isBriefDialogOpen, setIsBriefDialogOpen] = useState(false);
   const [contactCopyState, setContactCopyState] = useState(
     "idle"
   );
@@ -321,66 +307,6 @@ function ChatPanelOptimized({
     updateActiveBranchDiagram(value.svg);
     lastLoadedSvgResultIdRef.current = resultId;
   }, [isSvgMode, diagramResultVersion, loadSvgMarkup, updateActiveBranchDiagram]);
-  const briefMode = briefState.mode ?? "guided";
-  const briefContext = useMemo(() => {
-    if (briefMode === "free") {
-      return {
-        prompt: Figsci_FREEFORM_PROMPT,
-        badges: [
-          "自由·AI 自主选型",
-          "默认·干净美观"
-        ],
-        mode: briefMode
-      };
-    }
-    const intentMeta = INTENT_OPTIONS.find(
-      (option) => option.id === briefState.intent
-    );
-    const toneMeta = TONE_OPTIONS.find(
-      (option) => option.id === briefState.tone
-    );
-    const focusMeta = FOCUS_OPTIONS.filter(
-      (option) => briefState.focus.includes(option.id)
-    );
-    const diagramTypeMeta = DIAGRAM_TYPE_OPTIONS.filter(
-      (option) => briefState.diagramTypes.includes(option.id)
-    );
-    const segments = [];
-    const badges = [];
-    if (intentMeta) {
-      segments.push(`模式：「${intentMeta.title}」— ${intentMeta.prompt}`);
-      badges.push(`模式·${intentMeta.title}`);
-    }
-    if (toneMeta) {
-      segments.push(`视觉：${toneMeta.prompt}`);
-      badges.push(`视觉·${toneMeta.title}`);
-    }
-    if (focusMeta.length > 0) {
-      segments.push(
-        `重点：${focusMeta.map((item) => item.prompt).join("；")}`
-      );
-      focusMeta.forEach((item) => badges.push(`重点·${item.title}`));
-    }
-    if (diagramTypeMeta.length > 0) {
-      segments.push(
-        `图型：${diagramTypeMeta.map((item) => item.prompt).join("；")}`
-      );
-      diagramTypeMeta.forEach(
-        (item) => badges.push(`图型·${item.title}`)
-      );
-    }
-    const prompt = segments.length > 0 ? `### Figsci Brief\\n${segments.map((segment) => `- ${segment}`).join("\\n")}` : "";
-    return { prompt, badges, mode: briefMode };
-  }, [briefMode, briefState]);
-  const briefDisplayBadges = briefContext.badges.length > 0 ? briefContext.badges : briefMode === "free" ? [
-    "自由·AI 自主选型",
-    "默认·干净美观"
-  ] : [
-    "模式·空白起稿",
-    "视觉·中性简约",
-    "重点·简洁清晰"
-  ];
-  const briefSummary = briefDisplayBadges.slice(0, 3).join(" · ");
   const {
     messages,
     sendMessage,
@@ -555,7 +481,6 @@ function ChatPanelOptimized({
     switchBranch,
     onFetchChart,
     files,
-    briefContext,
     input,
     status,
     tryApplyRoot: tryApplyCanvasRoot,
@@ -645,27 +570,6 @@ function ChatPanelOptimized({
     } catch (error2) {
       console.error("复制微信号失败：", error2);
       setContactCopyState("idle");
-    }
-  }, []);
-  const briefTagTone = useCallback((badge) => {
-    const prefix = badge.split("·")[0];
-    switch (prefix) {
-      case "模式":
-        return "border-indigo-200 bg-indigo-50 text-indigo-700";
-      case "视觉":
-        return "border-rose-200 bg-rose-50 text-rose-700";
-      case "重点":
-        return "border-amber-200 bg-amber-50 text-amber-700";
-      case "护栏":
-        return "border-emerald-200 bg-emerald-50 text-emerald-700";
-      case "自由":
-        return "border-sky-200 bg-sky-50 text-sky-700";
-      case "语法":
-        return "border-emerald-200 bg-emerald-50 text-emerald-700";
-      case "默认":
-        return "border-slate-200 bg-slate-50 text-slate-700";
-      default:
-        return "border-slate-200 bg-slate-50 text-slate-700";
     }
   }, []);
   useEffect(() => {
@@ -802,7 +706,6 @@ function ChatPanelOptimized({
         
         // 智能模板匹配：如果输入框有内容，调用 AI Agents 进行智能匹配和格式化
         let finalInput = input;
-        let finalBrief = briefContext;
         let matchedTemplateId = null;
         
         if (input.trim()) {
@@ -828,21 +731,6 @@ function ChatPanelOptimized({
               if (matchResult.confidence >= CONFIDENCE_THRESHOLD && matchResult.templateId && matchResult.formattedPrompt) {
                 finalInput = matchResult.formattedPrompt;
                 matchedTemplateId = matchResult.templateId;
-                
-                // 如果匹配到模板，应用对应的 Brief 配置
-                if (matchResult.brief && Object.keys(matchResult.brief).length > 0) {
-                  // 合并 Brief 配置到 briefState
-                  setBriefState(prev => ({
-                    ...prev,
-                    ...(matchResult.brief.intent && { intent: matchResult.brief.intent }),
-                    ...(matchResult.brief.tone && { tone: matchResult.brief.tone }),
-                    ...(matchResult.brief.focus && { focus: matchResult.brief.focus }),
-                    ...(matchResult.brief.diagramTypes && { diagramTypes: matchResult.brief.diagramTypes }),
-                  }));
-                  
-                  // 更新 finalBrief（会在 useMemo 中自动重新计算）
-                  finalBrief = briefContext;
-                }
                 
                 // 获取模板名称用于日志显示
                 const { DIAGRAM_TEMPLATES } = await import("@/data/templates");
@@ -882,10 +770,7 @@ function ChatPanelOptimized({
         }
         
         // 构建最终的消息内容
-        const enrichedInput = finalBrief.prompt.length > 0 ? `${finalBrief.prompt}
-
-${finalInput}` : finalInput;
-        const parts = [{ type: "text", text: enrichedInput, displayText: input }];
+        const parts = [{ type: "text", text: finalInput, displayText: input }];
         if (files.length > 0) {
           const attachments = await serializeAttachments(files);
           attachments.forEach(({ url, mediaType }) => {
@@ -918,14 +803,12 @@ ${finalInput}` : finalInput;
       input,
       ensureBranchSelectionSettled,
       onFetchChart,
-      briefContext,
       files,
       sendMessage,
       selectedModel,
       setIsModelConfigOpen,
       renderMode,
-      buildModelRequestBody,
-      setBriefState
+      buildModelRequestBody
     ]
   );
   const handleInputChange = (e) => {
@@ -996,7 +879,6 @@ ${finalInput}` : finalInput;
   const handleShowcasePreset = (preset) => {
     if (status === "streaming") return;
     if (!ensureBranchSelectionSettled()) return;
-    setBriefState(preset.brief);
     setInput(preset.prompt);
     if (files.length > 0) {
       handleFileChange([]);
@@ -1042,12 +924,6 @@ ${finalInput}` : finalInput;
   const exchanges = messages.filter(
     (message) => message.role === "user" || message.role === "assistant"
   ).length;
-  const handleOpenBriefPanel = useCallback(() => {
-    if (status === "streaming") {
-      return;
-    }
-    setIsBriefDialogOpen(true);
-  }, [status]);
   const toggleToolPanel = (panel) => {
     setActiveToolPanel((current) => {
       const next = current === panel ? null : panel;
@@ -1170,14 +1046,6 @@ ${finalInput}` : finalInput;
   );
   const renderToolPanel = () => {
     if (!activeToolPanel) return null;
-    if (activeToolPanel === "brief") {
-      return <FigsciBriefLauncher
-        state={briefState}
-        onChange={(next) => setBriefState((prev) => ({ ...prev, ...next }))}
-        disabled={status === "streaming"}
-        badges={briefContext.badges}
-      />;
-    }
     if (activeToolPanel === "calibration") {
       return <CalibrationConsole
         disabled={status === "streaming" || requiresBranchDecision}
@@ -1236,7 +1104,6 @@ ${finalInput}` : finalInput;
       onSelectTemplate={(template) => {
         if (status === "streaming") return;
         if (!ensureBranchSelectionSettled()) return;
-        setBriefState(template.brief);
         setInput(template.prompt);
         if (files.length > 0) {
           handleFileChange([]);
@@ -1367,9 +1234,6 @@ ${finalInput}` : finalInput;
     comparisonHistory={comparisonHistory}
     activePreview={activeComparisonPreview}
     onMessageRevert={handleMessageRevert}
-    onOpenBriefPanel={status === "streaming" ? void 0 : handleOpenBriefPanel}
-    briefBadges={briefDisplayBadges}
-    briefSummary={briefSummary}
     runtimeDiagramError={runtimeError?.message ?? null}
     onConsumeRuntimeError={() => setRuntimeError(null)}
     onStopAll={() => void handleStopAll({
@@ -1418,10 +1282,7 @@ ${finalInput}` : finalInput;
       if (!input.trim()) {
         return;
       }
-      const enrichedInput = briefContext.prompt.length > 0 ? `${briefContext.prompt}
-
-${input}` : input;
-      const parts = [{ type: "text", text: enrichedInput, displayText: input }];
+      const parts = [{ type: "text", text: input }];
       if (files.length > 0) {
         const attachments = await serializeAttachments(files);
         attachments.forEach(({ url, mediaType }) => {
@@ -1478,7 +1339,6 @@ ${input}` : input;
     onSelectTemplate={(template) => {
       if (status === "streaming") return;
       if (!ensureBranchSelectionSettled()) return;
-      setBriefState(template.brief);
       setInput(template.prompt);
       if (files.length > 0) {
         handleFileChange([]);
@@ -1530,16 +1390,6 @@ ${input}` : input;
                     </div>
                 </DialogContent>
             </Dialog>
-            <FigsciBriefDialog
-    open={isBriefDialogOpen}
-    onOpenChange={setIsBriefDialogOpen}
-    state={briefState}
-    onChange={(next) => setBriefState((prev) => ({
-      ...prev,
-      ...next
-    }))}
-    disabled={status === "streaming"}
-  />
             <ModelComparisonConfigDialog
     open={isComparisonConfigOpen}
     onOpenChange={setIsComparisonConfigOpen}
