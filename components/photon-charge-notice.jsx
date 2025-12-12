@@ -27,7 +27,8 @@ export function PhotonChargeNotice({ className = "" }) {
     }
     
     // 获取扣费配置
-    const chargeMode = process.env.BOHRIUM_CHARGE_MODE || 'fixed';
+    // 支持三种模式：fixed（固定）、token（按量）、mixed（混合）
+    const chargeMode = process.env.NEXT_PUBLIC_BOHRIUM_CHARGE_MODE || 'fixed';
     
     if (chargeMode === 'fixed') {
       const chargePerRequest = parseInt(process.env.NEXT_PUBLIC_PHOTON_CHARGE_PER_MESSAGE || '1');
@@ -42,6 +43,15 @@ export function PhotonChargeNotice({ className = "" }) {
         mode: 'token',
         amount: chargePerKToken,
         unit: '1000 tokens'
+      });
+    } else if (chargeMode === 'mixed') {
+      // 混合模式：同时显示固定费用和按量费用
+      const chargePerRequest = parseInt(process.env.NEXT_PUBLIC_PHOTON_CHARGE_PER_MESSAGE || '1');
+      const chargePerKToken = parseFloat(process.env.NEXT_PUBLIC_PHOTON_CHARGE_PER_1K_TOKEN || '1');
+      setChargeInfo({
+        mode: 'mixed',
+        fixedAmount: chargePerRequest,
+        tokenAmount: chargePerKToken
       });
     }
   }, []);
@@ -61,13 +71,20 @@ export function PhotonChargeNotice({ className = "" }) {
     `}>
       <span className="text-lg">💰</span>
       <div className="flex-1">
-        {chargeInfo.mode === 'fixed' ? (
+        {chargeInfo.mode === 'fixed' && (
           <span className="text-blue-700 dark:text-blue-300">
-            每次生成图表需要 <strong>{chargeInfo.amount}</strong> 光子
+            每次成功生成图表需要 <strong>{chargeInfo.amount}</strong> 光子
           </span>
-        ) : (
+        )}
+        {chargeInfo.mode === 'token' && (
           <span className="text-blue-700 dark:text-blue-300">
             按使用量计费：<strong>{chargeInfo.amount}</strong> 光子 / {chargeInfo.unit}
+          </span>
+        )}
+        {chargeInfo.mode === 'mixed' && (
+          <span className="text-blue-700 dark:text-blue-300">
+            混合计费：成功生成 <strong>{chargeInfo.fixedAmount}</strong> 光子 + 
+            <strong>{chargeInfo.tokenAmount}</strong> 光子/1000 tokens
           </span>
         )}
       </div>

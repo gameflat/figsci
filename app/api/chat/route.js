@@ -17,14 +17,19 @@ export const maxDuration = 300;
  * 玻尔平台光子扣费辅助函数
  * 
  * 在 AI 生成完成后调用，根据 token 使用量或消息数量进行扣费
+ * 支持三种收费模式：
+ * - fixed: 固定收费（仅在任务成功完成时收取）
+ * - token: 按 token 收费（无论任务是否完成都收取）
+ * - mixed: 混合收费（固定费用仅在成功时收取，token 费用总是收取）
  * 
  * @param {Request} req - Next.js 请求对象（用于获取 Cookie）
  * @param {Object} usage - Token 使用量信息
  * @param {number} usage.inputTokens - 输入 token 数
  * @param {number} usage.outputTokens - 输出 token 数
  * @param {number} usage.totalTokens - 总 token 数
+ * @param {boolean} isTaskCompleted - 任务是否成功完成（用于决定是否收取固定费用）
  */
-async function chargePhotonIfEnabled(req, usage) {
+async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
   // 检查是否启用光子扣费
   const enablePhotonCharge = process.env.NEXT_PUBLIC_ENABLE_PHOTON_CHARGE === 'true';
   
@@ -34,22 +39,45 @@ async function chargePhotonIfEnabled(req, usage) {
   }
   
   try {
-    // 计算扣费金额
-    // 可以根据业务需求调整计费规则，这里使用两种方式：
-    // 1. 基于 token 数量：每 1000 token 扣除 X 光子
-    // 2. 固定扣费：每次调用扣除 Y 光子
+    // 获取收费模式：'fixed'、'token' 或 'mixed'
+    const chargeMode = process.env.BOHRIUM_CHARGE_MODE || 'fixed';
     
-    const chargeMode = process.env.BOHRIUM_CHARGE_MODE || 'fixed'; // 'token' 或 'fixed'
+    // 计算固定费用和 token 费用
+    const chargePerRequest = parseInt(process.env.BOHRIUM_CHARGE_PER_REQUEST || '1');
+    const chargePerKToken = parseFloat(process.env.BOHRIUM_CHARGE_PER_1K_TOKEN || '1');
+    const totalTokens = usage.totalTokens || 0;
+    const tokenCharge = Math.ceil((totalTokens / 1000) * chargePerKToken);
+    
     let eventValue = 0;
     
+    // 根据收费模式和任务完成状态计算最终扣费金额
     if (chargeMode === 'token') {
-      // 基于 token 数量计费
-      const chargePerKToken = parseFloat(process.env.BOHRIUM_CHARGE_PER_1K_TOKEN || '1');
-      const totalTokens = usage.totalTokens || 0;
-      eventValue = Math.ceil((totalTokens / 1000) * chargePerKToken);
+      // 纯 token 计费模式：无论任务是否完成，都按 token 收费
+      eventValue = tokenCharge;
+      console.log("Token 计费模式：", { tokenCharge, isTaskCompleted });
+    } else if (chargeMode === 'mixed') {
+      // 混合计费模式：
+      // - Token 费用：无论任务是否完成都收取
+      // - 固定费用：仅在任务成功完成时收取
+      eventValue = tokenCharge; // Token 费用总是收取
+      if (isTaskCompleted) {
+        eventValue += chargePerRequest; // 任务成功完成时加上固定费用
+      }
+      console.log("混合计费模式：", { 
+        tokenCharge, 
+        fixedCharge: isTaskCompleted ? chargePerRequest : 0, 
+        totalCharge: eventValue,
+        isTaskCompleted 
+      });
     } else {
-      // 固定扣费
-      eventValue = parseInt(process.env.BOHRIUM_CHARGE_PER_REQUEST || '1');
+      // 固定计费模式（默认）：仅在任务成功完成时收取固定费用
+      if (isTaskCompleted) {
+        eventValue = chargePerRequest;
+      } else {
+        console.log("固定计费模式：任务未完成，跳过扣费");
+        return;
+      }
+      console.log("固定计费模式：", { fixedCharge: eventValue, isTaskCompleted });
     }
     
     // 如果计算出的扣费金额为 0 或负数，跳过扣费
@@ -581,11 +609,17 @@ IMPORTANT: Keep edits concise:
       return result.toUIMessageStreamResponse({
         onError: errorHandler,
         // 在流式响应结束时添加 token 使用信息到 message metadata
-        onFinish: async ({ responseMessage, messages: messages2 }) => {
+        onFinish: async ({ responseMessage, messages: messages2, finishReason }) => {
           const endTime = Date.now();
           const durationMs = endTime - startTime;
           const usage = await result.usage;
           const totalUsage = await result.totalUsage;
+          
+          // 判断任务是否成功完成
+          // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
+          // 其他情况（如 'length'、'error'、'cancelled' 等）表示任务未正常完成
+          const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
+          
           console.log("Stream finished:", {
             usage: {
               inputTokens: usage.inputTokens,
@@ -597,17 +631,20 @@ IMPORTANT: Keep edits concise:
               outputTokens: totalUsage.outputTokens,
               totalTokens: (totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)
             },
-            durationMs
+            durationMs,
+            finishReason,
+            isTaskCompleted
           });
           
           // ========== 光子扣费 ==========
           // 在 AI 生成完成后进行光子扣费
           // 使用 totalUsage 进行扣费，因为它包含了整个对话的 token 使用量
+          // 传入 isTaskCompleted 参数，用于区分固定费用和 token 费用的收取逻辑
           await chargePhotonIfEnabled(req, {
             inputTokens: totalUsage.inputTokens,
             outputTokens: totalUsage.outputTokens,
             totalTokens: (totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)
-          });
+          }, isTaskCompleted);
         },
         // 提取 metadata 发送到客户端
         messageMetadata: ({ part }) => {
@@ -639,6 +676,11 @@ IMPORTANT: Keep edits concise:
       const result = await generateText(commonConfig);
       const endTime = Date.now();
       const durationMs = endTime - startTime;
+      
+      // 判断任务是否成功完成
+      // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
+      const isTaskCompleted = result.finishReason === 'stop' || result.finishReason === 'tool-calls';
+      
       console.log("Generation finished (non-streaming):", {
         usage: {
           inputTokens: result.usage.inputTokens,
@@ -647,16 +689,18 @@ IMPORTANT: Keep edits concise:
         },
         durationMs,
         toolCalls: result.toolCalls?.length || 0,
-        finishReason: result.finishReason
+        finishReason: result.finishReason,
+        isTaskCompleted
       });
       
       // ========== 光子扣费 ==========
       // 在 AI 生成完成后进行光子扣费
+      // 传入 isTaskCompleted 参数，用于区分固定费用和 token 费用的收取逻辑
       await chargePhotonIfEnabled(req, {
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
         totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
-      });
+      }, isTaskCompleted);
       
       // 手动构建 UI Message Stream 的事件顺序
       const chunks = [];
