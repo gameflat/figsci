@@ -329,3 +329,24 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/**
+ * 淡入动画
+ * 
+ * 用于平滑显示新出现的元素
+ * 主要用于进度提示、消息气泡等需要渐显效果的场景
+ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}

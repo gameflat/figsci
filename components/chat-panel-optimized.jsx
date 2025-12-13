@@ -272,6 +272,9 @@ function ChatPanelOptimized({
   const [isSubmitting, setIsSubmitting] = useState(false);
   // AbortController 用于取消提交过程中的异步请求（如模板匹配）
   const submitAbortControllerRef = useRef(null);
+  // 生成进度阶段：用于显示详细的进度提示
+  // "idle" | "preparing" | "matching" | "sending" | "thinking" | "generating"
+  const [generationPhase, setGenerationPhase] = useState("idle");
   const [commandTab, setCommandTab] = useState(
     "templates"
   );
@@ -520,6 +523,8 @@ function ChatPanelOptimized({
         submitAbortControllerRef.current = null;
         setIsSubmitting(false);
       }
+      // 重置进度状态
+      setGenerationPhase("idle");
       try {
         if (status === "streaming" || status === "submitted") {
           await stop();
@@ -582,6 +587,18 @@ function ChatPanelOptimized({
       setContactCopyState("idle");
     }
   }, []);
+  // 监听 status 变化，更新进度阶段
+  useEffect(() => {
+    if (status === "streaming") {
+      // 流式生成开始，设置进度为"生成图表"
+      setGenerationPhase("generating");
+    } else if (status === "ready" || status === "error") {
+      // 生成完成或出错，重置进度状态
+      setGenerationPhase("idle");
+    }
+    // submitted 状态保持当前进度（可能是 thinking 或 sending）
+  }, [status]);
+
   useEffect(() => {
     const userMessages = messages.filter((message) => message.role === "user");
     if (userMessages.length > 0 && !isConversationStarted) {
@@ -713,6 +730,8 @@ function ChatPanelOptimized({
       }
       // 立即设置提交状态，禁用发送按钮，防止用户重复点击
       setIsSubmitting(true);
+      // 设置进度阶段为"准备中"
+      setGenerationPhase("preparing");
       // 创建 AbortController 用于取消异步请求
       const abortController = new AbortController();
       submitAbortControllerRef.current = abortController;
@@ -729,6 +748,8 @@ function ChatPanelOptimized({
         let matchedTemplateId = null;
         
         if (input.trim()) {
+          // 设置进度阶段为"智能匹配"
+          setGenerationPhase("matching");
           try {
             // 调用智能模板匹配 API，传入 signal 以支持取消
             const matchResponse = await fetch("/api/template-match", {
@@ -800,6 +821,9 @@ function ChatPanelOptimized({
           return;
         }
         
+        // 设置进度阶段为"发送请求"
+        setGenerationPhase("sending");
+        
         // 构建最终的消息内容
         const parts = [{ type: "text", text: finalInput, displayText: input }];
         if (files.length > 0) {
@@ -825,6 +849,8 @@ function ChatPanelOptimized({
         );
         setInput("");
         setFiles([]);
+        // sendMessage 调用后设置进度为"AI 思考中"，后续 status 变化时会更新
+        setGenerationPhase("thinking");
         // sendMessage 调用后重置提交状态（此时 status 会变为 submitted 或 streaming）
         setIsSubmitting(false);
         submitAbortControllerRef.current = null;
@@ -832,11 +858,14 @@ function ChatPanelOptimized({
         // 如果是用户取消操作，不需要输出错误日志
         if (submissionError.name === "AbortError") {
           console.log("提交请求已被用户取消");
+          // 重置进度状态
+          setGenerationPhase("idle");
           return;
         }
         console.error("Error fetching chart data:", submissionError);
-        // 出错时也需要重置提交状态，允许用户重新发送
+        // 出错时也需要重置提交状态和进度状态，允许用户重新发送
         setIsSubmitting(false);
+        setGenerationPhase("idle");
         submitAbortControllerRef.current = null;
       }
     },
@@ -1289,6 +1318,7 @@ function ChatPanelOptimized({
     isComparisonRunning={isComparisonRunning}
     diagramResultVersion={diagramResultVersion}
     getDiagramResult={getDiagramResult}
+    generationPhase={generationPhase}
   />
                             </div>
                             <ToolPanelSidebar

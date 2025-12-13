@@ -6,6 +6,7 @@ import { cn, convertToLegalXml } from "@/lib/utils";
 import { svgToDataUrl } from "@/lib/svg";
 import ExamplePanel from "./chat-example-panel";
 import { TokenUsageDisplay } from "./token-usage-display";
+import { FloatingProgressIndicator } from "./generation-progress-indicator";
 const LARGE_TOOL_INPUT_CHAR_THRESHOLD = 3e3;
 const CHAR_COUNT_FORMATTER = new Intl.NumberFormat("zh-CN");
 const DIAGRAM_GENERATION_TIMEOUT_MS = 3e5;
@@ -278,7 +279,8 @@ function ChatMessageDisplay({
   isGenerationBusy = false,
   isComparisonRunning = false,
   diagramResultVersion = 0,
-  getDiagramResult
+  getDiagramResult,
+  generationPhase = "idle"
 }) {
   const messagesEndRef = useRef(null);
   const [expandedTools, setExpandedTools] = useState({});
@@ -1062,20 +1064,14 @@ function ChatMessageDisplay({
                             </div>)}
                 </>}
             {
-    /* 显示生成中的 loading 提示 */
+    /* 显示生成中的进度提示 - 使用新的详细进度指示器 */
   }
-            {isGenerationBusy && !hasLiveToolCard && <div className="flex justify-start mb-5">
-                    <div className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-slate-50 to-white px-4 py-3 shadow-sm border border-slate-200">
-                        <div className="flex space-x-1">
-                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <div className="h-2 w-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                        </div>
-                        <span className="text-sm text-slate-600 font-medium">
-                            正在绘制中...
-                        </span>
-                    </div>
-                </div>}
+            {isGenerationBusy && !hasLiveToolCard && (
+              <FloatingProgressIndicator 
+                phase={generationPhase} 
+                isVisible={true} 
+              />
+            )}
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}
                 </div>}
