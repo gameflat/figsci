@@ -268,6 +268,8 @@ function ChatPanelOptimized({
   const [files, setFiles] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
+  // 提交状态标记：防止用户在异步操作期间重复点击发送按钮
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [commandTab, setCommandTab] = useState(
     "templates"
   );
@@ -687,7 +689,8 @@ function ChatPanelOptimized({
   const onFormSubmit = useCallback(
     async (event) => {
       event.preventDefault();
-      if (status === "streaming") {
+      // 防止重复提交：如果正在提交中或流式生成中，直接返回
+      if (isSubmitting || status === "streaming" || status === "submitted") {
         return;
       }
       if (!input.trim()) {
@@ -700,6 +703,8 @@ function ChatPanelOptimized({
         setIsModelConfigOpen(true);
         return;
       }
+      // 立即设置提交状态，禁用发送按钮，防止用户重复点击
+      setIsSubmitting(true);
       try {
         let chartXml = await onFetchChart();
         const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
@@ -794,11 +799,16 @@ function ChatPanelOptimized({
         );
         setInput("");
         setFiles([]);
+        // sendMessage 调用后重置提交状态（此时 status 会变为 submitted 或 streaming）
+        setIsSubmitting(false);
       } catch (submissionError) {
         console.error("Error fetching chart data:", submissionError);
+        // 出错时也需要重置提交状态，允许用户重新发送
+        setIsSubmitting(false);
       }
     },
     [
+      isSubmitting,
       status,
       input,
       ensureBranchSelectionSettled,
@@ -1131,7 +1141,8 @@ function ChatPanelOptimized({
             </div>;
   };
   const showSessionStatus = !isCompactMode || !isConversationStarted;
-  const isGenerationBusy = status === "streaming" || status === "submitted" || isComparisonRunning;
+  // 包含 isSubmitting 状态，确保在用户点击发送后立即显示忙碌状态
+  const isGenerationBusy = isSubmitting || status === "streaming" || status === "submitted" || isComparisonRunning;
   const shouldShowSidebar = Boolean(activeToolPanel && isToolSidebarOpen);
   return <>
             <Card className="relative flex h-full max-h-full min-h-0 flex-col gap-0 rounded-none py-0 overflow-hidden">

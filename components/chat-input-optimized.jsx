@@ -116,7 +116,8 @@ export function ChatInputOptimized({
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             const form = e.currentTarget.closest("form");
-            if (form && input.trim() && status !== "streaming") {
+            // 使用 isBusy 检查，确保在提交过程中不能重复发送
+            if (form && input.trim() && !isBusy && !interactionLocked) {
                 form.requestSubmit();
             }
         }
@@ -124,7 +125,8 @@ export function ChatInputOptimized({
 
     // Handle clipboard paste
     const handlePaste = async (e) => {
-        if (status === "streaming") return;
+        // 在提交或生成过程中禁止粘贴图片
+        if (isBusy) return;
 
         const items = e.clipboardData.items;
         const imageItems = Array.from(items).filter((item) =>
@@ -201,7 +203,8 @@ export function ChatInputOptimized({
         e.stopPropagation();
         setIsDragging(false);
 
-        if (status === "streaming") return;
+        // 在提交或生成过程中禁止拖放文件
+        if (isBusy) return;
 
         const droppedFiles = e.dataTransfer.files;
 
@@ -294,7 +297,7 @@ export function ChatInputOptimized({
                         onKeyDown={handleKeyDown}
                         onPaste={handlePaste}
                         placeholder="描述你想让流程图如何调整，支持拖拽或粘贴图片作为参考素材"
-                        disabled={status === "streaming"}
+                        disabled={isBusy}
                         aria-label="聊天输入框"
                         className="h-auto min-h-[48px] resize-none border-0 !border-none bg-transparent p-0 text-sm leading-5 text-slate-900 outline-none shadow-none focus-visible:border-0 focus-visible:ring-0 focus-visible:outline-none focus-visible:!border-none focus-visible:!outline-none focus-visible:shadow-none"
                     />
@@ -312,7 +315,7 @@ export function ChatInputOptimized({
                             className="h-[30px] w-[30px] rounded-full flex-shrink-0"
                             onClick={() => setShowClearDialog(true)}
                             tooltipContent="清空当前对话与图表"
-                            disabled={status === "streaming"}
+                            disabled={isBusy}
                         >
                             <RotateCcw className="h-4 w-4" />
                         </ButtonWithTooltip>
@@ -324,7 +327,7 @@ export function ChatInputOptimized({
                             className="h-[30px] w-[30px] rounded-full flex-shrink-0"
                             onClick={() => onToggleHistory(true)}
                             disabled={
-                                status === "streaming" ||
+                                isBusy ||
                                 historyItems.length === 0 ||
                                 interactionLocked
                             }
@@ -339,7 +342,7 @@ export function ChatInputOptimized({
                             <RenderModeToggle
                                 value={renderMode}
                                 onChange={onRenderModeChange}
-                                disabled={status === "streaming" || interactionLocked}
+                                disabled={isBusy || interactionLocked}
                                 iconOnly={isRenderModeIconOnly}
                             />
                         </div>
@@ -349,7 +352,7 @@ export function ChatInputOptimized({
                                 onModelChange={onModelChange}
                                 models={modelOptions}
                                 onManage={onManageModels}
-                                disabled={status === "streaming" || interactionLocked}
+                                disabled={isBusy || interactionLocked}
                                 onModelStreamingChange={onModelStreamingChange}
                                 compact
                             />
@@ -375,7 +378,7 @@ export function ChatInputOptimized({
                                             size="icon"
                                             className="h-[30px] w-[30px] rounded-full flex-shrink-0"
                                             onClick={onOpenComparisonConfig}
-                                            disabled={status === "streaming" || interactionLocked}
+                                            disabled={isBusy || interactionLocked}
                                             tooltipContent="模型设置"
                                         >
                                             <Settings className="h-4 w-4" />
@@ -383,7 +386,7 @@ export function ChatInputOptimized({
                                         <Button
                                             type="submit"
                                             disabled={
-                                                status === "streaming" ||
+                                                isBusy ||
                                                 !input.trim() ||
                                                 interactionLocked
                                             }
@@ -411,7 +414,7 @@ export function ChatInputOptimized({
                                 <Button
                                     type="submit"
                                     disabled={
-                                        status === "streaming" ||
+                                        isBusy ||
                                         !input.trim() ||
                                         interactionLocked
                                     }
@@ -435,7 +438,7 @@ export function ChatInputOptimized({
                 onChange={handleFileChange}
                 accept="image/*"
                 multiple
-                disabled={status === "streaming" || interactionLocked}
+                disabled={isBusy || interactionLocked}
             />
 
             <ResetWarningModal
