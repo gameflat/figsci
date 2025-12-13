@@ -270,6 +270,8 @@ function ChatPanelOptimized({
   const [input, setInput] = useState("");
   // 提交状态标记：防止用户在异步操作期间重复点击发送按钮
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // AbortController 用于取消提交过程中的异步请求（如模板匹配）
+  const submitAbortControllerRef = useRef(null);
   const [commandTab, setCommandTab] = useState(
     "templates"
   );
@@ -512,6 +514,12 @@ function ChatPanelOptimized({
   );
   const handleStopAll = useCallback(
     async (notice) => {
+      // 取消提交过程中的异步请求（如模板匹配）
+      if (isSubmitting && submitAbortControllerRef.current) {
+        submitAbortControllerRef.current.abort();
+        submitAbortControllerRef.current = null;
+        setIsSubmitting(false);
+      }
       try {
         if (status === "streaming" || status === "submitted") {
           await stop();
@@ -524,7 +532,7 @@ function ChatPanelOptimized({
         notifyComparison(notice.type, notice.message);
       }
     },
-    [status, stop, cancelComparisonJobs, notifyComparison]
+    [isSubmitting, status, stop, cancelComparisonJobs, notifyComparison]
   );
   const handleRetryGeneration = useCallback(async () => {
     try {
@@ -705,8 +713,15 @@ function ChatPanelOptimized({
       }
       // 立即设置提交状态，禁用发送按钮，防止用户重复点击
       setIsSubmitting(true);
+      // 创建 AbortController 用于取消异步请求
+      const abortController = new AbortController();
+      submitAbortControllerRef.current = abortController;
       try {
         let chartXml = await onFetchChart();
+        // 检查是否已被取消
+        if (abortController.signal.aborted) {
+          return;
+        }
         const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
         
         // 智能模板匹配：如果输入框有内容，调用 AI Agents 进行智能匹配和格式化
@@ -715,7 +730,7 @@ function ChatPanelOptimized({
         
         if (input.trim()) {
           try {
-            // 调用智能模板匹配 API
+            // 调用智能模板匹配 API，传入 signal 以支持取消
             const matchResponse = await fetch("/api/template-match", {
               method: "POST",
               headers: {
@@ -726,6 +741,7 @@ function ChatPanelOptimized({
                 currentXml: chartXml,
                 modelRuntime: buildModelRequestBody(selectedModel),
               }),
+              signal: abortController.signal,
             });
             
             if (matchResponse.ok) {
@@ -769,9 +785,19 @@ function ChatPanelOptimized({
               console.warn("模板匹配失败，使用原始输入:", await matchResponse.text());
             }
           } catch (matchError) {
+            // 如果是用户取消操作，直接返回不继续执行
+            if (matchError.name === "AbortError") {
+              console.log("模板匹配请求已被用户取消");
+              return;
+            }
             // 模板匹配失败不影响主流程，使用原始输入
             console.warn("模板匹配请求失败，使用原始输入:", matchError);
           }
+        }
+        
+        // 再次检查是否已被取消（在模板匹配后）
+        if (abortController.signal.aborted) {
+          return;
         }
         
         // 构建最终的消息内容
@@ -801,10 +827,17 @@ function ChatPanelOptimized({
         setFiles([]);
         // sendMessage 调用后重置提交状态（此时 status 会变为 submitted 或 streaming）
         setIsSubmitting(false);
+        submitAbortControllerRef.current = null;
       } catch (submissionError) {
+        // 如果是用户取消操作，不需要输出错误日志
+        if (submissionError.name === "AbortError") {
+          console.log("提交请求已被用户取消");
+          return;
+        }
         console.error("Error fetching chart data:", submissionError);
         // 出错时也需要重置提交状态，允许用户重新发送
         setIsSubmitting(false);
+        submitAbortControllerRef.current = null;
       }
     },
     [
