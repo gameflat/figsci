@@ -107,7 +107,22 @@ const DiagramToolCard = memo(({
       setShowTimeoutHint(false);
     }
   }, [displayDiagramXml]);
-  const currentState = localState || state;
+  // 确定实际显示的状态：如果还在生成中（isGenerationBusy），即使状态是 output-available 也应该显示为生成中
+  const actualState = (() => {
+    const baseState = localState || state;
+    
+    // 如果整体生成流程仍在进行中
+    if (isGenerationBusy || isComparisonRunning) {
+      // 除非是明确的错误或停止状态，否则显示为"生成中"
+      // 这样可以避免在 LLM 还在输出时就显示"已完成"
+      if (baseState !== "output-error" && baseState !== "stopped") {
+        return "input-streaming";
+      }
+    }
+    
+    return baseState;
+  })();
+  const currentState = actualState;
   const statusLabel = currentState === "output-available" ? "已完成" : currentState === "output-error" ? "生成失败" : currentState === "input-streaming" ? "生成中" : currentState === "stopped" ? "已暂停" : currentState || "等待中";
   const statusClass = cn(
     "rounded-full border px-2 py-0.5 text-[11px] font-medium",
@@ -136,13 +151,32 @@ const DiagramToolCard = memo(({
     }
     return "等待模型输出图表内容…";
   })();
+  // 根据状态动态生成标题
+  const cardTitle = (() => {
+    if (toolName !== "display_diagram" && toolName !== "display_svg") {
+      return "工具执行完成";
+    }
+    if (currentState === "input-streaming") {
+      return "图表生成中";
+    }
+    if (currentState === "output-available") {
+      return "图表生成完成";
+    }
+    if (currentState === "output-error") {
+      return "图表生成失败";
+    }
+    if (currentState === "stopped") {
+      return "图表生成已暂停";
+    }
+    return "图表生成中";
+  })();
   return <div
     className="my-2 w-full max-w-[min(720px,90%)] rounded-lg bg-white/80 border border-slate-200/60 px-4 py-3 text-xs text-slate-600"
   >
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                        {toolName === "display_diagram" || toolName === "display_svg" ? "图表生成完成" : "工具执行完成"}
+                        {cardTitle}
                     </div>
                 </div>
                 <span className={statusClass}>{statusLabel}</span>
@@ -1065,13 +1099,13 @@ function ChatMessageDisplay({
                 </>}
             {
     /* 显示生成中的进度提示 - 使用新的详细进度指示器 */
+    /* 组件始终渲染以保留内部状态，通过 props 控制显示逻辑 */
+    /* 移除 hasLiveToolCard 条件，让进度指示器始终可见 */
   }
-            {isGenerationBusy && !hasLiveToolCard && (
-              <FloatingProgressIndicator 
-                phase={generationPhase} 
-                isVisible={true} 
-              />
-            )}
+            <FloatingProgressIndicator 
+              phase={generationPhase} 
+              isVisible={isGenerationBusy} 
+            />
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}
                 </div>}
