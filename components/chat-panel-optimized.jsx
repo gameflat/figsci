@@ -1103,32 +1103,76 @@ function ChatPanelOptimized({
       setMessages(activeBranch.messages);
     }
   }, [activeBranch, handleDiagramXml, messages, setMessages]);
+  // Bug 3 修复：重构 handleMessageRevert 为编辑模式
+  // 现在会回溯画布到对应的历史位置
   const handleMessageRevert = useCallback(
-    ({ messageId, text }) => {
+    ({ messageId, text, messageIndex, shouldRestoreCanvas }) => {
       const targetIndex = messages.findIndex(
         (message) => message.id === messageId
       );
       if (targetIndex < 0) {
         return;
       }
+      
+      // 截断消息到目标位置
       const truncated = messages.slice(0, targetIndex);
       const labelSuffix = targetIndex + 1 <= 9 ? `0${targetIndex + 1}` : `${targetIndex + 1}`;
+      
+      // 如果需要回溯画布，尝试找到对应的历史版本
+      let diagramXmlToRestore = activeBranch?.diagramXml ?? null;
+      
+      if (shouldRestoreCanvas && historyItems && historyItems.length > 0) {
+        // 计算应该回溯到的画布历史索引
+        // 策略：每条用户消息对应一个画布版本
+        // 找到目标消息之前的用户消息数量，作为画布历史索引
+        const userMessagesBeforeTarget = truncated.filter(msg => msg.role === "user").length;
+        
+        // 如果有足够的历史版本，回溯到对应位置
+        if (userMessagesBeforeTarget > 0 && historyItems.length >= userMessagesBeforeTarget) {
+          const historyIndex = Math.min(userMessagesBeforeTarget - 1, historyItems.length - 1);
+          
+          // historyItems 可能是 SVG 模式或 drawio 模式的历史
+          const targetHistory = historyItems[historyIndex];
+          if (targetHistory) {
+            // 对于 drawio 模式，使用 xml 字段；对于 svg 模式，使用 svg 字段
+            diagramXmlToRestore = targetHistory.xml || targetHistory.svg || diagramXmlToRestore;
+            
+            // 同时回溯画布显示
+            handleRestoreHistory(historyIndex);
+          }
+        } else if (userMessagesBeforeTarget === 0) {
+          // 如果目标位置之前没有用户消息，说明是回到最初状态
+          // 清空画布
+          diagramXmlToRestore = isSvgMode ? null : EMPTY_MXFILE;
+          if (isSvgMode) {
+            clearSvg();
+          } else {
+            clearDiagram();
+          }
+        }
+      }
+      
+      // 创建新分支保存回溯状态
       const revertBranch = createBranch({
         parentId: activeBranchId,
-        label: `回滚 · 消息 ${labelSuffix}`,
+        label: `编辑 · 消息 ${labelSuffix}`,
         meta: {
           type: "history",
           label: `消息 ${labelSuffix}`
         },
-        diagramXml: activeBranch?.diagramXml ?? null,
+        diagramXml: diagramXmlToRestore,
         seedMessages: truncated,
         inheritMessages: false
       });
+      
       setMessages(truncated);
       setInput(text ?? "");
+      
       if (!revertBranch) {
         updateActiveBranchMessages(truncated);
+        updateActiveBranchDiagram(diagramXmlToRestore);
       }
+      
       pruneHistoryByMessageIds(new Set(truncated.map((msg) => msg.id)));
       releaseBranchRequirement();
     },
@@ -1140,8 +1184,14 @@ function ChatPanelOptimized({
       setMessages,
       setInput,
       updateActiveBranchMessages,
+      updateActiveBranchDiagram,
       releaseBranchRequirement,
-      pruneHistoryByMessageIds
+      pruneHistoryByMessageIds,
+      historyItems,
+      handleRestoreHistory,
+      isSvgMode,
+      clearSvg,
+      clearDiagram
     ]
   );
   const renderToolPanel = () => {

@@ -2,12 +2,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn, convertToLegalXml } from "@/lib/utils";
 import { svgToDataUrl } from "@/lib/svg";
 import ExamplePanel from "./chat-example-panel";
 import { TokenUsageDisplay } from "./token-usage-display";
 import { FloatingProgressIndicator } from "./generation-progress-indicator";
-import { StreamingThoughtDisplay } from "./streaming-thought-display";
+// StreamingThoughtDisplay 已弃用，改用 FloatingProgressIndicator 以支持完成状态保持显示
+// import { StreamingThoughtDisplay } from "./streaming-thought-display";
 const LARGE_TOOL_INPUT_CHAR_THRESHOLD = 3e3;
 
 /**
@@ -382,6 +393,34 @@ function ChatMessageDisplay({
   
   // 跟踪已自动应用 XML 的消息 ID，避免重复应用
   const autoAppliedXmlMessagesRef = useRef(new Set());
+  
+  // Bug 3 修复：编辑确认对话框状态
+  // 存储待编辑的消息信息，用于确认对话框显示
+  const [pendingEditMessage, setPendingEditMessage] = useState(null);
+  
+  // 处理编辑确认：用户点击"编辑"按钮后显示确认对话框
+  const handleEditClick = useCallback((messageId, text, messageIndex) => {
+    setPendingEditMessage({ messageId, text, messageIndex });
+  }, []);
+  
+  // 处理编辑确认后的回调：回溯对话和画布
+  const handleEditConfirm = useCallback(() => {
+    if (pendingEditMessage && onMessageRevert) {
+      onMessageRevert({
+        messageId: pendingEditMessage.messageId,
+        text: pendingEditMessage.text,
+        messageIndex: pendingEditMessage.messageIndex,
+        // 标记为需要回溯画布
+        shouldRestoreCanvas: true
+      });
+    }
+    setPendingEditMessage(null);
+  }, [pendingEditMessage, onMessageRevert]);
+  
+  // 取消编辑确认
+  const handleEditCancel = useCallback(() => {
+    setPendingEditMessage(null);
+  }, []);
   
   // 自动检测并应用 XML 到画布
   // 当检测到 AI 消息包含 XML 代码块但没有 tool-call 时，自动应用
@@ -1118,6 +1157,7 @@ function ChatMessageDisplay({
       isUser ? "justify-end" : "justify-start"
     )}>
                                                 {/* Bug 1 修复：检测到 XML 代码块时显示状态或手动应用按钮 */}
+                                                {/* 在流式输出期间禁用手动应用，避免状态混乱 */}
                                                 {detectedXml && hasXmlBlock && onDisplayDiagram && (
                                                   wasAutoApplied ? (
                                                     // 已自动应用，显示状态提示
@@ -1127,8 +1167,17 @@ function ChatMessageDisplay({
                                                       </svg>
                                                       <span>已自动应用到画布</span>
                                                     </span>
+                                                  ) : isGenerationBusy ? (
+                                                    // 流式输出中，显示等待状态而不是可点击按钮
+                                                    <span className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-blue-50 text-blue-600 border border-blue-200">
+                                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                        <path className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor" />
+                                                      </svg>
+                                                      <span>生成中，稍后自动应用</span>
+                                                    </span>
                                                   ) : (
-                                                    // 未自动应用（可能是生成中），显示手动应用按钮
+                                                    // 生成完成后，允许手动应用
                                                     <button
                                                       type="button"
                                                       onClick={() => {
@@ -1189,17 +1238,19 @@ function ChatMessageDisplay({
                                                                 <span>展开</span>
                                                             </>}
                                                     </button>}
+                                                {/* Bug 3 修复：将 Revert 改为编辑按钮，点击后显示确认对话框 */}
                                                 {isUser && onMessageRevert && <button
       type="button"
-      onClick={() => onMessageRevert({
-        messageId: message.id,
-        text: resolveMessageText(message)
-      })}
+      onClick={() => handleEditClick(
+        message.id,
+        resolveMessageText(message),
+        messages.findIndex(m => m.id === message.id)
+      )}
       className={cn(
         "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all",
         isUser ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
       )}
-      title="回滚到此处"
+      title="编辑此消息（将回溯对话和画布到此位置）"
     >
                                                         <svg
       className="w-3.5 h-3.5"
@@ -1211,10 +1262,10 @@ function ChatMessageDisplay({
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M15 3h4v4m-9 9l9-9m-9 0h4"
+      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
     />
                                                         </svg>
-                                                        <span>Revert</span>
+                                                        <span>编辑</span>
                                                     </button>}
                                             </div>
                                         </div>
@@ -1249,17 +1300,49 @@ function ChatMessageDisplay({
                             </div>)}
                 </>}
             {
-    /* 显示生成中的进度提示 - 使用流式思考显示组件 */
-    /* 根据生成阶段显示不同的状态，提供类似 GPT/Claude 的体验 */
+    /* Bug 2 修复：使用 FloatingProgressIndicator 替代 StreamingThoughtDisplay */
+    /* FloatingProgressIndicator 会在生成完成后保持显示"生成完成"状态，而不是直接消失 */
+    /* 这提供了类似 GPT/Claude 的用户体验，让用户能看到完整的进度过程 */
   }
-            <StreamingThoughtDisplay
-              status={mapPhaseToStatus(generationPhase)}
-              isStreaming={isGenerationBusy && generationPhase !== "idle"}
+            <FloatingProgressIndicator
+              phase={generationPhase}
+              isVisible={isGenerationBusy || generationPhase !== "idle"}
             />
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}
                 </div>}
             <div ref={messagesEndRef} />
+            
+            {/* Bug 3 修复：编辑确认对话框 */}
+            <AlertDialog open={!!pendingEditMessage} onOpenChange={(open) => !open && handleEditCancel()}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确认编辑此消息？</AlertDialogTitle>
+                  <AlertDialogDescription className="space-y-2">
+                    <p>
+                      此操作将回溯对话历史和画布状态到该消息发送时的状态。
+                    </p>
+                    <p className="text-amber-600 font-medium">
+                      ⚠️ 注意：该消息之后的所有对话和画布修改都将被移除，此操作不可撤回。
+                    </p>
+                    <p className="text-slate-500 text-sm">
+                      原消息内容将填充到输入框，您可以重新编辑后发送。
+                    </p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={handleEditCancel}>
+                    取消
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleEditConfirm}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    确认回溯并编辑
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
         </div>;
 }
 export {
