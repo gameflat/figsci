@@ -977,12 +977,12 @@ ${safeUserText}
           const durationMs = endTime - startTime;
           const usage = await result.usage;
           const totalUsage = await result.totalUsage;
-          
+
           // 判断任务是否成功完成
           // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
           // 其他情况（如 'length'、'error'、'cancelled' 等）表示任务未正常完成
           const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
-          
+
           console.log("\n" + "📊".repeat(30));
           console.log("【流式生成】生成完成");
           console.log("-".repeat(60));
@@ -998,22 +998,25 @@ ${safeUserText}
           console.log(`  - 输出: ${totalUsage.outputTokens || 0} tokens`);
           console.log(`  - 总计: ${(totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)} tokens`);
           console.log("📊".repeat(30) + "\n");
-          
+
           // ========== 光子扣费 ==========
           // 在 AI 生成完成后进行光子扣费
           // 使用 totalUsage 进行扣费，因为它包含了整个对话的 token 使用量
           // 传入 isTaskCompleted 参数，用于区分固定费用和 token 费用的收取逻辑
-          chargeResult = await chargePhotonIfEnabled(req, {
+          const finalChargeResult = await chargePhotonIfEnabled(req, {
             inputTokens: totalUsage.inputTokens,
             outputTokens: totalUsage.outputTokens,
             totalTokens: (totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)
           }, isTaskCompleted);
-          
+
+          // 设置全局 chargeResult，用于 messageMetadata 回调
+          chargeResult = finalChargeResult;
+
           // 如果是 mixed 模式且任务失败或扣费失败，记录日志
-          // 前端需要通过 onError 或检查 finishReason 来判断是否需要回滚
-          if (chargeResult && (chargeResult.needsRollback || !chargeResult.success)) {
+          // 前端需要通过 metadata 中的 chargeResult 来判断是否需要回滚
+          if (finalChargeResult && (finalChargeResult.needsRollback || !finalChargeResult.success)) {
             console.log("流式响应扣费结果需要前端处理：", {
-              chargeResult,
+              chargeResult: finalChargeResult,
               finishReason,
               isTaskCompleted
             });
@@ -1025,9 +1028,7 @@ ${safeUserText}
             // 判断任务是否成功完成
             const finishReason = part.finishReason;
             const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
-            
-            // 尝试读取 chargeResult（可能在 onFinish 之后才被设置）
-            // 如果 chargeResult 已经被设置，就包含在 metadata 中
+
             const metadata = {
               usage: {
                 inputTokens: part.totalUsage?.inputTokens || 0,
@@ -1038,16 +1039,11 @@ ${safeUserText}
               finishReason: finishReason,
               isTaskCompleted: isTaskCompleted,
               // 标记任务是否失败，前端可据此判断是否需要回滚
-              taskFailed: !isTaskCompleted
+              taskFailed: !isTaskCompleted,
+              // 包含扣费结果，如果还未设置则为 undefined，前端会在后续检查
+              chargeResult: chargeResult
             };
-            
-            // 如果 chargeResult 已经被设置，添加到 metadata 中
-            // 注意：在流式响应中，chargeResult 可能还未被 onFinish 设置
-            // 这是一个时序问题，但我们仍然尝试读取它
-            if (chargeResult) {
-              metadata.chargeResult = chargeResult;
-            }
-            
+
             return metadata;
           }
           if (part.type === "finish-step") {

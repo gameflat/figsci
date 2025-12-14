@@ -501,55 +501,181 @@ function ChatPanelOptimized({
   
   // ========== Mixed 模式：回滚到快照状态 ==========
   // 当任务失败或 token 扣费失败时调用
+  // 参考编辑历史对话的回滚机制，创建新分支保存回滚状态
   const rollbackToSnapshot = useCallback(() => {
     const snapshot = stateSnapshotRef.current;
     if (!snapshot) {
-      console.warn("无状态快照可回滚");
+      console.warn("❌ 回滚失败：无状态快照可回滚");
+      console.log("回滚失败详情：", {
+        hasSnapshot: false,
+        currentBranchId: activeBranchId,
+        renderMode: isSvgMode ? 'svg' : 'drawio'
+      });
       return false;
     }
-    
-    console.log("开始回滚到状态快照", {
+
+    console.log("🔄 开始执行状态回滚", {
       snapshotMessageCount: snapshot.messages.length,
-      snapshotTimestamp: snapshot.timestamp
+      snapshotTimestamp: snapshot.timestamp,
+      currentBranchId: activeBranchId,
+      renderMode: isSvgMode ? 'svg' : 'drawio'
     });
-    
+
     try {
-      // 1. 恢复消息列表
-      setMessages(snapshot.messages);
-      updateActiveBranchMessages(snapshot.messages);
-      
-      // 2. 恢复画布
-      if (snapshot.diagramXml) {
-        if (isSvgMode) {
-          loadSvgMarkup(snapshot.diagramXml);
+      // 使用快照中的消息列表（发送前的状态）
+      const truncatedMessages = snapshot.messages;
+      const userMessageCount = truncatedMessages.filter(msg => msg.role === "user").length;
+
+      console.log("📝 回滚消息状态", {
+        totalMessages: truncatedMessages.length,
+        userMessages: userMessageCount,
+        assistantMessages: truncatedMessages.filter(msg => msg.role === "assistant").length
+      });
+
+      // 计算画布历史索引（找到发送前的用户消息数量）
+      let diagramXmlToRestore = snapshot.diagramXml || snapshot.chartXML || null;
+
+      // 如果有画布历史记录，尝试回溯到对应的历史版本
+      if (historyItems && historyItems.length > 0) {
+        console.log("🎨 尝试回溯画布历史", {
+          availableHistoryCount: historyItems.length,
+          targetUserMessageIndex: userMessageCount
+        });
+
+        // 如果有足够的历史版本，回溯到对应位置
+        if (userMessageCount > 0 && historyItems.length >= userMessageCount) {
+          const historyIndex = Math.min(userMessageCount - 1, historyItems.length - 1);
+          const targetHistory = historyItems[historyIndex];
+
+          if (targetHistory) {
+            // 对于 drawio 模式，使用 xml 字段；对于 svg 模式，使用 svg 字段
+            const originalXml = diagramXmlToRestore;
+            diagramXmlToRestore = targetHistory.xml || targetHistory.svg || diagramXmlToRestore;
+
+            console.log("✅ 找到历史画布版本", {
+              historyIndex,
+              hasXmlInHistory: !!(targetHistory.xml || targetHistory.svg),
+              xmlChanged: originalXml !== diagramXmlToRestore
+            });
+
+            // 同时回溯画布显示
+            try {
+              handleRestoreHistory(historyIndex);
+              console.log("✅ 画布历史回溯成功");
+            } catch (historyError) {
+              console.warn("⚠️ 画布历史回溯失败，使用快照数据", historyError);
+            }
+          } else {
+            console.warn("⚠️ 未找到对应的历史版本");
+          }
+        } else if (userMessageCount === 0) {
+          // 如果目标位置之前没有用户消息，说明是回到最初状态
+          console.log("🏠 回到初始状态，清空画布");
+          diagramXmlToRestore = isSvgMode ? null : EMPTY_MXFILE;
+
+          try {
+            if (isSvgMode) {
+              clearSvg();
+            } else {
+              clearDiagram();
+            }
+            console.log("✅ 画布清空成功");
+          } catch (clearError) {
+            console.warn("⚠️ 画布清空失败", clearError);
+          }
         } else {
-          onDisplayChart(snapshot.diagramXml);
+          console.log("⚠️ 历史记录不足，无法精确回溯", {
+            neededHistoryCount: userMessageCount,
+            availableHistoryCount: historyItems.length
+          });
         }
-        updateActiveBranchDiagram(snapshot.diagramXml);
-      } else if (snapshot.chartXML) {
-        // 如果 diagramXml 为空但 chartXML 有值，使用 chartXML
-        if (!isSvgMode) {
-          onDisplayChart(snapshot.chartXML);
-        }
+      } else {
+        console.log("ℹ️ 无画布历史记录，使用快照中的画布数据");
       }
-      
-      // 3. 清空快照
+
+      // 创建新分支保存回滚状态
+      console.log("🌿 创建回滚分支");
+      const rollbackBranch = createBranch({
+        parentId: activeBranchId,
+        label: `扣费失败回滚`,
+        meta: {
+          type: "rollback",
+          reason: "charge_failed",
+          timestamp: Date.now(),
+          originalMessageCount: snapshot.messages.length
+        },
+        diagramXml: diagramXmlToRestore,
+        seedMessages: truncatedMessages,
+        inheritMessages: false
+      });
+
+      if (rollbackBranch) {
+        console.log("✅ 回滚分支创建成功", {
+          branchId: rollbackBranch.id,
+          label: rollbackBranch.label
+        });
+      } else {
+        console.warn("⚠️ 分支创建失败，将直接更新当前分支");
+      }
+
+      // 更新UI状态
+      console.log("🔄 更新UI状态");
+      setMessages(truncatedMessages);
+      setInput(""); // 清空输入框，因为这是错误状态
+
+      if (!rollbackBranch) {
+        // 如果分支创建失败，回退到直接更新当前分支
+        console.log("🔄 直接更新当前分支");
+        updateActiveBranchMessages(truncatedMessages);
+        updateActiveBranchDiagram(diagramXmlToRestore);
+      }
+
+      // 清理历史记录（移除失败的对话）
+      console.log("🧹 清理历史记录");
+      pruneHistoryByMessageIds(new Set());
+
+      // 清空快照
       stateSnapshotRef.current = null;
-      
-      console.log("状态回滚完成");
+
+      console.log("✅ 状态回滚完成", {
+        finalMessageCount: truncatedMessages.length,
+        hasDiagramXml: !!diagramXmlToRestore,
+        branchCreated: !!rollbackBranch
+      });
+
       return true;
     } catch (error) {
-      console.error("状态回滚失败：", error);
+      console.error("❌ 状态回滚失败：", error);
+      console.error("回滚失败详情：", {
+        error: error.message,
+        stack: error.stack,
+        snapshot: {
+          hasSnapshot: !!snapshot,
+          messageCount: snapshot?.messages?.length,
+          timestamp: snapshot?.timestamp
+        }
+      });
+
+      // 清理快照，避免下次回滚时使用损坏的快照
       stateSnapshotRef.current = null;
+
       return false;
     }
   }, [
     setMessages,
+    setInput,
     updateActiveBranchMessages,
     updateActiveBranchDiagram,
     isSvgMode,
     loadSvgMarkup,
-    onDisplayChart
+    onDisplayChart,
+    historyItems,
+    handleRestoreHistory,
+    clearSvg,
+    clearDiagram,
+    createBranch,
+    activeBranchId,
+    pruneHistoryByMessageIds
   ]);
   
   // ========== Mixed 模式：清空快照 ==========
@@ -631,22 +757,42 @@ function ChatPanelOptimized({
     // 检查最新的 assistant 消息的 metadata
     const lastAssistant = messages?.filter(m => m.role === 'assistant').pop();
     const metadata = lastAssistant?.metadata;
-    
-    // 检查是否有扣费结果（非流式响应会在 metadata 中包含 chargeResult）
-    if (metadata?.chargeResult) {
-      const chargeResult = metadata.chargeResult;
-      
+
+    // 检查是否有扣费结果（流式响应可能需要延迟检查）
+    const checkChargeResult = (chargeResult) => {
+      if (!chargeResult) return false;
+
+      console.log("💰 检查扣费结果", {
+        success: chargeResult.success,
+        needsRollback: chargeResult.needsRollback,
+        chargeMode: chargeResult.chargeMode,
+        eventValue: chargeResult.eventValue,
+        message: chargeResult.message
+      });
+
       if (chargeResult.needsRollback || !chargeResult.success) {
         // 扣费失败或需要回滚
-        console.log("检测到扣费失败或需要回滚", { chargeResult });
+        console.log("❌ 检测到扣费失败或需要回滚，开始执行回滚操作");
         const rolled = rollbackToSnapshot();
         if (rolled) {
+          console.log("✅ 回滚操作成功完成");
           notifyComparison("error", "Token 扣费失败，已恢复到发送前的状态：" + (chargeResult.message || "余额不足"));
+        } else {
+          console.error("❌ 回滚操作失败");
+          notifyComparison("error", "Token 扣费失败，但回滚操作失败，请手动刷新页面：" + (chargeResult.message || "余额不足"));
         }
-        return;
+        return true;
       }
+
+      console.log("✅ 扣费成功，无需回滚");
+      return false;
+    };
+
+    // 首先检查 metadata 中是否已有 chargeResult
+    if (metadata?.chargeResult && checkChargeResult(metadata.chargeResult)) {
+      return;
     }
-    
+
     // 检查任务是否失败（通过 metadata.taskFailed）
     if (metadata?.taskFailed) {
       console.log("检测到任务失败标记，执行回滚");
@@ -656,10 +802,29 @@ function ChatPanelOptimized({
       }
       return;
     }
-    
-    // 任务成功完成，清空快照
-    console.log("任务成功完成，清空状态快照");
-    clearStateSnapshot();
+
+    // 对于流式响应，chargeResult 可能还未设置，延迟检查
+    if (metadata && !metadata.chargeResult && (metadata.isTaskCompleted || metadata.taskFailed !== undefined)) {
+      // 延迟 100ms 检查一次 chargeResult（给 onFinish 时间执行）
+      setTimeout(() => {
+        const updatedLastAssistant = messages?.filter(m => m.role === 'assistant').pop();
+        const updatedMetadata = updatedLastAssistant?.metadata;
+
+        if (updatedMetadata?.chargeResult && checkChargeResult(updatedMetadata.chargeResult)) {
+          return;
+        }
+
+        // 如果仍然没有 chargeResult，且任务完成，则认为扣费成功
+        if (metadata.isTaskCompleted && !metadata.taskFailed) {
+          console.log("任务成功完成，清空状态快照");
+          clearStateSnapshot();
+        }
+      }, 100);
+    } else {
+      // 任务成功完成，清空快照
+      console.log("任务成功完成，清空状态快照");
+      clearStateSnapshot();
+    }
     
   }, [status, messages, rollbackToSnapshot, clearStateSnapshot, notifyComparison]);
   
