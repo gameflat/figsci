@@ -453,12 +453,114 @@ function ChatPanelOptimized({
             output: `Failed to edit diagram: ${errorMessage}`
           });
         }
+      } else if (toolCall.toolName === "search_template") {
+        // 模板搜索工具：调用服务端 API 获取模板指导
+        const { query, templateType } = toolCall.input;
+        try {
+          const response = await fetch("/api/search-template", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query, templateType })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`模板搜索失败: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          
+          if (result.success && result.guidance) {
+            // 构建返回给 LLM 的模板指导信息
+            const guidanceText = formatTemplateGuidance(result);
+            addToolResult({
+              tool: "search_template",
+              toolCallId: toolCall.toolCallId,
+              output: guidanceText
+            });
+          } else {
+            addToolResult({
+              tool: "search_template",
+              toolCallId: toolCall.toolCallId,
+              output: "未找到匹配的模板。请根据用户需求直接绘制图表，使用 display_diagram 工具输出 XML。"
+            });
+          }
+        } catch (error2) {
+          console.error("Template search failed:", error2);
+          addToolResult({
+            tool: "search_template",
+            toolCallId: toolCall.toolCallId,
+            output: `模板搜索失败: ${error2.message}。请直接根据用户需求绘制图表。`
+          });
+        }
       }
     },
     onError: (error2) => {
       console.error("Chat error:", error2);
     }
   });
+  
+  // 格式化模板指导信息，返回给 LLM
+  const formatTemplateGuidance = (result) => {
+    const { template, guidance, alternatives } = result;
+    
+    let output = `## 找到匹配模板: ${template.title}\n\n`;
+    output += `**描述**: ${template.description}\n\n`;
+    
+    // 绘图提示词
+    if (guidance.prompt) {
+      output += `### 绘图指导\n${guidance.prompt}\n\n`;
+    }
+    
+    // 布局建议
+    if (guidance.layout) {
+      output += `### 布局建议\n`;
+      output += `- 方向: ${guidance.layout.direction}\n`;
+      output += `- 说明: ${guidance.layout.description}\n`;
+      output += `- 起始位置: (${guidance.layout.startPosition.x}, ${guidance.layout.startPosition.y})\n\n`;
+    }
+    
+    // 配色方案
+    if (guidance.colorScheme) {
+      output += `### 配色方案\n`;
+      output += `- 主色: fillColor=${guidance.colorScheme.primary.fill};strokeColor=${guidance.colorScheme.primary.stroke};\n`;
+      if (guidance.colorScheme.secondary) {
+        output += `- 次色: fillColor=${guidance.colorScheme.secondary.fill};strokeColor=${guidance.colorScheme.secondary.stroke};\n`;
+      }
+      if (guidance.colorScheme.accent) {
+        output += `- 强调色: fillColor=${guidance.colorScheme.accent.fill};strokeColor=${guidance.colorScheme.accent.stroke};\n`;
+      }
+      output += `\n`;
+    }
+    
+    // 间距规范
+    if (guidance.spacing) {
+      output += `### 间距规范\n`;
+      output += `- 节点间距: ${guidance.spacing.nodeGap}px\n`;
+      output += `- 分组间距: ${guidance.spacing.groupGap}px\n`;
+      output += `- 内边距: ${guidance.spacing.padding}px\n\n`;
+    }
+    
+    // 字体规范
+    if (guidance.typography) {
+      output += `### 字体规范\n`;
+      output += `- 字体: ${guidance.typography.fontFamily}\n`;
+      output += `- 标题字号: ${guidance.typography.titleSize}pt\n`;
+      output += `- 标签字号: ${guidance.typography.labelSize}pt\n\n`;
+    }
+    
+    // 特性说明
+    if (guidance.features && guidance.features.length > 0) {
+      output += `### 核心特性\n`;
+      guidance.features.forEach(f => {
+        output += `- ${f}\n`;
+      });
+      output += `\n`;
+    }
+    
+    output += `**请根据以上指导，使用 display_diagram 工具生成符合学术标准的图表 XML。**`;
+    
+    return output;
+  };
   const {
     comparisonConfig,
     setComparisonConfig,
@@ -743,89 +845,15 @@ function ChatPanelOptimized({
         }
         const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
         
-        // 智能模板匹配：如果输入框有内容，调用 AI Agents 进行智能匹配和格式化
-        let finalInput = input;
-        let matchedTemplateId = null;
-        
-        if (input.trim()) {
-          // 设置进度阶段为"智能匹配"
-          setGenerationPhase("matching");
-          try {
-            // 调用智能模板匹配 API，传入 signal 以支持取消
-            const matchResponse = await fetch("/api/template-match", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                userInput: input.trim(),
-                currentXml: chartXml,
-                modelRuntime: buildModelRequestBody(selectedModel),
-              }),
-              signal: abortController.signal,
-            });
-            
-            if (matchResponse.ok) {
-              const matchResult = await matchResponse.json();
-              const CONFIDENCE_THRESHOLD = 0.8; // 置信度阈值
-              
-              // 只有当置信度 >= 0.8 且匹配到模板时才使用格式化后的提示词
-              if (matchResult.confidence >= CONFIDENCE_THRESHOLD && matchResult.templateId && matchResult.formattedPrompt) {
-                finalInput = matchResult.formattedPrompt;
-                matchedTemplateId = matchResult.templateId;
-                
-                // 获取模板名称用于日志显示
-                const { DIAGRAM_TEMPLATES } = await import("@/data/templates");
-                const matchedTemplate = DIAGRAM_TEMPLATES.find(t => t.id === matchResult.templateId);
-                const templateName = matchedTemplate ? matchedTemplate.title : matchResult.templateId;
-                
-                console.log(`[前端] ✅ 智能匹配模板成功`);
-                console.log(`[前端] 模板名称: ${templateName}`);
-                console.log(`[前端] 模板 ID: ${matchResult.templateId}`);
-                console.log(`[前端] 置信度: ${(matchResult.confidence * 100).toFixed(1)}%`);
-                console.log(`[前端] 匹配原因: ${matchResult.reason}`);
-              } else {
-                // 置信度低于阈值，不使用模板
-                let templateName = "无";
-                if (matchResult.templateId) {
-                  try {
-                    const { DIAGRAM_TEMPLATES } = await import("@/data/templates");
-                    const matchedTemplate = DIAGRAM_TEMPLATES.find(t => t.id === matchResult.templateId);
-                    templateName = matchedTemplate ? matchedTemplate.title : matchResult.templateId;
-                  } catch (e) {
-                    templateName = matchResult.templateId;
-                  }
-                }
-                console.log(`[前端] ⚠️  模板匹配置信度低于阈值`);
-                console.log(`[前端] 匹配到的模板: ${templateName} (ID: ${matchResult.templateId || "无"})`);
-                console.log(`[前端] 置信度: ${(matchResult.confidence * 100).toFixed(1)}% (阈值: ${(CONFIDENCE_THRESHOLD * 100).toFixed(0)}%)`);
-                console.log(`[前端] 匹配原因: ${matchResult.reason || "无"}`);
-                console.log(`[前端] 将使用原始输入，不应用模板`);
-              }
-            } else {
-              console.warn("模板匹配失败，使用原始输入:", await matchResponse.text());
-            }
-          } catch (matchError) {
-            // 如果是用户取消操作，直接返回不继续执行
-            if (matchError.name === "AbortError") {
-              console.log("模板匹配请求已被用户取消");
-              return;
-            }
-            // 模板匹配失败不影响主流程，使用原始输入
-            console.warn("模板匹配请求失败，使用原始输入:", matchError);
-          }
-        }
-        
-        // 再次检查是否已被取消（在模板匹配后）
-        if (abortController.signal.aborted) {
-          return;
-        }
+        // 直接使用用户输入，不再进行强制模板匹配
+        // LLM 会自主决定是否需要调用 search_template 工具
+        const finalInput = input;
         
         // 设置进度阶段为"发送请求"
         setGenerationPhase("sending");
         
         // 构建最终的消息内容
-        const parts = [{ type: "text", text: finalInput, displayText: input }];
+        const parts = [{ type: "text", text: finalInput }];
         if (files.length > 0) {
           const attachments = await serializeAttachments(files);
           attachments.forEach(({ url, mediaType }) => {

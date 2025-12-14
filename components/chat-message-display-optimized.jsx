@@ -7,6 +7,7 @@ import { svgToDataUrl } from "@/lib/svg";
 import ExamplePanel from "./chat-example-panel";
 import { TokenUsageDisplay } from "./token-usage-display";
 import { FloatingProgressIndicator } from "./generation-progress-indicator";
+import { StreamingThoughtDisplay } from "./streaming-thought-display";
 const LARGE_TOOL_INPUT_CHAR_THRESHOLD = 3e3;
 
 /**
@@ -48,6 +49,26 @@ const detectAndExtractXml = (text) => {
 };
 const CHAR_COUNT_FORMATTER = new Intl.NumberFormat("zh-CN");
 const DIAGRAM_GENERATION_TIMEOUT_MS = 3e5;
+
+/**
+ * 将生成阶段映射到流式思考显示组件的状态
+ * 
+ * @param {string} phase - 生成阶段
+ * @returns {string} 思考状态
+ */
+const mapPhaseToStatus = (phase) => {
+  switch (phase) {
+    case "preparing":
+    case "sending":
+    case "thinking":
+      return "thinking";
+    case "generating":
+      return "generating";
+    case "idle":
+    default:
+      return "idle";
+  }
+};
 const DiagramToolCard = memo(({
   part,
   onCopy,
@@ -1228,13 +1249,12 @@ function ChatMessageDisplay({
                             </div>)}
                 </>}
             {
-    /* 显示生成中的进度提示 - 使用新的详细进度指示器 */
-    /* 组件始终渲染以保留内部状态，通过 props 控制显示逻辑 */
-    /* 移除 hasLiveToolCard 条件，让进度指示器始终可见 */
+    /* 显示生成中的进度提示 - 使用流式思考显示组件 */
+    /* 根据生成阶段显示不同的状态，提供类似 GPT/Claude 的体验 */
   }
-            <FloatingProgressIndicator 
-              phase={generationPhase} 
-              isVisible={isGenerationBusy} 
+            <StreamingThoughtDisplay
+              status={mapPhaseToStatus(generationPhase)}
+              isStreaming={isGenerationBusy && generationPhase !== "idle"}
             />
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}

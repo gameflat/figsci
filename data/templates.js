@@ -42,6 +42,33 @@ const DIAGRAM_TEMPLATES = [
       tone: "academic",
       focus: ["layout", "storytelling"],
       diagramTypes: ["schematic"]
+    },
+    // 新增：结构化布局定义
+    structure: {
+      layout: "horizontal",
+      sections: ["问题背景", "核心方法", "主要成果"],
+      nodeTypes: ["圆角矩形", "图标容器", "箭头连接"],
+      description: "三段式横向布局，从左到右依次展示背景、方法、结果"
+    },
+    // 新增：配色方案（Elsevier/Nature 风格）
+    colorScheme: {
+      primary: { fill: "#E3F2FD", stroke: "#1976D2", font: "#0D47A1" },
+      secondary: { fill: "#F5F5F5", stroke: "#616161", font: "#212121" },
+      accent: { fill: "#E8F5E9", stroke: "#388E3C", font: "#1B5E20" },
+      warning: { fill: "#FFF8E1", stroke: "#F57C00", font: "#E65100" }
+    },
+    // 新增：绘图指导
+    drawingGuidelines: {
+      layout: "横向三等分布局，每个区域宽度约 220-240px，高度 400-500px",
+      spacing: "区域间距 40px，元素内边距 20px，箭头长度 60-80px",
+      connections: "使用粗箭头（strokeWidth=3）连接三个区域，箭头样式为 block 实心",
+      typography: "标题 16pt 加粗，正文 12pt，注释 10pt，全部使用 Arial 字体",
+      tips: [
+        "左侧区域用问号图标或向下箭头表示问题/挑战",
+        "中间区域用齿轮、分子结构或流程图表示方法/机制",
+        "右侧区域用上升箭头、对勾或图表表示成果/结论",
+        "底部可添加一行 Take-home message 总结"
+      ]
     }
   },
   // 2. Technical Roadmap
@@ -84,6 +111,52 @@ const DIAGRAM_TEMPLATES = [
       tone: "professional",
       focus: ["flow", "hierarchy"],
       diagramTypes: ["flowchart"]
+    },
+    // 新增：结构化布局定义
+    structure: {
+      layout: "vertical",
+      sections: ["阶段一：基础研究", "阶段二：关键突破", "阶段三：集成应用"],
+      nodeTypes: ["圆角矩形", "菱形决策点", "容器分组"],
+      description: "自上而下的三阶段布局，每个阶段内可包含多个并行任务"
+    },
+    // 新增：配色方案
+    colorScheme: {
+      primary: { fill: "#dae8fc", stroke: "#6c8ebf", font: "#1a365d" },
+      secondary: { fill: "#fff2cc", stroke: "#d6b656", font: "#744210" },
+      accent: { fill: "#d5e8d4", stroke: "#82b366", font: "#22543d" },
+      warning: { fill: "#f8cecc", stroke: "#b85450", font: "#742a2a" }
+    },
+    // 新增：节点样式
+    nodeStyles: {
+      standard: {
+        style: "rounded=1;whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=11;",
+        width: 140,
+        height: 50
+      },
+      decision: {
+        style: "rhombus;whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=11;",
+        width: 100,
+        height: 70
+      },
+      container: {
+        style: "swimlane;fontStyle=1;align=center;verticalAlign=top;startSize=30;collapsible=0;fontFamily=Arial;fontSize=12;",
+        width: 500,
+        height: 180
+      }
+    },
+    // 新增：绘图指导
+    drawingGuidelines: {
+      layout: "垂直布局，三个阶段依次向下排列，每个阶段使用容器分组",
+      spacing: "阶段间距 80px，节点间距 60px，容器内边距 30px",
+      connections: "实线箭头（strokeWidth=1.5）表示主流程，虚线箭头表示反馈循环",
+      typography: "阶段标题 14pt 加粗，节点文字 11pt，标注 9pt",
+      tips: [
+        "每个阶段用浅色背景容器（swimlane）包裹",
+        "阶段内的并行任务横向排列",
+        "关键决策点用菱形表示",
+        "反馈循环用虚线箭头从下方指向上方",
+        "可在容器标题处标注时间节点（如 Q1-Q2）"
+      ]
     }
   },
   // 3. Experimental Process Flow
@@ -126,6 +199,48 @@ const DIAGRAM_TEMPLATES = [
       tone: "scientific",
       focus: ["sequence", "detail"],
       diagramTypes: ["flowchart"]
+    },
+    // 新增：结构化布局定义
+    structure: {
+      layout: "horizontal",
+      sections: ["步骤序列"],
+      nodeTypes: ["圆角矩形", "箭头连接", "参数标注"],
+      description: "水平线性布局，步骤从左到右依次排列"
+    },
+    // 新增：配色方案（科学实验风格）
+    colorScheme: {
+      primary: { fill: "#F7F9FC", stroke: "#2C3E50", font: "#2C3E50" },
+      secondary: { fill: "#ECEFF1", stroke: "#607D8B", font: "#37474F" },
+      accent: { fill: "#FFEBEE", stroke: "#C62828", font: "#B71C1C" },
+      success: { fill: "#E8F5E9", stroke: "#2E7D32", font: "#1B5E20" }
+    },
+    // 新增：节点样式
+    nodeStyles: {
+      standard: {
+        style: "rounded=1;whiteSpace=wrap;html=1;fontFamily=Arial;fontSize=11;strokeWidth=1.5;",
+        width: 100,
+        height: 80
+      },
+      text: {
+        style: "text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=9;fontColor=#666666;",
+        width: 80,
+        height: 20
+      }
+    },
+    // 新增：绘图指导
+    drawingGuidelines: {
+      layout: "水平线性布局，所有步骤节点垂直居中对齐（Y 坐标相同）",
+      spacing: "节点宽度 100px，节点间距 80px，起始 X 坐标 40px",
+      connections: "使用正交连接线（orthogonalEdgeStyle），箭头样式 block，线宽 1.5px",
+      typography: "步骤名称 11pt，参数标注 9pt 灰色，步骤编号可用加粗",
+      tips: [
+        "每个步骤节点内部分为上下两部分：上方为图标/编号，下方为步骤名称",
+        "在连接线上方使用小字标注实验参数（如温度、时间、浓度）",
+        "关键步骤用红色边框强调（strokeColor=#C62828）",
+        "最后一个步骤可使用绿色表示完成/结果",
+        "如需分支可用菱形决策节点",
+        "保持所有节点高度一致，形成整齐的视觉效果"
+      ]
     }
   },
   // 4. System Architecture (Layered)

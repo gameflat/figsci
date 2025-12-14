@@ -10,7 +10,6 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { 
   Sparkles, 
-  Search, 
   Send, 
   Brain, 
   Palette,
@@ -20,11 +19,12 @@ import {
 
 /**
  * 进度阶段枚举
- * @typedef {"idle" | "preparing" | "matching" | "sending" | "thinking" | "generating"} GenerationPhase
+ * @typedef {"idle" | "preparing" | "sending" | "thinking" | "generating"} GenerationPhase
  */
 
 /**
  * 进度阶段配置
+ * 注意：已移除 "matching" 阶段，模板匹配现在由 LLM 自主决定是否调用工具
  */
 const PHASE_CONFIG = {
   preparing: {
@@ -34,14 +34,6 @@ const PHASE_CONFIG = {
     color: "text-slate-600",
     bgColor: "bg-slate-100",
     borderColor: "border-slate-200",
-  },
-  matching: {
-    icon: Search,
-    label: "智能匹配",
-    description: "正在匹配最佳模板...",
-    color: "text-violet-600",
-    bgColor: "bg-violet-50",
-    borderColor: "border-violet-200",
   },
   sending: {
     icon: Send,
@@ -71,8 +63,9 @@ const PHASE_CONFIG = {
 
 /**
  * 进度步骤顺序
+ * 注意：已移除 "matching" 阶段
  */
-const PHASE_ORDER = ["preparing", "matching", "sending", "thinking", "generating"];
+const PHASE_ORDER = ["preparing", "sending", "thinking", "generating"];
 
 /**
  * 趣味提示语库 - 根据等待时长显示不同的鼓励语
