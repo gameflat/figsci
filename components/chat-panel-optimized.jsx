@@ -1279,8 +1279,10 @@ function ChatPanelOptimized({
     ref={messagesScrollRef}
     className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl bg-white px-2.5 py-2 pb-28"
     style={{ 
-      maxHeight: "100%",
-      // 让滚动条更早显示：设置最小高度，当内容超过这个高度时就会显示滚动条
+      // Bug 2 修复：使用固定高度计算，确保容器不会被内容撑开
+      // 使用 calc 让容器高度根据视口计算，而不是被内容撑开
+      maxHeight: "calc(100vh - 280px)",
+      // 让滚动条更早显示：设置最小高度
       minHeight: "200px"
     }}
   >

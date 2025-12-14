@@ -8,6 +8,44 @@ import ExamplePanel from "./chat-example-panel";
 import { TokenUsageDisplay } from "./token-usage-display";
 import { FloatingProgressIndicator } from "./generation-progress-indicator";
 const LARGE_TOOL_INPUT_CHAR_THRESHOLD = 3e3;
+
+/**
+ * 检测并提取消息文本中的 XML 代码块
+ * 当 LLM 没有正确调用 tool-calls 时，它可能会以文本形式输出 XML
+ * 此函数尝试从文本中提取有效的 draw.io XML 代码
+ * 
+ * @param {string} text - 消息文本内容
+ * @returns {{ xml: string | null, hasXmlBlock: boolean }} 提取的 XML 和是否检测到代码块
+ */
+const detectAndExtractXml = (text) => {
+  if (!text || typeof text !== "string") {
+    return { xml: null, hasXmlBlock: false };
+  }
+  
+  // 模式 1：匹配 ```xml ... ``` 格式的代码块
+  const xmlBlockMatch = text.match(/```xml\s*([\s\S]*?)```/i);
+  if (xmlBlockMatch && xmlBlockMatch[1]) {
+    const extracted = xmlBlockMatch[1].trim();
+    // 验证是否包含 draw.io 特有的结构
+    if (extracted.includes("<root>") || extracted.includes("<mxCell") || extracted.includes("<mxGraphModel")) {
+      return { xml: extracted, hasXmlBlock: true };
+    }
+  }
+  
+  // 模式 2：匹配独立的 <root>...</root> 结构
+  const rootMatch = text.match(/<root>[\s\S]*<\/root>/);
+  if (rootMatch && rootMatch[0]) {
+    return { xml: rootMatch[0], hasXmlBlock: true };
+  }
+  
+  // 模式 3：匹配 <mxGraphModel>...</mxGraphModel> 结构
+  const mxGraphMatch = text.match(/<mxGraphModel[\s\S]*<\/mxGraphModel>/);
+  if (mxGraphMatch && mxGraphMatch[0]) {
+    return { xml: mxGraphMatch[0], hasXmlBlock: true };
+  }
+  
+  return { xml: null, hasXmlBlock: false };
+};
 const CHAR_COUNT_FORMATTER = new Intl.NumberFormat("zh-CN");
 const DIAGRAM_GENERATION_TIMEOUT_MS = 3e5;
 const DiagramToolCard = memo(({
@@ -942,9 +980,18 @@ function ChatMessageDisplay({
     }
     const fullMessageText = resolveMessageText(message);
     const messageLength = fullMessageText.length;
-    const shouldCollapse = messageLength > 500;
+    // Bug 2 修复：降低折叠阈值，对长消息更积极地折叠
+    const shouldCollapse = messageLength > 300;
     const isExpanded = expandedMessages[message.id] ?? !shouldCollapse;
     const isCopied = copiedMessageId === message.id;
+    
+    // Bug 1 修复：检测 AI 消息中是否包含未通过 tool-call 输出的 XML 代码
+    // 只在 AI 消息且没有 tool-call 时检测
+    const hasToolCall = toolParts.length > 0;
+    const { xml: detectedXml, hasXmlBlock } = !isUser && !hasToolCall 
+      ? detectAndExtractXml(fullMessageText) 
+      : { xml: null, hasXmlBlock: false };
+    
     return <div key={message.id} className="mb-5 flex flex-col gap-2">
                                 {hasBubbleContent && <div
       className={cn(
@@ -958,7 +1005,8 @@ function ChatMessageDisplay({
         "rounded-lg px-3.5 py-2.5 text-sm leading-relaxed",
         "whitespace-pre-wrap break-words",
         isUser ? "bg-slate-900 text-white" : "border border-slate-200/60 bg-white text-slate-900",
-        !isExpanded && "max-h-[200px] overflow-hidden relative"
+        // Bug 2 修复：添加最大高度限制，无论是否折叠都限制高度
+        isExpanded ? "max-h-[400px] overflow-y-auto" : "max-h-[200px] overflow-hidden relative"
       )}
     >
                                                 {displayableContentParts.map((part, index) => {
@@ -992,9 +1040,24 @@ function ChatMessageDisplay({
                                             </div>
 
                                             <div className={cn(
-      "flex items-center gap-1.5 mt-1.5",
+      "flex flex-wrap items-center gap-1.5 mt-1.5",
       isUser ? "justify-end" : "justify-start"
     )}>
+                                                {/* Bug 1 修复：当检测到 XML 代码块但没有 tool-call 时，显示应用到画布按钮 */}
+                                                {detectedXml && hasXmlBlock && onDisplayDiagram && <button
+      type="button"
+      onClick={() => {
+        const convertedXml = convertToLegalXml(detectedXml);
+        onDisplayDiagram(convertedXml, { toolCallId: `manual-${message.id}` });
+      }}
+      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all bg-blue-500 text-white hover:bg-blue-600"
+      title="将检测到的 XML 代码应用到画布"
+    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                        <span>应用到画布</span>
+                                                    </button>}
                                                 <button
       type="button"
       onClick={() => handleCopyMessage(message.id, fullMessageText)}

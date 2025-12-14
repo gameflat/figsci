@@ -374,12 +374,13 @@ useEffect(() => {
   const RESIZER_WIDTH = 10;
   
   // ========== 计算样式 ==========
-  // 网格列模板：根据聊天面板可见性动态计算布局
-  // 如果聊天面板可见：画布 | 调整条 | 聊天面板
-  // 如果聊天面板隐藏：只有画布（1fr）
+  // Bug 3 修复：始终使用三列布局，通过 CSS 控制可见性
+  // 这样可以保持聊天面板组件挂载，避免状态丢失
+  // 网格列模板：画布 | 调整条 | 聊天面板
+  // 当聊天面板隐藏时，将其宽度设为 0
   const gridTemplateColumns = isChatVisible 
     ? `${100 - chatWidthPercent}fr ${RESIZER_WIDTH}px ${chatWidthPercent}fr` 
-    : "1fr";
+    : `1fr 0px 0fr`;
   // ========== JSX 渲染 ==========
   return (
     <div className="bg-gray-100 h-screen overflow-hidden">
@@ -397,10 +398,7 @@ useEffect(() => {
         */}
         <div
           ref={mainContentRef}
-          className={cn(
-            "grid h-dvh min-h-0 flex-1",
-            !isChatVisible && "grid-cols-1"
-          )}
+          className="grid h-dvh min-h-0 flex-1"
           style={{ gridTemplateColumns }}
         >
           {/* 
@@ -540,55 +538,55 @@ useEffect(() => {
           {/* 
             调整条（Resizer）
             用于拖拽调整聊天面板宽度的分隔条
-            - 只在聊天面板可见且屏幕宽度 >= lg 时显示
+            - Bug 3 修复：始终渲染，通过 CSS 控制可见性
             - 使用 pointer 事件支持触摸和鼠标操作
           */}
-          {isChatVisible && (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              onPointerDown={handleResizeChatStart}
-              className={cn(
-                "hidden h-full items-center justify-center border-x border-slate-100 bg-white/60 transition hover:bg-slate-100 active:bg-slate-200 lg:flex cursor-col-resize",
-                // 调整大小时的高亮样式
-                isResizingChat && "bg-blue-50 border-blue-200"
-              )}
-              style={{ width: RESIZER_WIDTH }}
-            >
-              {/* 调整条的视觉指示器 */}
-              <div className="h-10 w-1 rounded-full bg-slate-300" />
-            </div>
-          )}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={handleResizeChatStart}
+            className={cn(
+              "h-full items-center justify-center border-x border-slate-100 bg-white/60 transition hover:bg-slate-100 active:bg-slate-200 cursor-col-resize",
+              // Bug 3 修复：使用 CSS 控制可见性，避免组件卸载
+              isChatVisible ? "hidden lg:flex" : "hidden",
+              // 调整大小时的高亮样式
+              isResizingChat && "bg-blue-50 border-blue-200"
+            )}
+            style={{ width: isChatVisible ? RESIZER_WIDTH : 0 }}
+          >
+            {/* 调整条的视觉指示器 */}
+            <div className="h-10 w-1 rounded-full bg-slate-300" />
+          </div>
           
           {/* 
             聊天面板区域
-            - 只在聊天面板可见且屏幕宽度 >= lg 时显示
+            Bug 3 修复：始终渲染组件，通过 CSS 控制可见性
+            这样可以保持组件挂载状态，避免收起时状态丢失
             - 使用过渡动画实现平滑的显示/隐藏效果
           */}
-          {isChatVisible && (
-            <div
-              className={cn(
-                "hidden h-full min-h-0 p-1 transition-all duration-300 lg:block",
-                isChatVisible 
-                  ? "opacity-100" 
-                  : "pointer-events-none opacity-0 translate-x-4"
-              )}
-            >
-              {/* 
-                优化的聊天面板组件
-                - onCollapse：折叠回调，隐藏聊天面板
-                - isCollapsible：允许折叠
-                - renderMode：当前渲染模式（drawio/svg）
-                - onRenderModeChange：渲染模式切换回调
-              */}
-              <ChatPanelOptimized
-                onCollapse={() => setIsChatVisible(false)}
-                isCollapsible
-                renderMode={renderMode}
-                onRenderModeChange={setRenderMode}
-              />
-            </div>
-          )}
+          <div
+            className={cn(
+              "h-full min-h-0 p-1 transition-all duration-300",
+              // Bug 3 修复：通过 CSS 控制可见性和布局
+              isChatVisible 
+                ? "hidden lg:block opacity-100" 
+                : "hidden overflow-hidden pointer-events-none opacity-0 w-0"
+            )}
+          >
+            {/* 
+              优化的聊天面板组件
+              - onCollapse：折叠回调，隐藏聊天面板
+              - isCollapsible：允许折叠
+              - renderMode：当前渲染模式（drawio/svg）
+              - onRenderModeChange：渲染模式切换回调
+            */}
+            <ChatPanelOptimized
+              onCollapse={() => setIsChatVisible(false)}
+              isCollapsible
+              renderMode={renderMode}
+              onRenderModeChange={setRenderMode}
+            />
+          </div>
         </div>
       </section>
     </div>
