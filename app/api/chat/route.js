@@ -1026,7 +1026,9 @@ ${safeUserText}
             const finishReason = part.finishReason;
             const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
             
-            return {
+            // 尝试读取 chargeResult（可能在 onFinish 之后才被设置）
+            // 如果 chargeResult 已经被设置，就包含在 metadata 中
+            const metadata = {
               usage: {
                 inputTokens: part.totalUsage?.inputTokens || 0,
                 outputTokens: part.totalUsage?.outputTokens || 0,
@@ -1036,10 +1038,17 @@ ${safeUserText}
               finishReason: finishReason,
               isTaskCompleted: isTaskCompleted,
               // 标记任务是否失败，前端可据此判断是否需要回滚
-              // 注意：流式响应中，扣费在 onFinish 中异步执行，此处无法获取扣费结果
-              // 前端需要根据 finishReason 和 isTaskCompleted 判断任务状态
               taskFailed: !isTaskCompleted
             };
+            
+            // 如果 chargeResult 已经被设置，添加到 metadata 中
+            // 注意：在流式响应中，chargeResult 可能还未被 onFinish 设置
+            // 这是一个时序问题，但我们仍然尝试读取它
+            if (chargeResult) {
+              metadata.chargeResult = chargeResult;
+            }
+            
+            return metadata;
           }
           if (part.type === "finish-step") {
             return {
@@ -1196,7 +1205,11 @@ ${safeUserText}
             totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
           },
           durationMs,
-          finishReason: finalFinishReason
+          finishReason: finalFinishReason,
+          // 添加扣费结果到 finish 事件的 metadata
+          chargeResult: chargeResult,
+          isTaskCompleted: isTaskCompleted,
+          taskFailed: !isTaskCompleted
         }
       });
       const stream = new ReadableStream({

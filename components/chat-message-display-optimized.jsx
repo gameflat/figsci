@@ -1269,16 +1269,28 @@ function ChatMessageDisplay({
                                                     </button>}
                                             </div>
                                             {/* Token 使用量和扣费信息显示 */}
-                                            {!isUser && message.metadata && (
-                                                <div className="mt-2">
-                                                    <TokenUsageDisplay
-                                                        usage={message.metadata.usage}
-                                                        durationMs={message.metadata.durationMs}
-                                                        chargeInfo={message.metadata.chargeResult}
-                                                        compact={true}
-                                                    />
-                                                </div>
-                                            )}
+                                            {!isUser && message.metadata && (message.metadata.usage || message.metadata.durationMs || message.metadata.chargeResult) && (() => {
+                                                // 调试日志：查看 metadata 内容
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.log('[扣费显示调试] Message metadata:', {
+                                                        id: message.id,
+                                                        hasUsage: !!message.metadata.usage,
+                                                        hasDuration: message.metadata.durationMs !== undefined,
+                                                        hasChargeResult: !!message.metadata.chargeResult,
+                                                        chargeResult: message.metadata.chargeResult
+                                                    });
+                                                }
+                                                return (
+                                                    <div className="mt-2">
+                                                        <TokenUsageDisplay
+                                                            usage={message.metadata.usage}
+                                                            durationMs={message.metadata.durationMs}
+                                                            chargeInfo={message.metadata.chargeResult}
+                                                            compact={true}
+                                                        />
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>}
                                 {toolParts.map((part) => <div
