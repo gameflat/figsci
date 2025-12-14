@@ -1268,6 +1268,17 @@ function ChatMessageDisplay({
                                                         <span>编辑</span>
                                                     </button>}
                                             </div>
+                                            {/* Token 使用量和扣费信息显示 */}
+                                            {!isUser && message.metadata && (
+                                                <div className="mt-2">
+                                                    <TokenUsageDisplay
+                                                        usage={message.metadata.usage}
+                                                        durationMs={message.metadata.durationMs}
+                                                        chargeInfo={message.metadata.chargeResult}
+                                                        compact={true}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>}
                                 {toolParts.map((part) => <div

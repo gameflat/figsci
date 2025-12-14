@@ -284,12 +284,18 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
       headers["x-app-key"] = clientName;
     }
     
-    console.log("发起光子扣费请求：", {
-      bizNo: bizNo,
-      eventValue: eventValue,
-      chargeMode: chargeMode,
-      tokenUsage: usage
-    });
+    console.log("\n" + "=".repeat(60));
+    console.log("【光子扣费】发起扣费请求");
+    console.log("-".repeat(60));
+    console.log(`扣费模式: ${chargeMode === 'fixed' ? '固定扣费' : chargeMode === 'token' ? 'Token 扣费' : '混合扣费'}`);
+    console.log(`扣费金额: ${eventValue} 光子`);
+    console.log(`业务编号: ${bizNo}`);
+    console.log(`Token 使用量:`);
+    console.log(`  - 输入: ${usage.inputTokens || 0} tokens`);
+    console.log(`  - 输出: ${usage.outputTokens || 0} tokens`);
+    console.log(`  - 总计: ${usage.totalTokens || 0} tokens`);
+    console.log(`任务完成: ${isTaskCompleted ? '是' : '否'}`);
+    console.log("=".repeat(60) + "\n");
     
     const response = await fetch(chargeUrl, {
       method: "POST",
@@ -316,10 +322,13 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
     }
     
     if (responseData.code === 0) {
-      console.log("光子扣费成功：", {
-        bizNo: bizNo,
-        eventValue: eventValue
-      });
+      console.log("\n" + "✅".repeat(30));
+      console.log("【光子扣费】扣费成功");
+      console.log("-".repeat(60));
+      console.log(`业务编号: ${bizNo}`);
+      console.log(`扣费金额: ${eventValue} 光子`);
+      console.log(`扣费模式: ${chargeMode === 'fixed' ? '固定扣费' : chargeMode === 'token' ? 'Token 扣费' : '混合扣费'}`);
+      console.log("✅".repeat(30) + "\n");
       return {
         success: true,
         message: "扣费成功",
@@ -329,7 +338,16 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
         needsRollback: false
       };
     } else {
-      console.error("光子扣费失败：", responseData);
+      console.log("\n" + "❌".repeat(30));
+      console.log("【光子扣费】扣费失败");
+      console.log("-".repeat(60));
+      console.log(`错误代码: ${responseData.code}`);
+      console.log(`错误消息: ${responseData.message || '未知错误'}`);
+      console.log(`业务编号: ${bizNo}`);
+      console.log(`扣费金额: ${eventValue} 光子`);
+      console.log(`扣费模式: ${chargeMode === 'fixed' ? '固定扣费' : chargeMode === 'token' ? 'Token 扣费' : '混合扣费'}`);
+      console.log("❌".repeat(30) + "\n");
+      console.error("光子扣费失败详情：", responseData);
       
       // 判断是否余额不足
       const isInsufficientBalance = responseData.code === 403 || 
@@ -348,7 +366,11 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
     
   } catch (error) {
     // 扣费异常，mixed 模式需要回滚
-    console.error("光子扣费异常：", error);
+    console.log("\n" + "⚠️".repeat(30));
+    console.log("【光子扣费】扣费异常");
+    console.log("-".repeat(60));
+    console.error("异常信息：", error);
+    console.log("⚠️".repeat(30) + "\n");
     const chargeMode = process.env.BOHRIUM_CHARGE_MODE || 'fixed';
     return {
       success: false,
@@ -961,21 +983,21 @@ ${safeUserText}
           // 其他情况（如 'length'、'error'、'cancelled' 等）表示任务未正常完成
           const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
           
-          console.log("Stream finished:", {
-            usage: {
-              inputTokens: usage.inputTokens,
-              outputTokens: usage.outputTokens,
-              totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0)
-            },
-            totalUsage: {
-              inputTokens: totalUsage.inputTokens,
-              outputTokens: totalUsage.outputTokens,
-              totalTokens: (totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)
-            },
-            durationMs,
-            finishReason,
-            isTaskCompleted
-          });
+          console.log("\n" + "📊".repeat(30));
+          console.log("【流式生成】生成完成");
+          console.log("-".repeat(60));
+          console.log(`完成原因: ${finishReason}`);
+          console.log(`任务状态: ${isTaskCompleted ? '✅ 成功完成' : '⚠️ 未完成'}`);
+          console.log(`生成耗时: ${durationMs}ms`);
+          console.log("\nToken 使用量（本轮）:");
+          console.log(`  - 输入: ${usage.inputTokens || 0} tokens`);
+          console.log(`  - 输出: ${usage.outputTokens || 0} tokens`);
+          console.log(`  - 总计: ${(usage.inputTokens || 0) + (usage.outputTokens || 0)} tokens`);
+          console.log("\nToken 使用量（累计）:");
+          console.log(`  - 输入: ${totalUsage.inputTokens || 0} tokens`);
+          console.log(`  - 输出: ${totalUsage.outputTokens || 0} tokens`);
+          console.log(`  - 总计: ${(totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)} tokens`);
+          console.log("📊".repeat(30) + "\n");
           
           // ========== 光子扣费 ==========
           // 在 AI 生成完成后进行光子扣费
@@ -1077,19 +1099,22 @@ ${safeUserText}
       const hasToolCalls = allToolCalls.length > 0;
       const isTaskCompleted = result.finishReason === 'stop' || result.finishReason === 'tool-calls' || hasToolCalls;
       
-      console.log("Generation finished (non-streaming):", {
-        usage: {
-          inputTokens: result.usage.inputTokens,
-          outputTokens: result.usage.outputTokens,
-          totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
-        },
-        durationMs,
-        toolCalls: allToolCalls.length,
-        parsedFromText: parsedToolCalls.length,
-        finishReason: result.finishReason,
-        isTaskCompleted,
-        supportsToolCalls
-      });
+      console.log("\n" + "📊".repeat(30));
+      console.log("【非流式生成】生成完成");
+      console.log("-".repeat(60));
+      console.log(`完成原因: ${result.finishReason}`);
+      console.log(`任务状态: ${isTaskCompleted ? '✅ 成功完成' : '⚠️ 未完成'}`);
+      console.log(`生成耗时: ${durationMs}ms`);
+      console.log(`工具调用支持: ${supportsToolCalls ? '是' : '否'}`);
+      console.log(`工具调用数量: ${allToolCalls.length}`);
+      if (parsedToolCalls.length > 0) {
+        console.log(`从文本解析: ${parsedToolCalls.length} 个工具调用`);
+      }
+      console.log("\nToken 使用量:");
+      console.log(`  - 输入: ${result.usage.inputTokens || 0} tokens`);
+      console.log(`  - 输出: ${result.usage.outputTokens || 0} tokens`);
+      console.log(`  - 总计: ${(result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)} tokens`);
+      console.log("📊".repeat(30) + "\n");
       
       // ========== 光子扣费 ==========
       // 在 AI 生成完成后进行光子扣费
@@ -1100,7 +1125,24 @@ ${safeUserText}
         totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
       }, isTaskCompleted);
       
-      console.log("非流式响应扣费结果：", chargeResult);
+      if (chargeResult.eventValue > 0) {
+        console.log("\n" + "💰".repeat(30));
+        console.log("【非流式生成】扣费结果");
+        console.log("-".repeat(60));
+        console.log(`扣费状态: ${chargeResult.success ? '✅ 成功' : '❌ 失败'}`);
+        console.log(`扣费金额: ${chargeResult.eventValue} 光子`);
+        console.log(`扣费模式: ${chargeResult.chargeMode === 'fixed' ? '固定扣费' : chargeResult.chargeMode === 'token' ? 'Token 扣费' : '混合扣费'}`);
+        if (chargeResult.needsRollback) {
+          console.log(`⚠️ 需要回滚: 是`);
+        }
+        if (!chargeResult.success) {
+          console.log(`失败原因: ${chargeResult.message}`);
+          if (chargeResult.isInsufficientBalance) {
+            console.log(`💸 余额不足`);
+          }
+        }
+        console.log("💰".repeat(30) + "\n");
+      }
       
       // 手动构建 UI Message Stream 的事件顺序
       const chunks = [];
