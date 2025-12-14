@@ -505,7 +505,7 @@ const DIAGRAM_TEMPLATES = [
   {
     id: "pyramid-hierarchy",
     title: "金字塔层级图",
-    description: "展示从基础到顶层的层级依赖关系或数量分布",
+    description: "展示科学理论、生态系统或认知模型中从基础到高级的层级依赖关系",
     category: "structure",
     tags: ["金字塔", "层级", "基础"],
     difficulty: "beginner",
@@ -520,9 +520,9 @@ const DIAGRAM_TEMPLATES = [
     rating: 4.5,
     author: "Figsci 团队",
     useCases: [
-      "需求层次", 
-      "生态金字塔", 
-      "能力模型"
+      "生态金字塔",
+      "能级金字塔",
+      "理论框架层次"
     ],
     features: [
       "分层切片", 
@@ -629,7 +629,7 @@ const DIAGRAM_TEMPLATES = [
   {
     id: "fishbone-root-cause",
     title: "鱼骨图/因果分析图",
-    description: "系统分析导致某一结果的多种潜在原因",
+    description: "系统分析影响实验结果或研究现象的多维度因素",
     category: "logic",
     tags: ["因果", "分析", "鱼骨"],
     difficulty: "intermediate",
@@ -644,9 +644,9 @@ const DIAGRAM_TEMPLATES = [
     rating: 4.8,
     author: "Figsci 团队",
     useCases: [
-      "质量控制", 
-      "事故分析", 
-      "影响因素探讨"
+      "影响因素分析",
+      "系统变量分解",
+      "实验失败原因追溯"
     ],
     features: [
       "鱼头(结果)", 
@@ -768,8 +768,8 @@ const DIAGRAM_TEMPLATES = [
     author: "Figsci 团队",
     useCases: [
       "药物筛选",
-      "文献过滤", 
-      "客户转化"
+      "文献筛选(PRISMA)",
+      "样本纳入/排除"
     ],
     features: [
       "倒梯形结构", 
@@ -959,7 +959,7 @@ const DIAGRAM_TEMPLATES = [
   {
     id: "spiral-iterative-model",
     title: "螺旋/迭代模型图",
-    description: "展示随时间推移不断循环迭代、逐步完善的过程",
+    description: "展示研究方法或算法随时间不断循环优化、逐步完善的迭代过程",
     category: "process",
     tags: ["螺旋", "迭代", "进化"],
     difficulty: "intermediate",
@@ -974,9 +974,9 @@ const DIAGRAM_TEMPLATES = [
     rating: 4.6,
     author: "Figsci 团队",
     useCases: [
-      "软件开发", 
-      "产品进化", 
-      "知识积累"
+      "研究方法迭代",
+      "算法优化周期",
+      "理论完善过程"
     ],
     features: [
       "螺旋线路径", 
@@ -1043,7 +1043,7 @@ const DIAGRAM_TEMPLATES = [
   {
     id: "gantt-schedule-chart",
     title: "甘特图/进度表",
-    description: "可视化的项目进度管理工具，展示任务时间跨度和依赖",
+    description: "可视化的研究进度管理工具，展示实验任务的时间跨度和依赖关系",
     category: "planning",
     tags: ["甘特图", "进度", "管理"],
     difficulty: "beginner",
@@ -1058,9 +1058,9 @@ const DIAGRAM_TEMPLATES = [
     rating: 4.8,
     author: "Figsci 团队",
     useCases: [
-      "项目管理", 
-      "实验排期", 
-      "论文计划"
+      "实验排期规划",
+      "论文撰写时间表",
+      "课题研究进度"
     ],
     features: [
       "时间横轴", 
@@ -1126,7 +1126,7 @@ const DIAGRAM_TEMPLATES = [
   {
     id: "quadrant-analysis-chart",
     title: "象限分析图",
-    description: "通过两个维度将对象划分为四类，进行定位分析",
+    description: "通过两个维度将研究对象划分为四类，进行性能定位和对比分析",
     category: "analysis",
     tags: ["象限", "矩阵", "定位"],
     difficulty: "beginner",
@@ -1141,9 +1141,9 @@ const DIAGRAM_TEMPLATES = [
     rating: 4.5,
     author: "Figsci 团队",
     useCases: [
-      "SWOT分析", 
-      "重要-紧急矩阵", 
-      "Gartner魔力象限"
+      "方法性能对比",
+      "算法复杂度-准确率分析",
+      "材料特性分布"
     ],
     features: [
       "XY轴", 
@@ -1167,7 +1167,7 @@ const DIAGRAM_TEMPLATES = [
   {
     id: "lifecycle-circular-diagram",
     title: "生命周期/循环图",
-    description: "展示对象从产生到消亡再到再生的闭环全过程",
+    description: "展示自然界或研究过程中从产生到转化的闭环全过程",
     category: "process",
     tags: ["生命周期", "循环", "闭环"],
     difficulty: "intermediate",
@@ -1182,9 +1182,9 @@ const DIAGRAM_TEMPLATES = [
     rating: 4.6,
     author: "Figsci 团队",
     useCases: [
-      "产品生命周期", 
-      "碳循环", 
-      "敏捷开发循环"
+      "碳循环/氮循环",
+      "细胞周期",
+      "研究方法论循环"
     ],
     features: [
       "环形布局", 
@@ -1202,48 +1202,6 @@ const DIAGRAM_TEMPLATES = [
       tone: "holistic",
       focus: ["cycle", "continuity"],
       diagramTypes: ["chart"]
-    }
-  },
-  // 30. Isometric Platform View
-  {
-    id: "isometric-platform-view",
-    title: "2.5D等距平台图",
-    description: "以立体平台的形式展示多模块集成的系统或生态",
-    category: "structure",
-    tags: ["2.5D", "平台", "展示"],
-    difficulty: "advanced",
-    isPopular: true,
-    icon: "Box",
-    gradient: {
-      from: "#3b82f6",
-      to: "#1d4ed8"
-    },
-    estimatedTime: "5 分钟",
-    usageCount: 1800,
-    rating: 4.9,
-    author: "Figsci 团队",
-    useCases: [
-      "智慧城市架构", 
-      "云平台展示", 
-      "物联网生态"
-    ],
-    features: [
-      "等距视角", 
-      "立体基座", 
-      "悬浮元素", 
-      "科技感"
-    ],
-    prompt: `绘制一个2.5D等距平台示意图（Isometric Platform）：
-      - 视角：45度俯视角的等距投影
-      - 基座：底座是一个厚实的立体方块或圆盘，代表基础设施（Infrastructure）
-      - 模块：在基座上方悬浮多个立体图标或小平台，代表不同的应用或服务（Services）
-      - 连接：使用发光的细线或垂直虚线连接各层
-      - 风格：高科技感，使用渐变蓝紫色调，添加投影和发光效果（Glow effects）`,
-    brief: {
-      intent: "presentation",
-      tone: "futuristic",
-      focus: ["platform", "integration"],
-      diagramTypes: ["illustration"]
     }
   }
 ];
