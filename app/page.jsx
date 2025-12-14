@@ -566,7 +566,8 @@ useEffect(() => {
           */}
           <div
             className={cn(
-              "h-full min-h-0 p-1 transition-all duration-300",
+              // min-w-0 和 overflow-hidden 防止内容撑开 grid 列
+              "h-full min-h-0 min-w-0 overflow-hidden p-1 transition-all duration-300",
               // Bug 3 修复：通过 CSS 控制可见性和布局
               isChatVisible 
                 ? "hidden lg:block opacity-100" 

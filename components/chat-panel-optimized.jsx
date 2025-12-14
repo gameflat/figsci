@@ -1207,7 +1207,7 @@ function ChatPanelOptimized({
   const isGenerationBusy = isSubmitting || status === "streaming" || status === "submitted" || isComparisonRunning;
   const shouldShowSidebar = Boolean(activeToolPanel && isToolSidebarOpen);
   return <>
-            <Card className="relative flex h-full max-h-full min-h-0 flex-col gap-0 rounded-none py-0 overflow-hidden">
+            <Card className="relative flex h-full max-h-full min-h-0 w-full max-w-full flex-col gap-0 rounded-none py-0 overflow-hidden">
                 <CardHeader className="flex shrink-0 flex-col gap-1.5 border-b border-slate-100 px-3 py-1.5">
                     <div className="flex w-full items-center justify-between gap-1.5">
                         <div className="flex items-center gap-1.5">

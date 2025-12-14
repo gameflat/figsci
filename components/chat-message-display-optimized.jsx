@@ -358,6 +358,53 @@ function ChatMessageDisplay({
   const [expandedTools, setExpandedTools] = useState({});
   const [expandedMessages, setExpandedMessages] = useState({});
   const [copiedMessageId, setCopiedMessageId] = useState(null);
+  
+  // 跟踪已自动应用 XML 的消息 ID，避免重复应用
+  const autoAppliedXmlMessagesRef = useRef(new Set());
+  
+  // 自动检测并应用 XML 到画布
+  // 当检测到 AI 消息包含 XML 代码块但没有 tool-call 时，自动应用
+  useEffect(() => {
+    if (!onDisplayDiagram || isGenerationBusy) return;
+    
+    // 遍历所有消息，检测未处理的 XML
+    messages.forEach((message) => {
+      // 跳过用户消息
+      if (message.role === "user") return;
+      
+      // 检查是否已经自动应用过
+      if (autoAppliedXmlMessagesRef.current.has(message.id)) return;
+      
+      // 检查是否有 tool-call（如果有 tool-call 则不需要自动应用）
+      const parts = Array.isArray(message.parts) ? message.parts : [];
+      const hasToolCall = parts.some((part) => part.type?.startsWith("tool-"));
+      if (hasToolCall) return;
+      
+      // 获取消息文本并检测 XML
+      const messageText = (() => {
+        if (typeof message.content === "string") return message.content;
+        if (Array.isArray(message.parts)) {
+          return message.parts
+            .filter((part) => part.type === "text")
+            .map((part) => part.text ?? "")
+            .join("\n")
+            .trim();
+        }
+        return "";
+      })();
+      
+      const { xml, hasXmlBlock } = detectAndExtractXml(messageText);
+      
+      // 如果检测到有效的 XML，自动应用到画布
+      if (xml && hasXmlBlock) {
+        console.log("[自动应用] 检测到 XML 代码块，自动应用到画布，消息 ID:", message.id);
+        const convertedXml = convertToLegalXml(xml);
+        onDisplayDiagram(convertedXml, { toolCallId: `auto-${message.id}` });
+        // 标记为已处理
+        autoAppliedXmlMessagesRef.current.add(message.id);
+      }
+    });
+  }, [messages, onDisplayDiagram, isGenerationBusy]);
   const handleStreamingApply = useCallback((xml, toolCallId) => {
     if (!xml || typeof onDisplayDiagram !== "function") {
       return;
@@ -940,7 +987,8 @@ function ChatMessageDisplay({
   }, [comparisonHistory]);
   const renderedAnchors = /* @__PURE__ */ new Set();
   const showExamplePanel = messages.length === 0 && leadingComparisons.length === 0 && comparisonHistory.length === 0;
-  return <div className="pr-4">
+  // 添加 overflow-x-hidden 防止内容撑开容器
+  return <div className="pr-4 overflow-x-hidden w-full max-w-full">
             {showExamplePanel ? <div className="py-2">
                     <ExamplePanel
     setInput={setInput}
@@ -992,6 +1040,9 @@ function ChatMessageDisplay({
       ? detectAndExtractXml(fullMessageText) 
       : { xml: null, hasXmlBlock: false };
     
+    // 检查该消息是否已被自动应用
+    const wasAutoApplied = autoAppliedXmlMessagesRef.current.has(message.id);
+    
     return <div key={message.id} className="mb-5 flex flex-col gap-2">
                                 {hasBubbleContent && <div
       className={cn(
@@ -999,15 +1050,17 @@ function ChatMessageDisplay({
         isUser ? "justify-end" : "justify-start"
       )}
     >
-                                        <div className="relative max-w-[min(720px,90%)] group">
+                                        <div className="relative max-w-[min(600px,85%)] group" style={{ maxWidth: "min(600px, 85%)" }}>
                                             <div
       className={cn(
         "rounded-lg px-3.5 py-2.5 text-sm leading-relaxed",
-        "whitespace-pre-wrap break-words",
+        // 强制换行和隐藏溢出，防止 XML 代码撑开容器
+        "whitespace-pre-wrap break-all overflow-x-hidden",
         isUser ? "bg-slate-900 text-white" : "border border-slate-200/60 bg-white text-slate-900",
         // Bug 2 修复：添加最大高度限制，无论是否折叠都限制高度
         isExpanded ? "max-h-[400px] overflow-y-auto" : "max-h-[200px] overflow-hidden relative"
       )}
+      style={{ wordBreak: "break-all", overflowWrap: "anywhere" }}
     >
                                                 {displayableContentParts.map((part, index) => {
       switch (part.type) {
@@ -1043,21 +1096,35 @@ function ChatMessageDisplay({
       "flex flex-wrap items-center gap-1.5 mt-1.5",
       isUser ? "justify-end" : "justify-start"
     )}>
-                                                {/* Bug 1 修复：当检测到 XML 代码块但没有 tool-call 时，显示应用到画布按钮 */}
-                                                {detectedXml && hasXmlBlock && onDisplayDiagram && <button
-      type="button"
-      onClick={() => {
-        const convertedXml = convertToLegalXml(detectedXml);
-        onDisplayDiagram(convertedXml, { toolCallId: `manual-${message.id}` });
-      }}
-      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all bg-blue-500 text-white hover:bg-blue-600"
-      title="将检测到的 XML 代码应用到画布"
-    >
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                        </svg>
-                                                        <span>应用到画布</span>
-                                                    </button>}
+                                                {/* Bug 1 修复：检测到 XML 代码块时显示状态或手动应用按钮 */}
+                                                {detectedXml && hasXmlBlock && onDisplayDiagram && (
+                                                  wasAutoApplied ? (
+                                                    // 已自动应用，显示状态提示
+                                                    <span className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                      </svg>
+                                                      <span>已自动应用到画布</span>
+                                                    </span>
+                                                  ) : (
+                                                    // 未自动应用（可能是生成中），显示手动应用按钮
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        const convertedXml = convertToLegalXml(detectedXml);
+                                                        onDisplayDiagram(convertedXml, { toolCallId: `manual-${message.id}` });
+                                                        autoAppliedXmlMessagesRef.current.add(message.id);
+                                                      }}
+                                                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all bg-blue-500 text-white hover:bg-blue-600"
+                                                      title="将检测到的 XML 代码应用到画布"
+                                                    >
+                                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                      </svg>
+                                                      <span>应用到画布</span>
+                                                    </button>
+                                                  )
+                                                )}
                                                 <button
       type="button"
       onClick={() => handleCopyMessage(message.id, fullMessageText)}
