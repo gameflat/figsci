@@ -53,6 +53,8 @@ import { useModelRegistry } from "@/hooks/use-model-registry";
 import { ModelConfigDialog } from "@/components/model-config-dialog";
 import { TemplateGallery } from "@/components/template-gallery";
 import Link from "next/link";
+// 光子扣费客户端：用于 mixed 模式预扣费
+import { isPhotonChargeEnabled, getChargeMode, preChargePhoton } from "@/lib/photon-client";
 function ChatPanelOptimized({
   onCollapse,
   isCollapsible = false,
@@ -103,6 +105,18 @@ function ChatPanelOptimized({
   // 跟踪用户是否手动滚动，如果用户手动滚动到顶部，则不再自动滚动
   const userScrolledRef = useRef(false);
   const isNearBottomRef = useRef(true);
+  
+  // ========== Mixed 模式状态快照和回滚机制 ==========
+  // 用于在预扣费后保存状态，任务失败或扣费失败时可以回滚
+  /**
+   * @typedef {Object} StateSnapshot
+   * @property {Array} messages - 消息列表快照
+   * @property {string|null} diagramXml - 画布 XML 快照
+   * @property {string} chartXML - 当前画布 XML
+   * @property {number} timestamp - 快照时间戳
+   */
+  /** @type {React.MutableRefObject<StateSnapshot|null>} */
+  const stateSnapshotRef = useRef(null);
   const {
     activeBranch,
     activeBranchId,
@@ -246,6 +260,7 @@ function ChatPanelOptimized({
     },
     [isSvgMode, restoreDiagramAt, restoreSvgHistoryAt]
   );
+  
   const handleModelStreamingChange = useCallback((modelKey, isStreaming) => {
     const [endpointId, modelId] = modelKey.split(":");
     const updatedEndpoints = modelEndpoints.map((endpoint) => {
@@ -461,10 +476,90 @@ function ChatPanelOptimized({
     },
     onError: (error2) => {
       console.error("Chat error:", error2);
+      // 注意：mixed 模式的回滚处理在下方的 effect 中进行
+      // 因为 rollbackToSnapshot 在 useChat 之后定义
     }
   });
   
   // 注意：formatTemplateGuidance 函数已移到后端，search_template 工具现在在后端执行
+  
+  // ========== Mixed 模式：保存状态快照 ==========
+  // 在发送消息前调用，用于预扣费后任务失败时回滚
+  const saveStateSnapshot = useCallback(() => {
+    stateSnapshotRef.current = {
+      messages: messages ? [...messages] : [],
+      diagramXml: activeBranch?.diagramXml ?? null,
+      chartXML: chartXML || "",
+      timestamp: Date.now()
+    };
+    console.log("已保存状态快照，用于 mixed 模式回滚", {
+      messageCount: messages?.length ?? 0,
+      hasDiagramXml: !!activeBranch?.diagramXml,
+      timestamp: stateSnapshotRef.current.timestamp
+    });
+  }, [messages, activeBranch, chartXML]);
+  
+  // ========== Mixed 模式：回滚到快照状态 ==========
+  // 当任务失败或 token 扣费失败时调用
+  const rollbackToSnapshot = useCallback(() => {
+    const snapshot = stateSnapshotRef.current;
+    if (!snapshot) {
+      console.warn("无状态快照可回滚");
+      return false;
+    }
+    
+    console.log("开始回滚到状态快照", {
+      snapshotMessageCount: snapshot.messages.length,
+      snapshotTimestamp: snapshot.timestamp
+    });
+    
+    try {
+      // 1. 恢复消息列表
+      setMessages(snapshot.messages);
+      updateActiveBranchMessages(snapshot.messages);
+      
+      // 2. 恢复画布
+      if (snapshot.diagramXml) {
+        if (isSvgMode) {
+          loadSvgMarkup(snapshot.diagramXml);
+        } else {
+          onDisplayChart(snapshot.diagramXml);
+        }
+        updateActiveBranchDiagram(snapshot.diagramXml);
+      } else if (snapshot.chartXML) {
+        // 如果 diagramXml 为空但 chartXML 有值，使用 chartXML
+        if (!isSvgMode) {
+          onDisplayChart(snapshot.chartXML);
+        }
+      }
+      
+      // 3. 清空快照
+      stateSnapshotRef.current = null;
+      
+      console.log("状态回滚完成");
+      return true;
+    } catch (error) {
+      console.error("状态回滚失败：", error);
+      stateSnapshotRef.current = null;
+      return false;
+    }
+  }, [
+    setMessages,
+    updateActiveBranchMessages,
+    updateActiveBranchDiagram,
+    isSvgMode,
+    loadSvgMarkup,
+    onDisplayChart
+  ]);
+  
+  // ========== Mixed 模式：清空快照 ==========
+  // 任务成功完成且扣费成功时调用
+  const clearStateSnapshot = useCallback(() => {
+    if (stateSnapshotRef.current) {
+      console.log("清空状态快照（任务成功完成）");
+      stateSnapshotRef.current = null;
+    }
+  }, []);
   
   const {
     comparisonConfig,
@@ -506,6 +601,68 @@ function ChatPanelOptimized({
     renderMode
   });
   const isComparisonAllowed = Boolean(selectedModel);
+  
+  // ========== Mixed 模式：错误回滚 Effect ==========
+  // 监听 useChat 的 error 状态，发生错误时执行回滚
+  useEffect(() => {
+    if (error && isPhotonChargeEnabled() && getChargeMode() === 'mixed' && stateSnapshotRef.current) {
+      console.log("检测到任务错误，执行状态回滚", { error });
+      const rolled = rollbackToSnapshot();
+      if (rolled) {
+        notifyComparison("error", "任务失败，已恢复到发送前的状态：" + (error.message || String(error)));
+      }
+    }
+  }, [error, rollbackToSnapshot, notifyComparison]);
+  
+  // ========== Mixed 模式：任务完成状态处理 Effect ==========
+  // 监听 status 变化，任务成功完成时清空快照
+  // 检查消息的 metadata 中是否有扣费失败的情况
+  useEffect(() => {
+    // 只在 ready 状态（任务完成）时检查
+    if (status !== "ready") {
+      return;
+    }
+    
+    // 检查是否是 mixed 模式且有快照
+    if (!isPhotonChargeEnabled() || getChargeMode() !== 'mixed' || !stateSnapshotRef.current) {
+      return;
+    }
+    
+    // 检查最新的 assistant 消息的 metadata
+    const lastAssistant = messages?.filter(m => m.role === 'assistant').pop();
+    const metadata = lastAssistant?.metadata;
+    
+    // 检查是否有扣费结果（非流式响应会在 metadata 中包含 chargeResult）
+    if (metadata?.chargeResult) {
+      const chargeResult = metadata.chargeResult;
+      
+      if (chargeResult.needsRollback || !chargeResult.success) {
+        // 扣费失败或需要回滚
+        console.log("检测到扣费失败或需要回滚", { chargeResult });
+        const rolled = rollbackToSnapshot();
+        if (rolled) {
+          notifyComparison("error", "Token 扣费失败，已恢复到发送前的状态：" + (chargeResult.message || "余额不足"));
+        }
+        return;
+      }
+    }
+    
+    // 检查任务是否失败（通过 metadata.taskFailed）
+    if (metadata?.taskFailed) {
+      console.log("检测到任务失败标记，执行回滚");
+      const rolled = rollbackToSnapshot();
+      if (rolled) {
+        notifyComparison("error", "任务未完成，已恢复到发送前的状态");
+      }
+      return;
+    }
+    
+    // 任务成功完成，清空快照
+    console.log("任务成功完成，清空状态快照");
+    clearStateSnapshot();
+    
+  }, [status, messages, rollbackToSnapshot, clearStateSnapshot, notifyComparison]);
+  
   const handleCopyXml = useCallback(
     async (xml) => {
       if (!xml || xml.trim().length === 0) {
@@ -776,6 +933,42 @@ function ChatPanelOptimized({
       setIsSubmitting(true);
       // 设置进度阶段为"准备中"
       setGenerationPhase("preparing");
+      
+      // ========== Mixed 模式预扣费 ==========
+      // 在发送消息前预扣固定费用，如果余额不足则取消任务
+      if (isPhotonChargeEnabled() && getChargeMode() === 'mixed') {
+        // 1. 保存状态快照（用于任务失败时回滚）
+        saveStateSnapshot();
+        
+        // 2. 调用预扣费 API
+        try {
+          console.log("Mixed 模式：开始预扣费");
+          const preChargeResult = await preChargePhoton();
+          
+          if (!preChargeResult.success) {
+            // 预扣费失败（余额不足），取消任务
+            console.log("预扣费失败：", preChargeResult);
+            setIsSubmitting(false);
+            setGenerationPhase("idle");
+            // 清空快照（因为任务还没开始）
+            clearStateSnapshot();
+            // 显示错误提示
+            notifyComparison("error", preChargeResult.message || "光子余额不足，请充值后再试");
+            return;
+          }
+          
+          console.log("预扣费成功：", preChargeResult);
+        } catch (preChargeError) {
+          console.error("预扣费请求异常：", preChargeError);
+          setIsSubmitting(false);
+          setGenerationPhase("idle");
+          // 清空快照
+          clearStateSnapshot();
+          notifyComparison("error", "预扣费请求失败：" + (preChargeError instanceof Error ? preChargeError.message : String(preChargeError)));
+          return;
+        }
+      }
+      
       // 创建 AbortController 用于取消异步请求
       const abortController = new AbortController();
       submitAbortControllerRef.current = abortController;
@@ -850,7 +1043,10 @@ function ChatPanelOptimized({
       selectedModel,
       setIsModelConfigOpen,
       renderMode,
-      buildModelRequestBody
+      buildModelRequestBody,
+      saveStateSnapshot,
+      clearStateSnapshot,
+      notifyComparison
     ]
   );
   const handleInputChange = (e) => {

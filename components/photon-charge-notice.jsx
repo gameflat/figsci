@@ -83,8 +83,8 @@ export function PhotonChargeNotice({ className = "" }) {
         )}
         {chargeInfo.mode === 'mixed' && (
           <span className="text-blue-700 dark:text-blue-300">
-            混合计费：成功生成 <strong>{chargeInfo.fixedAmount}</strong> 光子 + 
-            <strong>{chargeInfo.tokenAmount}</strong> 光子/1000 tokens
+            混合计费：发送时预扣 <strong>{chargeInfo.fixedAmount}</strong> 光子，
+            完成后按量计费 <strong>{chargeInfo.tokenAmount}</strong> 光子/1000 tokens
           </span>
         )}
       </div>

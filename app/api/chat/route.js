@@ -122,28 +122,50 @@ function actionToToolCall(action) {
 }
 
 /**
+ * 光子扣费结果类型
+ * @typedef {Object} ChargeResult
+ * @property {boolean} success - 是否扣费成功
+ * @property {string} message - 消息
+ * @property {number} eventValue - 扣费金额
+ * @property {string} chargeMode - 收费模式
+ * @property {boolean} isInsufficientBalance - 是否余额不足
+ * @property {boolean} needsRollback - 是否需要前端回滚状态
+ */
+
+/**
  * 玻尔平台光子扣费辅助函数
  * 
  * 在 AI 生成完成后调用，根据 token 使用量或消息数量进行扣费
  * 支持三种收费模式：
  * - fixed: 固定收费（仅在任务成功完成时收取）
  * - token: 按 token 收费（无论任务是否完成都收取）
- * - mixed: 混合收费（固定费用仅在成功时收取，token 费用总是收取）
+ * - mixed: 混合收费（固定费用已在前端预扣，这里只扣 token 费用；任务失败时不扣费）
  * 
  * @param {Request} req - Next.js 请求对象（用于获取 Cookie）
  * @param {Object} usage - Token 使用量信息
  * @param {number} usage.inputTokens - 输入 token 数
  * @param {number} usage.outputTokens - 输出 token 数
  * @param {number} usage.totalTokens - 总 token 数
- * @param {boolean} isTaskCompleted - 任务是否成功完成（用于决定是否收取固定费用）
+ * @param {boolean} isTaskCompleted - 任务是否成功完成（用于决定是否收取费用）
+ * @returns {Promise<ChargeResult>} 扣费结果
  */
 async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
+  // 默认返回结果
+  const defaultResult = {
+    success: true,
+    message: "无需扣费",
+    eventValue: 0,
+    chargeMode: 'none',
+    isInsufficientBalance: false,
+    needsRollback: false
+  };
+  
   // 检查是否启用光子扣费
   const enablePhotonCharge = process.env.NEXT_PUBLIC_ENABLE_PHOTON_CHARGE === 'true';
   
   if (!enablePhotonCharge) {
     console.log("光子扣费未启用，跳过扣费");
-    return;
+    return defaultResult;
   }
   
   try {
@@ -164,17 +186,27 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
       eventValue = tokenCharge;
       console.log("Token 计费模式：", { tokenCharge, isTaskCompleted });
     } else if (chargeMode === 'mixed') {
-      // 混合计费模式：
-      // - Token 费用：无论任务是否完成都收取
-      // - 固定费用：仅在任务成功完成时收取
-      eventValue = tokenCharge; // Token 费用总是收取
-      if (isTaskCompleted) {
-        eventValue += chargePerRequest; // 任务成功完成时加上固定费用
+      // 混合计费模式（新逻辑）：
+      // - 固定费用：已在前端发送前预扣
+      // - Token 费用：仅在任务成功完成时扣除
+      // - 任务失败：不扣 token 费用，前端需要回滚状态
+      if (!isTaskCompleted) {
+        console.log("混合计费模式：任务未完成，不扣 token 费用，前端需回滚");
+        return {
+          success: true,
+          message: "任务未完成，不扣 token 费用",
+          eventValue: 0,
+          chargeMode: chargeMode,
+          isInsufficientBalance: false,
+          needsRollback: true // 通知前端需要回滚状态
+        };
       }
+      // 任务成功完成，只扣 token 费用（固定费用已在前端预扣）
+      eventValue = tokenCharge;
       console.log("混合计费模式：", { 
         tokenCharge, 
-        fixedCharge: isTaskCompleted ? chargePerRequest : 0, 
-        totalCharge: eventValue,
+        fixedChargePrePaid: chargePerRequest, // 固定费用已预扣
+        totalTokenCharge: eventValue,
         isTaskCompleted 
       });
     } else {
@@ -183,7 +215,7 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
         eventValue = chargePerRequest;
       } else {
         console.log("固定计费模式：任务未完成，跳过扣费");
-        return;
+        return { ...defaultResult, chargeMode };
       }
       console.log("固定计费模式：", { fixedCharge: eventValue, isTaskCompleted });
     }
@@ -191,7 +223,7 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
     // 如果计算出的扣费金额为 0 或负数，跳过扣费
     if (eventValue <= 0) {
       console.log("扣费金额为 0，跳过扣费");
-      return;
+      return { ...defaultResult, chargeMode };
     }
     
     // 获取用户 AK（从 Cookie）
@@ -220,14 +252,14 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
     // 如果没有 AK，跳过扣费
     if (!accessKey) {
       console.warn("未配置 AK，跳过光子扣费");
-      return;
+      return { ...defaultResult, chargeMode };
     }
     
     // 获取 SKU ID
     const skuId = process.env.BOHRIUM_SKU_ID;
     if (!skuId) {
       console.warn("未配置 BOHRIUM_SKU_ID，跳过光子扣费");
-      return;
+      return { ...defaultResult, chargeMode };
     }
     
     // 生成 bizNo
@@ -272,7 +304,15 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
       responseData = JSON.parse(responseText);
     } catch (e) {
       console.error("解析光子扣费响应失败：", responseText);
-      return;
+      // 解析失败视为扣费失败，mixed 模式需要回滚
+      return {
+        success: false,
+        message: "扣费接口响应格式错误",
+        eventValue: eventValue,
+        chargeMode: chargeMode,
+        isInsufficientBalance: false,
+        needsRollback: chargeMode === 'mixed'
+      };
     }
     
     if (responseData.code === 0) {
@@ -280,13 +320,44 @@ async function chargePhotonIfEnabled(req, usage, isTaskCompleted = true) {
         bizNo: bizNo,
         eventValue: eventValue
       });
+      return {
+        success: true,
+        message: "扣费成功",
+        eventValue: eventValue,
+        chargeMode: chargeMode,
+        isInsufficientBalance: false,
+        needsRollback: false
+      };
     } else {
       console.error("光子扣费失败：", responseData);
+      
+      // 判断是否余额不足
+      const isInsufficientBalance = responseData.code === 403 || 
+        (responseData.message && responseData.message.includes("余额"));
+      
+      return {
+        success: false,
+        message: responseData.message || "扣费失败",
+        eventValue: eventValue,
+        chargeMode: chargeMode,
+        isInsufficientBalance: isInsufficientBalance,
+        // mixed 模式扣费失败需要回滚（因为固定费用已预扣，但任务结果无效）
+        needsRollback: chargeMode === 'mixed'
+      };
     }
     
   } catch (error) {
-    // 扣费失败不应该影响主流程，只记录错误
-    console.error("光子扣费异常（不影响主流程）：", error);
+    // 扣费异常，mixed 模式需要回滚
+    console.error("光子扣费异常：", error);
+    const chargeMode = process.env.BOHRIUM_CHARGE_MODE || 'fixed';
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "扣费异常",
+      eventValue: 0,
+      chargeMode: chargeMode,
+      isInsufficientBalance: false,
+      needsRollback: chargeMode === 'mixed'
+    };
   }
 }
 /**
@@ -872,6 +943,10 @@ ${safeUserText}
       // 流式输出：直接借助 AI SDK 的 streamText + toUIMessageStreamResponse
       // 仅在支持工具调用时使用流式输出
       const result = await streamText(commonConfig);
+      
+      // 用于存储扣费结果的变量（在 onFinish 中设置，在后续请求中可能用到）
+      let chargeResult = null;
+      
       return result.toUIMessageStreamResponse({
         onError: errorHandler,
         // 在流式响应结束时添加 token 使用信息到 message metadata
@@ -906,22 +981,42 @@ ${safeUserText}
           // 在 AI 生成完成后进行光子扣费
           // 使用 totalUsage 进行扣费，因为它包含了整个对话的 token 使用量
           // 传入 isTaskCompleted 参数，用于区分固定费用和 token 费用的收取逻辑
-          await chargePhotonIfEnabled(req, {
+          chargeResult = await chargePhotonIfEnabled(req, {
             inputTokens: totalUsage.inputTokens,
             outputTokens: totalUsage.outputTokens,
             totalTokens: (totalUsage.inputTokens || 0) + (totalUsage.outputTokens || 0)
           }, isTaskCompleted);
+          
+          // 如果是 mixed 模式且任务失败或扣费失败，记录日志
+          // 前端需要通过 onError 或检查 finishReason 来判断是否需要回滚
+          if (chargeResult && (chargeResult.needsRollback || !chargeResult.success)) {
+            console.log("流式响应扣费结果需要前端处理：", {
+              chargeResult,
+              finishReason,
+              isTaskCompleted
+            });
+          }
         },
         // 提取 metadata 发送到客户端
         messageMetadata: ({ part }) => {
           if (part.type === "finish") {
+            // 判断任务是否成功完成
+            const finishReason = part.finishReason;
+            const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
+            
             return {
               usage: {
                 inputTokens: part.totalUsage?.inputTokens || 0,
                 outputTokens: part.totalUsage?.outputTokens || 0,
                 totalTokens: (part.totalUsage?.inputTokens || 0) + (part.totalUsage?.outputTokens || 0)
               },
-              durationMs: Date.now() - startTime
+              durationMs: Date.now() - startTime,
+              finishReason: finishReason,
+              isTaskCompleted: isTaskCompleted,
+              // 标记任务是否失败，前端可据此判断是否需要回滚
+              // 注意：流式响应中，扣费在 onFinish 中异步执行，此处无法获取扣费结果
+              // 前端需要根据 finishReason 和 isTaskCompleted 判断任务状态
+              taskFailed: !isTaskCompleted
             };
           }
           if (part.type === "finish-step") {
@@ -999,11 +1094,13 @@ ${safeUserText}
       // ========== 光子扣费 ==========
       // 在 AI 生成完成后进行光子扣费
       // 传入 isTaskCompleted 参数，用于区分固定费用和 token 费用的收取逻辑
-      await chargePhotonIfEnabled(req, {
+      const chargeResult = await chargePhotonIfEnabled(req, {
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
         totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
       }, isTaskCompleted);
+      
+      console.log("非流式响应扣费结果：", chargeResult);
       
       // 手动构建 UI Message Stream 的事件顺序
       const chunks = [];
@@ -1017,7 +1114,11 @@ ${safeUserText}
             outputTokens: result.usage.outputTokens || 0,
             totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
           },
-          durationMs
+          durationMs,
+          // 添加扣费结果，前端可据此判断是否需要回滚
+          chargeResult: chargeResult,
+          isTaskCompleted: isTaskCompleted,
+          taskFailed: !isTaskCompleted
         }
       });
       // 只有在有文本输出且不是 JSON 操作指令时才输出文本
