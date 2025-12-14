@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
 // AI SDK：封装了流式/非流式文本生成以及统一 UI 流响应的工具函数
-import { streamText, convertToModelMessages, generateText, createUIMessageStreamResponse } from "ai";
+import { streamText, convertToModelMessages, generateText, createUIMessageStreamResponse, tool } from "ai";
 // zod v3：在服务端声明工具 schema，约束模型可调用的 function 结构
 import { z } from "zod/v3";
 // resolveChatModel：根据前端传来的 runtime 配置解析出可直接调用的模型参数
@@ -9,6 +9,8 @@ import { resolveChatModel } from "@/lib/server-models";
 import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/system-models";
 // 系统提示词：从统一的 prompts 模块导入
 import { getSystemMessage } from "@/lib/prompts";
+// 模板数据：用于 search_template 工具的后端执行
+import { DIAGRAM_TEMPLATES } from "@/data/templates";
 // Next.js Route Handler 的最长执行时间（秒），避免 Vercel 上接口超时
 // 设置为 300 秒（5 分钟）以支持复杂图表生成，需要配合 nginx 的 proxy_read_timeout 配置
 export const maxDuration = 300;
@@ -450,12 +452,31 @@ async function POST(req) {
     
     // ========== 检测工具调用支持 ==========
     // 从运行时配置或解析后的模型配置中获取 supportsToolCalls 标志
-    // 默认为 true，除非明确设置为 false
-    const supportsToolCalls = resolvedModel?.supportsToolCalls ?? finalModelRuntime?.supportsToolCalls ?? true;
+    // 某些模型（如 deepseek-reasoner/DeepSeek R1）不支持函数调用，需要特殊处理
+    const modelId = resolvedModel?.id || finalModelRuntime?.modelId || "";
+    
+    // 已知不支持工具调用的模型列表
+    // deepseek-reasoner (DeepSeek R1) 是推理模型，不支持函数调用
+    const modelsWithoutToolSupport = [
+      "deepseek-reasoner",
+      "deepseek-r1",
+      "deepseek-r1-distill",
+    ];
+    
+    // 检查当前模型是否在不支持列表中（支持部分匹配，如 deepseek-r1-distill-qwen-32b）
+    const isModelWithoutToolSupport = modelsWithoutToolSupport.some(
+      (unsupportedModel) => modelId.toLowerCase().includes(unsupportedModel.toLowerCase())
+    );
+    
+    // 优先使用模型配置中的设置，否则根据模型名称自动检测
+    const supportsToolCalls = isModelWithoutToolSupport 
+      ? false 
+      : (resolvedModel?.supportsToolCalls ?? finalModelRuntime?.supportsToolCalls ?? true);
     
     console.log("Tool calls support:", {
-      modelId: resolvedModel?.id || finalModelRuntime?.modelId,
-      supportsToolCalls: supportsToolCalls
+      modelId: modelId,
+      supportsToolCalls: supportsToolCalls,
+      isModelWithoutToolSupport: isModelWithoutToolSupport
     });
     
     // ========== 选择系统提示词 ==========
@@ -609,8 +630,9 @@ ${safeUserText}
     
     // ========== 定义工具配置 ==========
     // 只有在支持工具调用时才定义 tools
+    // 所有工具都需要使用 tool() 函数包装，使用 parameters 属性定义 schema
     const toolsConfig = supportsToolCalls ? (outputMode === "svg" ? {
-      display_svg: {
+      display_svg: tool({
         description: `在画布上显示 SVG 图表。返回一个完整的自包含 SVG（不要流式输出部分内容）。
 
 **SVG 要求：**
@@ -618,13 +640,14 @@ ${safeUserText}
 - 禁止使用外部资源、脚本或事件处理器
 - 使用安全的内联样式
 - 所有元素保持在视口内`,
-        inputSchema: z.object({
+        parameters: z.object({
           svg: z.string().describe("完整的自包含 SVG 标记，尺寸适合单一视口，无外部资源、脚本或事件处理器")
         })
-      }
+      })
     } : {
       // 客户端工具，将在客户端执行
-      display_diagram: {
+      // 使用 tool() 函数包装，确保 schema 正确转换为 JSON Schema
+      display_diagram: tool({
         description: `在 draw.io 画布上显示图表。只需传入 <root> 标签内的节点（包括 <root> 标签本身）。
 
 **关键 XML 语法要求：**
@@ -680,11 +703,11 @@ ${safeUserText}
 ✓ 每个节点包含 fontFamily=Arial;
 
 **重要：** 图表将实时渲染到 draw.io 画布。`,
-        inputSchema: z.object({
+        parameters: z.object({
           xml: z.string().describe("格式良好的 XML 字符串，遵循上述所有语法规则，将显示在 draw.io 上")
         })
-      },
-      edit_diagram: {
+      }),
+      edit_diagram: tool({
         description: `通过精确匹配和替换来编辑当前图表的特定部分。使用此工具进行局部修改，无需重新生成整个 XML。
 
 **重要：保持编辑简洁：**
@@ -692,15 +715,16 @@ ${safeUserText}
 - 将大的更改拆分为多个小的编辑
 - 每个 search 必须包含完整的行（不要截断到行中间）
 - 只匹配第一个 - 确保足够具体以定位正确的元素`,
-        inputSchema: z.object({
+        parameters: z.object({
           edits: z.array(z.object({
             search: z.string().describe("要搜索的精确行（包括空格和缩进）"),
             replace: z.string().describe("替换内容")
           })).describe("按顺序应用的搜索/替换对数组")
         })
-      },
+      }),
       // 模板搜索工具：让 LLM 自主决定是否需要使用模板
-      search_template: {
+      // 使用 tool() 函数定义工具，包含 execute 函数以支持 maxSteps 多轮调用
+      search_template: tool({
         description: `搜索并获取适合当前需求的图表模板，获取专业的绘图指导和配色方案。
 
 **仅在以下情况使用此工具：**
@@ -721,11 +745,89 @@ ${safeUserText}
 - 示例节点样式
 
 调用此工具后，请根据返回的模板指导生成图表。`,
-        inputSchema: z.object({
+        parameters: z.object({
           query: z.string().describe("用户的绘图需求描述，用于匹配最合适的模板"),
           templateType: z.string().optional().describe("期望的模板类型，可选值：process（流程图）、structure（架构图）、schematic（示意图）、comparison（对比图）、timeline（时间线）")
-        })
-      }
+        }),
+        // execute 函数：在后端执行模板搜索，返回结果后 LLM 会继续生成
+        execute: async ({ query, templateType }) => {
+          try {
+            // 搜索匹配的模板
+            const matchedTemplates = searchTemplatesInternal(query, templateType);
+            
+            if (matchedTemplates.length === 0) {
+              return "未找到匹配的模板。请根据用户需求直接绘制图表，使用 display_diagram 工具输出 XML。";
+            }
+            
+            // 返回最匹配的模板及其绘图指导
+            const bestMatch = matchedTemplates[0];
+            const guidance = buildDrawingGuidanceInternal(bestMatch);
+            
+            // 格式化返回给 LLM 的模板指导信息
+            let output = `## 找到匹配模板: ${bestMatch.title}\n\n`;
+            output += `**描述**: ${bestMatch.description}\n\n`;
+            
+            // 绘图提示词
+            if (guidance.prompt) {
+              output += `### 绘图指导\n${guidance.prompt}\n\n`;
+            }
+            
+            // 布局建议
+            if (guidance.layout) {
+              output += `### 布局建议\n`;
+              output += `- 方向: ${guidance.layout.direction}\n`;
+              output += `- 说明: ${guidance.layout.description}\n`;
+              output += `- 起始位置: (${guidance.layout.startPosition.x}, ${guidance.layout.startPosition.y})\n\n`;
+            }
+            
+            // 配色方案
+            if (guidance.colorScheme) {
+              output += `### 配色方案\n`;
+              output += `- 主色: fillColor=${guidance.colorScheme.primary.fill};strokeColor=${guidance.colorScheme.primary.stroke};\n`;
+              if (guidance.colorScheme.secondary) {
+                output += `- 次色: fillColor=${guidance.colorScheme.secondary.fill};strokeColor=${guidance.colorScheme.secondary.stroke};\n`;
+              }
+              if (guidance.colorScheme.accent) {
+                output += `- 强调色: fillColor=${guidance.colorScheme.accent.fill};strokeColor=${guidance.colorScheme.accent.stroke};\n`;
+              }
+              output += `\n`;
+            }
+            
+            // 间距规范
+            if (guidance.spacing) {
+              output += `### 间距规范\n`;
+              output += `- 节点间距: ${guidance.spacing.nodeGap}px\n`;
+              output += `- 分组间距: ${guidance.spacing.groupGap}px\n`;
+              output += `- 内边距: ${guidance.spacing.padding}px\n\n`;
+            }
+            
+            // 字体规范
+            if (guidance.typography) {
+              output += `### 字体规范\n`;
+              output += `- 字体: ${guidance.typography.fontFamily}\n`;
+              output += `- 标题字号: ${guidance.typography.titleSize}pt\n`;
+              output += `- 标签字号: ${guidance.typography.labelSize}pt\n\n`;
+            }
+            
+            // 特性说明
+            if (guidance.features && guidance.features.length > 0) {
+              output += `### 核心特性\n`;
+              guidance.features.forEach(f => {
+                output += `- ${f}\n`;
+              });
+              output += `\n`;
+            }
+            
+            output += `**请根据以上指导，使用 display_diagram 工具生成符合学术标准的图表 XML。**`;
+            
+            console.log("[search_template] 找到模板:", bestMatch.title);
+            return output;
+          } catch (error) {
+            console.error("[search_template] 执行失败:", error);
+            return `模板搜索失败: ${error.message}。请直接根据用户需求绘制图表，使用 display_diagram 工具输出 XML。`;
+          }
+        }
+      })
     }) : undefined; // 不支持工具调用时不传递 tools
     
     const commonConfig = {
@@ -752,7 +854,11 @@ ${safeUserText}
       // tools：严格定义当前模式下允许的工具，保障前端解析一致
       // 当不支持工具调用时，tools 为 undefined，不会传递给模型
       ...(toolsConfig && { tools: toolsConfig }),
-      temperature: 0
+      temperature: 0,
+      // 允许多轮工具调用：LLM 可以先调用 search_template 获取模板信息，
+      // 然后继续调用 display_diagram 生成实际图表
+      // 设置为 5 以支持复杂的多步工作流（如：搜索模板 -> 生成图表 -> 编辑图表）
+      maxSteps: 5
     };
     // ========== 不支持工具调用的特殊处理 ==========
     // 当模型不支持工具调用时，强制使用非流式响应，因为我们需要解析完整的文本响应
@@ -990,3 +1096,195 @@ ${safeUserText}
   }
 }
 export { POST };
+
+// ========== search_template 工具的辅助函数 ==========
+
+/**
+ * 搜索匹配的模板（内部函数）
+ * 
+ * @param {string} query - 用户查询
+ * @param {string} [templateType] - 期望的模板类型
+ * @returns {Array} 匹配的模板列表（按相关性排序）
+ */
+function searchTemplatesInternal(query, templateType) {
+  const queryLower = query.toLowerCase();
+  
+  // 计算每个模板的匹配分数
+  const scoredTemplates = DIAGRAM_TEMPLATES.map(template => {
+    let score = 0;
+    
+    // 类型匹配（高权重）
+    if (templateType && template.category === templateType) {
+      score += 50;
+    }
+    
+    // 标题匹配
+    if (template.title.toLowerCase().includes(queryLower)) {
+      score += 30;
+    }
+    
+    // 描述匹配
+    if (template.description.toLowerCase().includes(queryLower)) {
+      score += 20;
+    }
+    
+    // 标签匹配
+    const matchedTags = template.tags.filter(tag => 
+      queryLower.includes(tag.toLowerCase()) || tag.toLowerCase().includes(queryLower)
+    );
+    score += matchedTags.length * 15;
+    
+    // 使用场景匹配
+    if (template.useCases) {
+      const matchedUseCases = template.useCases.filter(uc => 
+        queryLower.includes(uc.toLowerCase()) || uc.toLowerCase().includes(queryLower)
+      );
+      score += matchedUseCases.length * 10;
+    }
+    
+    // 关键词匹配
+    const keywords = extractKeywordsInternal(queryLower);
+    keywords.forEach(keyword => {
+      if (template.title.toLowerCase().includes(keyword)) score += 5;
+      if (template.description.toLowerCase().includes(keyword)) score += 3;
+      template.tags.forEach(tag => {
+        if (tag.toLowerCase().includes(keyword)) score += 4;
+      });
+    });
+    
+    // 热门模板加分
+    if (template.isPopular) {
+      score += 5;
+    }
+    
+    return { ...template, score };
+  });
+  
+  // 按分数排序，过滤掉分数为 0 的模板
+  return scoredTemplates
+    .filter(t => t.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * 提取查询中的关键词
+ * 
+ * @param {string} query - 查询字符串
+ * @returns {string[]} 关键词列表
+ */
+function extractKeywordsInternal(query) {
+  // 常见的绘图相关关键词
+  const keywordPatterns = [
+    "流程", "架构", "路线", "时序", "思维导图", "神经网络", "实验",
+    "系统", "分层", "对比", "比较", "时间线", "甘特", "进度",
+    "数据", "pipeline", "workflow", "process", "architecture",
+    "roadmap", "timeline", "network", "diagram", "chart"
+  ];
+  
+  return keywordPatterns.filter(kw => query.includes(kw));
+}
+
+/**
+ * 构建绘图指导信息
+ * 
+ * @param {Object} template - 模板对象
+ * @returns {Object} 绘图指导
+ */
+function buildDrawingGuidanceInternal(template) {
+  // 基础绘图指导
+  const guidance = {
+    // 原始提示词
+    prompt: template.prompt,
+    
+    // 布局建议
+    layout: getLayoutSuggestionInternal(template),
+    
+    // 配色方案
+    colorScheme: getColorSchemeInternal(template),
+    
+    // 字体规范
+    typography: {
+      fontFamily: "Arial",
+      titleSize: "14",
+      labelSize: "11",
+      noteSize: "10"
+    },
+    
+    // 间距规范
+    spacing: {
+      nodeGap: "80-100",
+      groupGap: "60",
+      padding: "24"
+    }
+  };
+  
+  // 添加特性说明
+  if (template.features) {
+    guidance.features = template.features;
+  }
+  
+  return guidance;
+}
+
+/**
+ * 获取布局建议
+ */
+function getLayoutSuggestionInternal(template) {
+  const categoryLayouts = {
+    process: {
+      direction: "vertical",
+      description: "自上而下的流程布局，节点垂直排列",
+      startPosition: { x: 320, y: 60 }
+    },
+    structure: {
+      direction: "layered",
+      description: "分层结构布局，使用容器分组相关元素",
+      startPosition: { x: 40, y: 40 }
+    },
+    schematic: {
+      direction: "horizontal",
+      description: "横向三段式布局（左：问题，中：方法，右：结果）",
+      startPosition: { x: 40, y: 100 }
+    },
+    comparison: {
+      direction: "parallel",
+      description: "并列对比布局，左右或上下对称排列",
+      startPosition: { x: 100, y: 100 }
+    },
+    timeline: {
+      direction: "horizontal",
+      description: "时间轴布局，从左到右按时间顺序排列",
+      startPosition: { x: 40, y: 250 }
+    }
+  };
+  
+  return categoryLayouts[template.category] || categoryLayouts.process;
+}
+
+/**
+ * 获取配色方案
+ */
+function getColorSchemeInternal(template) {
+  // 学术风格配色方案
+  const academicSchemes = {
+    // 蓝色系（默认，适合大多数图表）
+    blue: {
+      primary: { fill: "#dae8fc", stroke: "#6c8ebf", font: "#333333" },
+      secondary: { fill: "#f5f5f5", stroke: "#666666", font: "#333333" },
+      accent: { fill: "#fff2cc", stroke: "#d6b656", font: "#333333" }
+    },
+    // 灰度（适合黑白打印）
+    grayscale: {
+      primary: { fill: "#F7F9FC", stroke: "#2C3E50", font: "#2C3E50" },
+      secondary: { fill: "#ECEFF1", stroke: "#607D8B", font: "#37474F" },
+      accent: { fill: "#CFD8DC", stroke: "#455A64", font: "#263238" }
+    }
+  };
+  
+  // 根据模板类型选择配色
+  if (template.category === "schematic" || template.brief?.tone === "academic") {
+    return academicSchemes.grayscale;
+  }
+  
+  return academicSchemes.blue;
+}

@@ -326,6 +326,8 @@ function ChatPanelOptimized({
     transport: new DefaultChatTransport({
       api: "/api/chat"
     }),
+    // 注意：maxSteps 参数在后端 streamText 中设置，前端不需要设置
+    // 后端已配置 maxSteps: 5，支持多轮工具调用（如：搜索模板 -> 生成图表 -> 编辑图表）
     async onToolCall({ toolCall }) {
       if (toolCall.toolName === "display_diagram") {
         const { xml } = toolCall.input;
@@ -453,114 +455,17 @@ function ChatPanelOptimized({
             output: `Failed to edit diagram: ${errorMessage}`
           });
         }
-      } else if (toolCall.toolName === "search_template") {
-        // 模板搜索工具：调用服务端 API 获取模板指导
-        const { query, templateType } = toolCall.input;
-        try {
-          const response = await fetch("/api/search-template", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, templateType })
-          });
-          
-          if (!response.ok) {
-            throw new Error(`模板搜索失败: ${response.status}`);
-          }
-          
-          const result = await response.json();
-          
-          if (result.success && result.guidance) {
-            // 构建返回给 LLM 的模板指导信息
-            const guidanceText = formatTemplateGuidance(result);
-            addToolResult({
-              tool: "search_template",
-              toolCallId: toolCall.toolCallId,
-              output: guidanceText
-            });
-          } else {
-            addToolResult({
-              tool: "search_template",
-              toolCallId: toolCall.toolCallId,
-              output: "未找到匹配的模板。请根据用户需求直接绘制图表，使用 display_diagram 工具输出 XML。"
-            });
-          }
-        } catch (error2) {
-          console.error("Template search failed:", error2);
-          addToolResult({
-            tool: "search_template",
-            toolCallId: toolCall.toolCallId,
-            output: `模板搜索失败: ${error2.message}。请直接根据用户需求绘制图表。`
-          });
-        }
       }
+      // 注意：search_template 工具现在在后端执行（使用 maxSteps 自动处理）
+      // 前端不需要处理 search_template，后端会自动执行并将结果返回给 LLM 继续生成
     },
     onError: (error2) => {
       console.error("Chat error:", error2);
     }
   });
   
-  // 格式化模板指导信息，返回给 LLM
-  const formatTemplateGuidance = (result) => {
-    const { template, guidance, alternatives } = result;
-    
-    let output = `## 找到匹配模板: ${template.title}\n\n`;
-    output += `**描述**: ${template.description}\n\n`;
-    
-    // 绘图提示词
-    if (guidance.prompt) {
-      output += `### 绘图指导\n${guidance.prompt}\n\n`;
-    }
-    
-    // 布局建议
-    if (guidance.layout) {
-      output += `### 布局建议\n`;
-      output += `- 方向: ${guidance.layout.direction}\n`;
-      output += `- 说明: ${guidance.layout.description}\n`;
-      output += `- 起始位置: (${guidance.layout.startPosition.x}, ${guidance.layout.startPosition.y})\n\n`;
-    }
-    
-    // 配色方案
-    if (guidance.colorScheme) {
-      output += `### 配色方案\n`;
-      output += `- 主色: fillColor=${guidance.colorScheme.primary.fill};strokeColor=${guidance.colorScheme.primary.stroke};\n`;
-      if (guidance.colorScheme.secondary) {
-        output += `- 次色: fillColor=${guidance.colorScheme.secondary.fill};strokeColor=${guidance.colorScheme.secondary.stroke};\n`;
-      }
-      if (guidance.colorScheme.accent) {
-        output += `- 强调色: fillColor=${guidance.colorScheme.accent.fill};strokeColor=${guidance.colorScheme.accent.stroke};\n`;
-      }
-      output += `\n`;
-    }
-    
-    // 间距规范
-    if (guidance.spacing) {
-      output += `### 间距规范\n`;
-      output += `- 节点间距: ${guidance.spacing.nodeGap}px\n`;
-      output += `- 分组间距: ${guidance.spacing.groupGap}px\n`;
-      output += `- 内边距: ${guidance.spacing.padding}px\n\n`;
-    }
-    
-    // 字体规范
-    if (guidance.typography) {
-      output += `### 字体规范\n`;
-      output += `- 字体: ${guidance.typography.fontFamily}\n`;
-      output += `- 标题字号: ${guidance.typography.titleSize}pt\n`;
-      output += `- 标签字号: ${guidance.typography.labelSize}pt\n\n`;
-    }
-    
-    // 特性说明
-    if (guidance.features && guidance.features.length > 0) {
-      output += `### 核心特性\n`;
-      guidance.features.forEach(f => {
-        output += `- ${f}\n`;
-      });
-      output += `\n`;
-    }
-    
-    output += `**请根据以上指导，使用 display_diagram 工具生成符合学术标准的图表 XML。**`;
-    
-    return output;
-  };
+  // 注意：formatTemplateGuidance 函数已移到后端，search_template 工具现在在后端执行
+  
   const {
     comparisonConfig,
     setComparisonConfig,
@@ -690,16 +595,53 @@ function ChatPanelOptimized({
     }
   }, []);
   // 监听 status 变化，更新进度阶段
+  // 修复：使用 maxSteps 后，工具调用完成后 LLM 会继续生成
+  // 需要检查是否真正完成（没有待处理的工具调用）
   useEffect(() => {
     if (status === "streaming") {
       // 流式生成开始，设置进度为"生成图表"
       setGenerationPhase("generating");
+    } else if (status === "submitted") {
+      // 保持当前进度（可能是 thinking 或 sending）
+      // 如果当前是 idle，设置为 thinking
+      setGenerationPhase((prev) => prev === "idle" ? "thinking" : prev);
     } else if (status === "ready" || status === "error") {
-      // 生成完成或出错，重置进度状态
+      // 检查是否有真正的图表生成（display_diagram 或 display_svg 工具调用完成）
+      const hasDiagramTool = messages.some((msg) => {
+        if (msg.role !== "assistant" || !Array.isArray(msg.parts)) return false;
+        return msg.parts.some((part) => {
+          if (!part.type?.startsWith("tool-")) return false;
+          const toolName = part.type.replace("tool-", "");
+          // 只有当 display_diagram 或 display_svg 完成时才算真正完成
+          return (toolName === "display_diagram" || toolName === "display_svg") && 
+                 part.state === "output-available";
+        });
+      });
+      
+      // 检查是否只有 search_template 工具调用（没有 display_diagram）
+      const hasOnlySearchTemplate = messages.some((msg) => {
+        if (msg.role !== "assistant" || !Array.isArray(msg.parts)) return false;
+        return msg.parts.some((part) => {
+          if (!part.type?.startsWith("tool-")) return false;
+          const toolName = part.type.replace("tool-", "");
+          return toolName === "search_template" && part.state === "output-available";
+        });
+      });
+      
+      // 如果只有 search_template 但没有 display_diagram，说明 LLM 还在继续生成
+      // 添加延迟再设置为 idle，给 maxSteps 触发继续生成的机会
+      if (hasOnlySearchTemplate && !hasDiagramTool && status === "ready") {
+        // 延迟 500ms 检查，如果 status 仍然是 ready，才设置为 idle
+        const timer = setTimeout(() => {
+          setGenerationPhase("idle");
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+      
+      // 正常完成或出错，重置进度状态
       setGenerationPhase("idle");
     }
-    // submitted 状态保持当前进度（可能是 thinking 或 sending）
-  }, [status]);
+  }, [status, messages]);
 
   useEffect(() => {
     const userMessages = messages.filter((message) => message.role === "user");
