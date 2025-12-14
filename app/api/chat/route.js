@@ -400,15 +400,15 @@ async function POST(req) {
       });
     }
     const formattedTextContent = `
-Current diagram XML:
+当前图表 XML:
 """xml
 ${xml || ""}
 """
-User input:
+用户输入:
 """md
 ${safeUserText}
 """
-Render mode: ${outputMode === "svg" ? "svg-only" : "drawio-xml"}`;
+渲染模式: ${outputMode === "svg" ? "svg" : "drawio-xml"}`;
     // 转换为 AI SDK 统一消息格式，便于后续直接传给模型
     const modelMessages = convertToModelMessages(messages);
     // sanitizeContent：保证空字符串/空附件不会让模型报错，必要时注入中文占位
@@ -513,91 +513,92 @@ Render mode: ${outputMode === "svg" ? "svg-only" : "drawio-xml"}`;
       // tools：严格定义当前模式下允许的工具，保障前端解析一致
       tools: outputMode === "svg" ? {
         display_svg: {
-          description: `Return one complete SVG (no partial streaming) to render on draw.io. SVG must be self-contained, include width/height or viewBox sized around 800x600, and avoid external assets, scripts, or event handlers.`,
+          description: `在画布上显示 SVG 图表。返回一个完整的自包含 SVG（不要流式输出部分内容）。
+
+**SVG 要求：**
+- 必须包含 width/height 或 viewBox，尺寸约为 800x600
+- 禁止使用外部资源、脚本或事件处理器
+- 使用安全的内联样式
+- 所有元素保持在视口内`,
           inputSchema: z.object({
-            svg: z.string().describe("Standalone SVG markup sized for a single viewport; no external assets, scripts, or event handlers.")
+            svg: z.string().describe("完整的自包含 SVG 标记，尺寸适合单一视口，无外部资源、脚本或事件处理器")
           })
         }
       } : {
-        // Client-side tool that will be executed on the client
+        // 客户端工具，将在客户端执行
         display_diagram: {
-          description: `Display a diagram on draw.io. You only need to pass the nodes inside the <root> tag (including the <root> tag itself) in the XML string.
-          
-          **CRITICAL XML SYNTAX REQUIREMENTS:**
-          
-          1. **Mandatory Root Structure:**
-          <root>
-            <mxCell id="0"/>
-            <mxCell id="1" parent="0"/>
-            <!-- Your diagram elements here -->
-          </root>
-          
-          2. **ALWAYS Escape Special Characters in Attributes:**
-          - & --- &amp;
-          - < --- &lt;
-          - > --- &gt;
-          - " --- &quot;
-          
-          3. **Style Format (STRICT):**
-          - Must end with semicolon
-          - No spaces around = sign
-          - Example: style="rounded=1;fillColor=#fff;strokeColor=#000;"
-          
-          4. **Required Attributes:**
-          - Every mxCell: id, parent (except id="0")
-          - Every mxGeometry: as="geometry"
-          - Self-closing tags: space before />
-          
-          5. **Complete Element Example:**
-          <mxCell id="2" value="My Node" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-            <mxGeometry x="100" y="100" width="120" height="60" as="geometry" />
-          </mxCell>
-          
-          6. **Edge (Connection) Example:**
-          <mxCell id="5" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="2" target="3">
-            <mxGeometry relative="1" as="geometry" />
-          </mxCell>
-          
-          **Common Errors to AVOID:**
-          ❌ <mxCell value="Users & Admins"/>  → Use &amp;
-          ❌ <mxCell value="x < 10"/>  → Use &lt;
-          ❌ style="rounded=1"  → Missing final semicolon
-          ❌ <mxGeometry x="10" y="20"/>  → Missing as="geometry"
-          ❌ <mxCell id="2" vertex="1" parent="1"/>  → Missing <mxGeometry>
-          
-          **Validation Checklist:**
-          ✓ Root cells (id="0" and id="1") present
-          ✓ All special characters escaped
-          ✓ All styles end with semicolon
-          ✓ All IDs unique
-          ✓ All elements have parent (except id="0")
-          ✓ All mxGeometry have as="geometry"
-          ✓ All tags properly closed
-          
-          **Using Professional Icons:**
-          - For AWS services, use AWS 2025 icons: shape=mxgraph.aws4.[category].[service]
-          - For Azure services, use Azure icons: shape=mxgraph.azure.[category].[service]
-          - For GCP services, use GCP icons: shape=mxgraph.gcp2017.[category].[service]
-          - These icons make diagrams more professional and vivid
-          
-          **IMPORTANT:** The diagram will be rendered to draw.io canvas in REAL-TIME as you stream the XML. The canvas updates automatically during streaming to show live progress.
-          `,
+          description: `在 draw.io 画布上显示图表。只需传入 <root> 标签内的节点（包括 <root> 标签本身）。
+
+**关键 XML 语法要求：**
+
+1. **必需的根结构：**
+<root>
+  <mxCell id="0" />
+  <mxCell id="1" parent="0" />
+  <!-- 你的图表元素从这里开始 -->
+</root>
+
+2. **特殊字符必须转义：**
+- & → &amp;
+- < → &lt;
+- > → &gt;
+- " → &quot;
+
+3. **样式格式（严格）：**
+- 必须以分号结尾
+- 等号两侧不能有空格
+- 示例: style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"
+
+4. **必需属性：**
+- 每个 mxCell: id, parent（id="0" 除外）
+- 每个 mxGeometry: as="geometry"
+- 自闭合标签: /> 前有空格
+
+5. **节点示例：**
+<mxCell id="2" value="我的节点" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Arial;fontSize=11;" vertex="1" parent="1">
+  <mxGeometry x="100" y="100" width="120" height="60" as="geometry" />
+</mxCell>
+
+6. **连接线示例：**
+<mxCell id="5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;endFill=1;" edge="1" parent="1" source="2" target="3">
+  <mxGeometry relative="1" as="geometry" />
+</mxCell>
+
+**常见错误（避免）：**
+❌ <mxCell value="用户 & 管理员"/> → 使用 &amp;
+❌ <mxCell value="x < 10"/> → 使用 &lt;
+❌ style="rounded=1" → 缺少结尾分号
+❌ <mxGeometry x="10" y="20"/> → 缺少 as="geometry"
+❌ <mxCell id="2" vertex="1" parent="1"/> → 缺少 <mxGeometry>
+
+**输出前检查清单：**
+✓ 根元素 id="0" 和 id="1" 存在
+✓ 所有特殊字符已转义
+✓ 所有样式以分号结尾
+✓ 所有 ID 唯一
+✓ 所有元素有 parent（id="0" 除外）
+✓ 所有 mxGeometry 有 as="geometry"
+✓ 所有标签正确闭合
+✓ 每个节点包含 fontFamily=Arial;
+
+**重要：** 图表将实时渲染到 draw.io 画布。`,
           inputSchema: z.object({
-            xml: z.string().describe("Well-formed XML string following all syntax rules above to be displayed on draw.io")
+            xml: z.string().describe("格式良好的 XML 字符串，遵循上述所有语法规则，将显示在 draw.io 上")
           })
         },
         edit_diagram: {
-          description: `Edit specific parts of the current diagram by replacing exact line matches. Use this tool to make targeted fixes without regenerating the entire XML.
-IMPORTANT: Keep edits concise:
-- Only include the lines that are changing, plus 1-2 surrounding lines for context if needed
-- Break large changes into multiple smaller edits
-- Each search must contain complete lines (never truncate mid-line)
-- First match only - be specific enough to target the right element`,
+          description: `通过精确匹配和替换来编辑当前图表的特定部分。使用此工具进行局部修改，无需重新生成整个 XML。
+
+**重要：保持编辑简洁：**
+- 只包含需要更改的行，加上 1-2 行上下文（如需要）
+- 将大的更改拆分为多个小的编辑
+- 每个 search 必须包含完整的行（不要截断到行中间）
+- 只匹配第一个 - 确保足够具体以定位正确的元素`,
           inputSchema: z.object({
             edits: z.array(z.object({
-              search: z.string().describe("Exact lines to search for (including whitespace and indentation)"),
-              replace: z.string().describe("Replacement lines")
-            })).describe("Array of search/replace pairs to apply sequentially")
+              search: z.string().describe("要搜索的精确行（包括空格和缩进）"),
+              replace: z.string().describe("替换内容")
+            })).describe("按顺序应用的搜索/替换对数组")
           })
         }
       },
