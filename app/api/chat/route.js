@@ -14,6 +14,112 @@ import { getSystemMessage } from "@/lib/prompts";
 export const maxDuration = 300;
 
 /**
+ * 从文本响应中解析 JSON 格式的操作指令
+ * 用于不支持工具调用的 LLM
+ * 
+ * @param {string} text - LLM 的文本响应
+ * @returns {Object|null} 解析后的操作指令，包含 action 和 params
+ */
+function parseTextResponseToAction(text) {
+  if (!text || typeof text !== 'string') {
+    return null;
+  }
+  
+  try {
+    // 尝试从文本中提取 JSON 代码块
+    // 支持 ```json ... ``` 格式
+    const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    let jsonStr = jsonBlockMatch ? jsonBlockMatch[1] : null;
+    
+    // 如果没有找到 JSON 代码块，尝试直接解析整个文本
+    if (!jsonStr) {
+      // 尝试找到最外层的 JSON 对象
+      const jsonMatch = text.match(/\{[\s\S]*"action"[\s\S]*"params"[\s\S]*\}/);
+      jsonStr = jsonMatch ? jsonMatch[0] : null;
+    }
+    
+    if (!jsonStr) {
+      console.warn("无法从文本响应中提取 JSON:", text.substring(0, 200));
+      return null;
+    }
+    
+    // 解析 JSON
+    const parsed = JSON.parse(jsonStr);
+    
+    // 验证必需字段
+    if (!parsed.action || !parsed.params) {
+      console.warn("JSON 缺少必需字段 action 或 params:", parsed);
+      return null;
+    }
+    
+    // 验证 action 是有效的操作类型
+    const validActions = ['display_diagram', 'edit_diagram', 'display_svg', 'search_template'];
+    if (!validActions.includes(parsed.action)) {
+      console.warn("无效的 action 类型:", parsed.action);
+      return null;
+    }
+    
+    return parsed;
+  } catch (error) {
+    console.error("解析文本响应失败:", error.message);
+    // 尝试更宽松的解析
+    try {
+      // 提取 action
+      const actionMatch = text.match(/"action"\s*:\s*"(\w+)"/);
+      if (!actionMatch) return null;
+      
+      const action = actionMatch[1];
+      
+      // 根据 action 类型提取相应的参数
+      if (action === 'display_diagram' || action === 'display_svg') {
+        // 提取 xml 或 svg
+        const contentKey = action === 'display_svg' ? 'svg' : 'xml';
+        const contentMatch = text.match(new RegExp(`"${contentKey}"\\s*:\\s*"([\\s\\S]*?)(?:"|$)`));
+        if (contentMatch) {
+          // 尝试修复不完整的字符串
+          let content = contentMatch[1];
+          // 处理转义字符
+          content = content.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+          return {
+            action,
+            params: { [contentKey]: content }
+          };
+        }
+      } else if (action === 'edit_diagram') {
+        // 编辑操作比较复杂，需要完整的 JSON 解析
+        return null;
+      } else if (action === 'search_template') {
+        const queryMatch = text.match(/"query"\s*:\s*"([^"]*)"/);
+        if (queryMatch) {
+          return {
+            action,
+            params: { query: queryMatch[1] }
+          };
+        }
+      }
+    } catch (e) {
+      console.error("备用解析也失败:", e.message);
+    }
+    return null;
+  }
+}
+
+/**
+ * 将解析后的操作指令转换为工具调用事件
+ * 用于前端可以像处理正常工具调用一样处理
+ * 
+ * @param {Object} action - 解析后的操作指令
+ * @returns {Object} 工具调用对象
+ */
+function actionToToolCall(action) {
+  return {
+    toolCallId: `call_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+    toolName: action.action,
+    input: action.params
+  };
+}
+
+/**
  * 玻尔平台光子扣费辅助函数
  * 
  * 在 AI 生成完成后调用，根据 token 使用量或消息数量进行扣费
@@ -342,12 +448,23 @@ async function POST(req) {
     // Next.js 会为 Request 注入 AbortSignal，这里透传给下游模型调用
     const abortSignal = req.signal;
     
+    // ========== 检测工具调用支持 ==========
+    // 从运行时配置或解析后的模型配置中获取 supportsToolCalls 标志
+    // 默认为 true，除非明确设置为 false
+    const supportsToolCalls = resolvedModel?.supportsToolCalls ?? finalModelRuntime?.supportsToolCalls ?? true;
+    
+    console.log("Tool calls support:", {
+      modelId: resolvedModel?.id || finalModelRuntime?.modelId,
+      supportsToolCalls: supportsToolCalls
+    });
+    
     // ========== 选择系统提示词 ==========
-    // 根据 isContinuation 标志和 outputMode 选择不同的系统提示词：
+    // 根据 isContinuation 标志、outputMode 和 supportsToolCalls 选择不同的系统提示词：
     // - 正常生成：使用标准系统提示（完整的图表生成规范）
     // - 续写请求：使用续写系统提示（专门用于续写被截断的代码）
+    // - 不支持工具调用：使用特殊的 JSON 输出格式提示词
     // 从统一的 prompts 模块获取系统提示词
-    const systemMessage = getSystemMessage(outputMode, isContinuation || false);
+    const systemMessage = getSystemMessage(outputMode, isContinuation || false, supportsToolCalls);
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return Response.json(
         { error: "Missing messages payload." },
@@ -489,45 +606,26 @@ ${safeUserText}
     // 记录耗时，用于日志 & metadata；并统一配置模型调用参数
     const startTime = Date.now();
     const useStreaming = enableStreaming ?? true;
-    const commonConfig = {
-      // model: google("gemini-2.5-flash-preview-05-20"),
-      // model: google("gemini-2.5-pro"),
-      system: systemMessage,
-      model: resolvedModel.model,
-      // model: model,
-      // providerOptions: {
-      //   google: {
-      //     thinkingConfig: {
-      //       thinkingBudget: 128,
-      //     },
-      //   }
-      // },
-      // providerOptions: {
-      //   openai: {
-      //     reasoningEffort: "minimal"
-      //   },
-      // },
-      messages: enhancedMessages,
-      abortSignal,
-      // 传递 AbortSignal 以支持取消请求
-      // tools：严格定义当前模式下允许的工具，保障前端解析一致
-      tools: outputMode === "svg" ? {
-        display_svg: {
-          description: `在画布上显示 SVG 图表。返回一个完整的自包含 SVG（不要流式输出部分内容）。
+    
+    // ========== 定义工具配置 ==========
+    // 只有在支持工具调用时才定义 tools
+    const toolsConfig = supportsToolCalls ? (outputMode === "svg" ? {
+      display_svg: {
+        description: `在画布上显示 SVG 图表。返回一个完整的自包含 SVG（不要流式输出部分内容）。
 
 **SVG 要求：**
 - 必须包含 width/height 或 viewBox，尺寸约为 800x600
 - 禁止使用外部资源、脚本或事件处理器
 - 使用安全的内联样式
 - 所有元素保持在视口内`,
-          inputSchema: z.object({
-            svg: z.string().describe("完整的自包含 SVG 标记，尺寸适合单一视口，无外部资源、脚本或事件处理器")
-          })
-        }
-      } : {
-        // 客户端工具，将在客户端执行
-        display_diagram: {
-          description: `在 draw.io 画布上显示图表。只需传入 <root> 标签内的节点（包括 <root> 标签本身）。
+        inputSchema: z.object({
+          svg: z.string().describe("完整的自包含 SVG 标记，尺寸适合单一视口，无外部资源、脚本或事件处理器")
+        })
+      }
+    } : {
+      // 客户端工具，将在客户端执行
+      display_diagram: {
+        description: `在 draw.io 画布上显示图表。只需传入 <root> 标签内的节点（包括 <root> 标签本身）。
 
 **关键 XML 语法要求：**
 
@@ -582,28 +680,28 @@ ${safeUserText}
 ✓ 每个节点包含 fontFamily=Arial;
 
 **重要：** 图表将实时渲染到 draw.io 画布。`,
-          inputSchema: z.object({
-            xml: z.string().describe("格式良好的 XML 字符串，遵循上述所有语法规则，将显示在 draw.io 上")
-          })
-        },
-        edit_diagram: {
-          description: `通过精确匹配和替换来编辑当前图表的特定部分。使用此工具进行局部修改，无需重新生成整个 XML。
+        inputSchema: z.object({
+          xml: z.string().describe("格式良好的 XML 字符串，遵循上述所有语法规则，将显示在 draw.io 上")
+        })
+      },
+      edit_diagram: {
+        description: `通过精确匹配和替换来编辑当前图表的特定部分。使用此工具进行局部修改，无需重新生成整个 XML。
 
 **重要：保持编辑简洁：**
 - 只包含需要更改的行，加上 1-2 行上下文（如需要）
 - 将大的更改拆分为多个小的编辑
 - 每个 search 必须包含完整的行（不要截断到行中间）
 - 只匹配第一个 - 确保足够具体以定位正确的元素`,
-          inputSchema: z.object({
-            edits: z.array(z.object({
-              search: z.string().describe("要搜索的精确行（包括空格和缩进）"),
-              replace: z.string().describe("替换内容")
-            })).describe("按顺序应用的搜索/替换对数组")
-          })
-        },
-        // 模板搜索工具：让 LLM 自主决定是否需要使用模板
-        search_template: {
-          description: `搜索并获取适合当前需求的图表模板，获取专业的绘图指导和配色方案。
+        inputSchema: z.object({
+          edits: z.array(z.object({
+            search: z.string().describe("要搜索的精确行（包括空格和缩进）"),
+            replace: z.string().describe("替换内容")
+          })).describe("按顺序应用的搜索/替换对数组")
+        })
+      },
+      // 模板搜索工具：让 LLM 自主决定是否需要使用模板
+      search_template: {
+        description: `搜索并获取适合当前需求的图表模板，获取专业的绘图指导和配色方案。
 
 **仅在以下情况使用此工具：**
 1. 用户明确要求"使用模板"或"参考模板"
@@ -623,16 +721,50 @@ ${safeUserText}
 - 示例节点样式
 
 调用此工具后，请根据返回的模板指导生成图表。`,
-          inputSchema: z.object({
-            query: z.string().describe("用户的绘图需求描述，用于匹配最合适的模板"),
-            templateType: z.string().optional().describe("期望的模板类型，可选值：process（流程图）、structure（架构图）、schematic（示意图）、comparison（对比图）、timeline（时间线）")
-          })
-        }
-      },
+        inputSchema: z.object({
+          query: z.string().describe("用户的绘图需求描述，用于匹配最合适的模板"),
+          templateType: z.string().optional().describe("期望的模板类型，可选值：process（流程图）、structure（架构图）、schematic（示意图）、comparison（对比图）、timeline（时间线）")
+        })
+      }
+    }) : undefined; // 不支持工具调用时不传递 tools
+    
+    const commonConfig = {
+      // model: google("gemini-2.5-flash-preview-05-20"),
+      // model: google("gemini-2.5-pro"),
+      system: systemMessage,
+      model: resolvedModel.model,
+      // model: model,
+      // providerOptions: {
+      //   google: {
+      //     thinkingConfig: {
+      //       thinkingBudget: 128,
+      //     },
+      //   }
+      // },
+      // providerOptions: {
+      //   openai: {
+      //     reasoningEffort: "minimal"
+      //   },
+      // },
+      messages: enhancedMessages,
+      abortSignal,
+      // 传递 AbortSignal 以支持取消请求
+      // tools：严格定义当前模式下允许的工具，保障前端解析一致
+      // 当不支持工具调用时，tools 为 undefined，不会传递给模型
+      ...(toolsConfig && { tools: toolsConfig }),
       temperature: 0
     };
-    if (enableStreaming) {
+    // ========== 不支持工具调用的特殊处理 ==========
+    // 当模型不支持工具调用时，强制使用非流式响应，因为我们需要解析完整的文本响应
+    const actualUseStreaming = supportsToolCalls ? (enableStreaming ?? true) : false;
+    
+    if (!supportsToolCalls) {
+      console.log("模型不支持工具调用，使用非流式响应并解析 JSON 格式的文本输出");
+    }
+    
+    if (actualUseStreaming && supportsToolCalls) {
       // 流式输出：直接借助 AI SDK 的 streamText + toUIMessageStreamResponse
+      // 仅在支持工具调用时使用流式输出
       const result = await streamText(commonConfig);
       return result.toUIMessageStreamResponse({
         onError: errorHandler,
@@ -705,9 +837,44 @@ ${safeUserText}
       const endTime = Date.now();
       const durationMs = endTime - startTime;
       
+      // ========== 不支持工具调用时解析文本响应 ==========
+      // 从文本响应中提取 JSON 格式的操作指令
+      let parsedToolCalls = [];
+      let textOutput = result.text || "";
+      
+      if (!supportsToolCalls && result.text) {
+        console.log("尝试从文本响应中解析操作指令...");
+        const parsedAction = parseTextResponseToAction(result.text);
+        
+        if (parsedAction) {
+          console.log("成功解析操作指令:", {
+            action: parsedAction.action,
+            hasParams: !!parsedAction.params
+          });
+          
+          // 将解析的操作转换为工具调用格式
+          const toolCall = actionToToolCall(parsedAction);
+          parsedToolCalls.push(toolCall);
+          
+          // 对于不支持工具调用的情况，不输出原始文本
+          // 因为原始文本是 JSON 格式，用户不需要看到
+          textOutput = "";
+        } else {
+          console.warn("无法从文本响应中解析操作指令，将原样返回文本");
+        }
+      }
+      
+      // 合并原生工具调用和解析出的工具调用
+      const allToolCalls = [
+        ...(result.toolCalls || []),
+        ...parsedToolCalls
+      ];
+      
       // 判断任务是否成功完成
       // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
-      const isTaskCompleted = result.finishReason === 'stop' || result.finishReason === 'tool-calls';
+      // 对于不支持工具调用的模型，如果成功解析出操作指令，也认为是成功完成
+      const hasToolCalls = allToolCalls.length > 0;
+      const isTaskCompleted = result.finishReason === 'stop' || result.finishReason === 'tool-calls' || hasToolCalls;
       
       console.log("Generation finished (non-streaming):", {
         usage: {
@@ -716,9 +883,11 @@ ${safeUserText}
           totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
         },
         durationMs,
-        toolCalls: result.toolCalls?.length || 0,
+        toolCalls: allToolCalls.length,
+        parsedFromText: parsedToolCalls.length,
         finishReason: result.finishReason,
-        isTaskCompleted
+        isTaskCompleted,
+        supportsToolCalls
       });
       
       // ========== 光子扣费 ==========
@@ -745,13 +914,15 @@ ${safeUserText}
           durationMs
         }
       });
-      if (result.text && result.text.length > 0) {
+      // 只有在有文本输出且不是 JSON 操作指令时才输出文本
+      if (textOutput && textOutput.length > 0) {
         chunks.push({ type: "text-start", id: messageId });
-        chunks.push({ type: "text-delta", id: messageId, delta: result.text });
+        chunks.push({ type: "text-delta", id: messageId, delta: textOutput });
         chunks.push({ type: "text-end", id: messageId });
       }
-      if (result.toolCalls && result.toolCalls.length > 0) {
-        for (const toolCall of result.toolCalls) {
+      // 输出所有工具调用（包括原生的和解析出的）
+      if (allToolCalls.length > 0) {
+        for (const toolCall of allToolCalls) {
           chunks.push({
             type: "tool-input-available",
             toolCallId: toolCall.toolCallId,
@@ -761,9 +932,14 @@ ${safeUserText}
           });
         }
       }
+      // 如果成功解析出工具调用，修改 finishReason 为 'tool-calls'
+      const finalFinishReason = (parsedToolCalls.length > 0 && result.finishReason === 'stop') 
+        ? 'tool-calls' 
+        : result.finishReason;
+      
       chunks.push({
         type: "finish",
-        finishReason: result.finishReason,
+        finishReason: finalFinishReason,
         messageMetadata: {
           usage: {
             inputTokens: result.usage.inputTokens || 0,
@@ -771,7 +947,7 @@ ${safeUserText}
             totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
           },
           durationMs,
-          finishReason: result.finishReason
+          finishReason: finalFinishReason
         }
       });
       const stream = new ReadableStream({

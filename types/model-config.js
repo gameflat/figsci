@@ -6,6 +6,7 @@
  * @property {string} label
  * @property {string} [description]
  * @property {boolean} [isStreaming] 是否启用流式输出
+ * @property {boolean} [supportsToolCalls] 是否支持工具调用（function calling），默认为 true
  * @property {number} createdAt
  * @property {number} updatedAt
  */
@@ -30,6 +31,7 @@
  * @property {string} apiKey
  * @property {string} [label]
  * @property {boolean} [enableStreaming]
+ * @property {boolean} [supportsToolCalls] 是否支持工具调用（function calling），默认为 true
  */
 
 /**
@@ -58,6 +60,7 @@
  * @property {string} label
  * @property {string} [description]
  * @property {boolean} [isStreaming]
+ * @property {boolean} [supportsToolCalls] 是否支持工具调用（function calling）
  * @property {number} [createdAt]
  * @property {number} [updatedAt]
  */

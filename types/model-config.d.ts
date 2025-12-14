@@ -6,6 +6,7 @@
  * @property {string} label
  * @property {string} [description]
  * @property {boolean} [isStreaming] 是否启用流式输出
+ * @property {boolean} [supportsToolCalls] 是否支持工具调用（function calling），默认为 true
  * @property {number} createdAt
  * @property {number} updatedAt
  */
@@ -30,6 +31,7 @@
  * @property {string} apiKey
  * @property {string} [label]
  * @property {boolean} [enableStreaming]
+ * @property {boolean} [supportsToolCalls] 是否支持工具调用（function calling），默认为 true
  */
 
 /**
@@ -58,6 +60,7 @@
  * @property {string} label
  * @property {string} [description]
  * @property {boolean} [isStreaming]
+ * @property {boolean} [supportsToolCalls] 是否支持工具调用（function calling）
  * @property {number} [createdAt]
  * @property {number} [updatedAt]
  */
@@ -72,6 +75,31 @@
  * @property {EndpointModelDraft[]} models
  * @property {number} [createdAt]
  * @property {number} [updatedAt]
+ */
+
+/**
+ * 系统内置模型信息（客户端可见部分，不包含 API Key）
+ * @typedef {Object} SystemModelInfo
+ * @property {string} id - 模型 ID
+ * @property {string} label - 显示名称
+ * @property {string} [description] - 模型描述
+ * @property {boolean} [isStreaming] - 是否支持流式输出
+ * @property {boolean} [supportsToolCalls] - 是否支持工具调用（function calling），默认为 true
+ */
+
+/**
+ * 系统模型运行时选项（用于 UI 显示）
+ * @typedef {Object} SystemModelOption
+ * @property {string} key - 唯一标识符（格式：system:{modelId}）
+ * @property {string} modelId - 模型 ID
+ * @property {string} label - 显示名称
+ * @property {string} [description] - 模型描述
+ * @property {boolean} [isStreaming] - 是否支持流式输出
+ * @property {boolean} [supportsToolCalls] - 是否支持工具调用（function calling），默认为 true
+ * @property {boolean} isSystemModel - 是否为系统模型（始终为 true）
+ * @property {string} endpointId - 端点 ID（系统模型固定为 "system"）
+ * @property {string} endpointName - 端点名称（系统模型固定为 "系统内置"）
+ * @property {string} providerHint - 提供商提示
  */
 
 export {};

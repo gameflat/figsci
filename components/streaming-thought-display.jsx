@@ -51,31 +51,7 @@ export function StreamingThoughtDisplay({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const startTimeRef = useRef(null);
 
-  // 开始/停止计时
-  useEffect(() => {
-    if (status !== "idle" && status !== "completed") {
-      if (!startTimeRef.current) {
-        startTimeRef.current = Date.now();
-      }
-      
-      const timer = setInterval(() => {
-        const elapsed = Date.now() - startTimeRef.current;
-        setElapsedSeconds(Math.floor(elapsed / 1000));
-      }, 1000);
-
-      return () => clearInterval(timer);
-    } else if (status === "idle") {
-      startTimeRef.current = null;
-      setElapsedSeconds(0);
-    }
-  }, [status]);
-
-  // 不显示时返回 null
-  if (status === "idle") {
-    return null;
-  }
-
-  // 根据状态获取配置
+  // 根据状态获取配置 - useMemo 必须在所有条件返回之前调用（React Hooks 规则）
   const statusConfig = useMemo(() => {
     switch (status) {
       case "thinking":
@@ -130,6 +106,30 @@ export function StreamingThoughtDisplay({
         };
     }
   }, [status, toolCall]);
+
+  // 开始/停止计时 - useEffect 也必须在条件返回之前调用
+  useEffect(() => {
+    if (status !== "idle" && status !== "completed") {
+      if (!startTimeRef.current) {
+        startTimeRef.current = Date.now();
+      }
+      
+      const timer = setInterval(() => {
+        const elapsed = Date.now() - startTimeRef.current;
+        setElapsedSeconds(Math.floor(elapsed / 1000));
+      }, 1000);
+
+      return () => clearInterval(timer);
+    } else if (status === "idle") {
+      startTimeRef.current = null;
+      setElapsedSeconds(0);
+    }
+  }, [status]);
+
+  // 不显示时返回 null - 条件返回必须在所有 Hooks 之后
+  if (status === "idle") {
+    return null;
+  }
 
   const Icon = statusConfig.icon;
 
