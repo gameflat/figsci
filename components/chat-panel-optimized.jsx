@@ -39,7 +39,7 @@ import { CalibrationConsole } from "./calibration-console";
 import { useChatState } from "@/hooks/use-chat-state";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates";
 import { ModelComparisonConfigDialog } from "@/components/model-comparison-config-dialog";
-import { IntelligenceToolbar } from "@/features/chat-panel/components/intelligence-toolbar";
+// IntelligenceToolbar 已移除
 import { ToolPanelSidebar } from "@/features/chat-panel/components/tool-panel-sidebar";
 import {
   Figsci_AI_CALIBRATION_PROMPT,
@@ -1258,11 +1258,7 @@ function ChatPanelOptimized({
                                     立即配置
                                 </Button>
                             </div>}
-                        <IntelligenceToolbar
-    activePanel={activeToolPanel}
-    isSidebarOpen={isToolSidebarOpen}
-    onToggle={toggleToolPanel}
-  />
+                        {/* 智能工具栏已移除 */}
                         <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
                             {comparisonNotice && <div
     className={cn(
