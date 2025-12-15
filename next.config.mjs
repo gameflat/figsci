@@ -6,9 +6,9 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 启用 standalone 输出模式，优化 Docker 部署
-  // 这会生成一个独立的 server.js 文件，包含所有必要的依赖
-  output: 'standalone',
+  // 暂时禁用 standalone 输出模式，避免 Windows + pnpm 的符号链接权限问题
+  // 如需 Docker 部署，请取消注释以下行：
+  // output: 'standalone',
   
   // config options stay aligned with the TS version; extend as needed
   webpack: (config) => {
