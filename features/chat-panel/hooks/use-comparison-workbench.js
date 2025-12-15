@@ -85,14 +85,32 @@ function useComparisonWorkbench({
   const clearComparisonRequest = useCallback(() => {
     comparisonAbortRef.current = null;
   }, []);
-  const triggerComparisonNotice = useCallback((type, message) => {
+  /**
+   * 弹出通知：
+   * - error 默认持久显示，需手动关闭
+   * - 其他类型默认 4s 自动关闭，可通过 options.persist 强制持久
+   */
+  const triggerComparisonNotice = useCallback((type, message, options) => {
+    const persist = options?.persist ?? (type === "error");
     if (comparisonNoticeTimeoutRef.current) {
       clearTimeout(comparisonNoticeTimeoutRef.current);
+      comparisonNoticeTimeoutRef.current = null;
     }
     setComparisonNotice({ type, message });
-    comparisonNoticeTimeoutRef.current = setTimeout(() => {
-      setComparisonNotice(null);
-    }, 4e3);
+    if (!persist) {
+      comparisonNoticeTimeoutRef.current = setTimeout(() => {
+        setComparisonNotice(null);
+        comparisonNoticeTimeoutRef.current = null;
+      }, 4e3);
+    }
+  }, []);
+
+  const dismissComparisonNotice = useCallback(() => {
+    if (comparisonNoticeTimeoutRef.current) {
+      clearTimeout(comparisonNoticeTimeoutRef.current);
+      comparisonNoticeTimeoutRef.current = null;
+    }
+    setComparisonNotice(null);
   }, []);
   const setBranchDecisionRequirement = useCallback((requestId) => {
     setPendingDecisionRequestId(requestId);
@@ -953,6 +971,7 @@ function useComparisonWorkbench({
     releaseBranchRequirement,
     pruneHistoryByMessageIds,
     notifyComparison: triggerComparisonNotice,
+    dismissComparisonNotice,
     cancelComparisonJobs
   };
 }

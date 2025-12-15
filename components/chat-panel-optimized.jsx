@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Copy,
   Handshake,
+  X,
   PanelRightClose,
   Sparkles
 } from "lucide-react";
@@ -334,6 +335,7 @@ function ChatPanelOptimized({
     sendMessage,
     addToolResult,
     status,
+    setStatus: setChatStatus,
     error,
     setMessages,
     stop
@@ -499,6 +501,72 @@ function ChatPanelOptimized({
     });
   }, [messages, activeBranch, chartXML]);
   
+  /**
+   * 归一化回滚使用的画布 XML，避免损坏的 XML 触发解析报错
+   * - SVG 模式：若为空则返回 null，交由上层清空画布
+   * - Drawio 模式：若无效则回退到空画布模板
+   */
+  const normalizeDiagramXml = useCallback((rawXml) => {
+    if (isSvgMode) {
+      if (typeof rawXml === "string" && rawXml.trim()) {
+        return rawXml;
+      }
+      return null;
+    }
+
+    const candidate = (typeof rawXml === "string" && rawXml.trim()) ? rawXml : EMPTY_MXFILE;
+    try {
+      formatXML(candidate);
+      return candidate;
+    } catch (parseError) {
+      console.warn("回滚 XML 解析失败，使用空画布替代", parseError);
+      return EMPTY_MXFILE;
+    }
+  }, [isSvgMode]);
+
+  // 对比工作台相关能力，提前解构以避免依赖回调中的暂时性死区
+  const {
+    comparisonConfig,
+    setComparisonConfig,
+    isComparisonConfigOpen,
+    setIsComparisonConfigOpen,
+    comparisonHistory,
+    comparisonNotice,
+    isComparisonRunning,
+    activeComparisonPreview,
+    requiresBranchDecision,
+    handleCompareRequest,
+    handleRetryComparisonResult,
+    handleApplyComparisonResult,
+    handlePreviewComparisonResult,
+    handleDownloadXml,
+    buildComparisonPreviewUrl,
+    ensureBranchSelectionSettled,
+    resetWorkbench,
+    releaseBranchRequirement,
+    notifyComparison,
+    cancelComparisonJobs,
+    dismissComparisonNotice,
+    pruneHistoryByMessageIds
+  } = useComparisonWorkbench({
+    activeBranch,
+    activeBranchId,
+    createBranch,
+    switchBranch,
+    onFetchChart,
+    files,
+    input,
+    status,
+    tryApplyRoot: tryApplyCanvasRoot,
+    handleDiagramXml: handleCanvasUpdate,
+    getLatestDiagramXml: getLatestCanvasMarkup,
+    messages,
+    modelOptions,
+    selectedModelKey,
+    renderMode
+  });
+  const isComparisonAllowed = Boolean(selectedModel);
+
   // ========== Mixed 模式：回滚到快照状态 ==========
   // 当任务失败或 token 扣费失败时调用
   // 参考编辑历史对话的回滚机制，创建新分支保存回滚状态
@@ -595,6 +663,8 @@ function ChatPanelOptimized({
 
       // 创建新分支保存回滚状态
       console.log("🌿 创建回滚分支");
+      const safeDiagramXml = normalizeDiagramXml(diagramXmlToRestore);
+
       const rollbackBranch = createBranch({
         parentId: activeBranchId,
         label: `扣费失败回滚`,
@@ -604,7 +674,7 @@ function ChatPanelOptimized({
           timestamp: Date.now(),
           originalMessageCount: snapshot.messages.length
         },
-        diagramXml: diagramXmlToRestore,
+        diagramXml: safeDiagramXml,
         seedMessages: truncatedMessages,
         inheritMessages: false
       });
@@ -622,12 +692,35 @@ function ChatPanelOptimized({
       console.log("🔄 更新UI状态");
       setMessages(truncatedMessages);
       setInput(""); // 清空输入框，因为这是错误状态
+      // 重置进度指示器状态（修复进度指示器回滚问题）
+      setGenerationPhase("idle");
+      setIsSubmitting(false);
+    if (typeof setChatStatus === "function") {
+      setChatStatus("ready");
+    }
 
       if (!rollbackBranch) {
         // 如果分支创建失败，回退到直接更新当前分支
         console.log("🔄 直接更新当前分支");
         updateActiveBranchMessages(truncatedMessages);
-        updateActiveBranchDiagram(diagramXmlToRestore);
+        updateActiveBranchDiagram(safeDiagramXml);
+
+        // 同步画布展示，防止损坏的 XML 弹窗
+        if (isSvgMode) {
+          if (safeDiagramXml) {
+            loadSvgMarkup(safeDiagramXml);
+          } else {
+            clearSvg();
+          }
+        } else {
+          try {
+            onDisplayChart(safeDiagramXml);
+          } catch (displayError) {
+            console.warn("回滚画布加载失败，使用空画布兜底", displayError);
+            onDisplayChart(EMPTY_MXFILE);
+            updateActiveBranchDiagram(EMPTY_MXFILE);
+          }
+        }
       }
 
       // 清理历史记录（移除失败的对话）
@@ -656,6 +749,14 @@ function ChatPanelOptimized({
         }
       });
 
+      // 提示用户回滚失败，避免静默错误
+      notifyComparison("error", "回滚失败，页面状态可能不一致，请刷新重试。");
+      setGenerationPhase("idle");
+      setIsSubmitting(false);
+      if (typeof setChatStatus === "function") {
+        setChatStatus("ready");
+      }
+
       // 清理快照，避免下次回滚时使用损坏的快照
       stateSnapshotRef.current = null;
 
@@ -675,7 +776,12 @@ function ChatPanelOptimized({
     clearDiagram,
     createBranch,
     activeBranchId,
-    pruneHistoryByMessageIds
+    pruneHistoryByMessageIds,
+    normalizeDiagramXml,
+    setGenerationPhase,
+    setIsSubmitting,
+    setChatStatus,
+    notifyComparison
   ]);
   
   // ========== Mixed 模式：清空快照 ==========
@@ -686,48 +792,7 @@ function ChatPanelOptimized({
       stateSnapshotRef.current = null;
     }
   }, []);
-  
-  const {
-    comparisonConfig,
-    setComparisonConfig,
-    isComparisonConfigOpen,
-    setIsComparisonConfigOpen,
-    comparisonHistory,
-    comparisonNotice,
-    isComparisonRunning,
-    activeComparisonPreview,
-    requiresBranchDecision,
-    handleCompareRequest,
-    handleRetryComparisonResult,
-    handleApplyComparisonResult,
-    handlePreviewComparisonResult,
-    handleDownloadXml,
-    buildComparisonPreviewUrl,
-    ensureBranchSelectionSettled,
-    resetWorkbench,
-    releaseBranchRequirement,
-    notifyComparison,
-    cancelComparisonJobs,
-    pruneHistoryByMessageIds
-  } = useComparisonWorkbench({
-    activeBranch,
-    activeBranchId,
-    createBranch,
-    switchBranch,
-    onFetchChart,
-    files,
-    input,
-    status,
-    tryApplyRoot: tryApplyCanvasRoot,
-    handleDiagramXml: handleCanvasUpdate,
-    getLatestDiagramXml: getLatestCanvasMarkup,
-    messages,
-    modelOptions,
-    selectedModelKey,
-    renderMode
-  });
-  const isComparisonAllowed = Boolean(selectedModel);
-  
+
   // ========== Mixed 模式：错误回滚 Effect ==========
   // 监听 useChat 的 error 状态，发生错误时执行回滚
   useEffect(() => {
@@ -1117,8 +1182,11 @@ function ChatPanelOptimized({
             setGenerationPhase("idle");
             // 清空快照（因为任务还没开始）
             clearStateSnapshot();
-            // 显示错误提示
-            notifyComparison("error", preChargeResult.message || "光子余额不足，请充值后再试");
+            // 显示错误提示：优先使用 isInsufficientBalance 字段判断余额不足
+            const errorMessage = preChargeResult.isInsufficientBalance
+              ? "您的光子不足"
+              : (preChargeResult.message || "预扣费失败，请稍后重试");
+            notifyComparison("error", errorMessage);
             return;
           }
           
@@ -1470,7 +1538,12 @@ function ChatPanelOptimized({
       
       setMessages(truncated);
       setInput(text ?? "");
-      
+      // 重置进度指示器状态（修复编辑回滚时的进度指示器问题）
+      setGenerationPhase("idle");
+    if (typeof setChatStatus === "function") {
+      setChatStatus("ready");
+    }
+
       if (!revertBranch) {
         updateActiveBranchMessages(truncated);
         updateActiveBranchDiagram(diagramXmlToRestore);
@@ -1643,14 +1716,21 @@ function ChatPanelOptimized({
                         <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
                             {comparisonNotice && <div
     className={cn(
-      "mb-3 flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs",
+      "relative mb-3 flex shrink-0 items-start gap-2 rounded-xl border px-3 py-2 text-xs shadow-sm",
       comparisonNotice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-600"
     )}
   >
-                                    {comparisonNotice.type === "success" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+                                    {comparisonNotice.type === "success" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5" />}
                                     <span className="leading-snug">
                                         {comparisonNotice.message}
                                     </span>
+                                    <button
+      type="button"
+      onClick={dismissComparisonNotice}
+      className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/40 bg-white/30 text-current transition hover:bg-white/60"
+    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
                                 </div>}
                             <div
     ref={messagesScrollRef}
