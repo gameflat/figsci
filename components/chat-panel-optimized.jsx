@@ -291,6 +291,19 @@ function ChatPanelOptimized({
   // 生成进度阶段：用于显示详细的进度提示
   // "idle" | "preparing" | "matching" | "sending" | "thinking" | "generating"
   const [generationPhase, setGenerationPhase] = useState("idle");
+  // 进度指示器重置控制
+  const progressResetTrigger = useRef(0);
+  // 重置进度指示器状态的函数
+  // 注意：依赖数组留空，避免在 setChatStatus 声明之前触发 TDZ 错误
+  const resetProgressIndicator = useCallback(() => {
+    progressResetTrigger.current += 1;
+    setGenerationPhase("idle");
+    setIsSubmitting(false);
+    // 这里使用 typeof 安全访问，避免在特殊情况下未初始化时报错
+    if (typeof setChatStatus === "function") {
+      setChatStatus("ready");
+    }
+  }, []);
   const [commandTab, setCommandTab] = useState(
     "templates"
   );
@@ -693,11 +706,7 @@ function ChatPanelOptimized({
       setMessages(truncatedMessages);
       setInput(""); // 清空输入框，因为这是错误状态
       // 重置进度指示器状态（修复进度指示器回滚问题）
-      setGenerationPhase("idle");
-      setIsSubmitting(false);
-    if (typeof setChatStatus === "function") {
-      setChatStatus("ready");
-    }
+      resetProgressIndicator();
 
       if (!rollbackBranch) {
         // 如果分支创建失败，回退到直接更新当前分支
@@ -1539,10 +1548,7 @@ function ChatPanelOptimized({
       setMessages(truncated);
       setInput(text ?? "");
       // 重置进度指示器状态（修复编辑回滚时的进度指示器问题）
-      setGenerationPhase("idle");
-    if (typeof setChatStatus === "function") {
-      setChatStatus("ready");
-    }
+      resetProgressIndicator();
 
       if (!revertBranch) {
         updateActiveBranchMessages(truncated);
@@ -1778,6 +1784,7 @@ function ChatPanelOptimized({
     diagramResultVersion={diagramResultVersion}
     getDiagramResult={getDiagramResult}
     generationPhase={generationPhase}
+    onProgressReset={progressResetTrigger.current}
   />
                             </div>
                             <ToolPanelSidebar

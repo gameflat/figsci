@@ -431,12 +431,13 @@ function FloatingProgressStep({ phase, status, index }) {
 /**
  * 浮动进度提示组件 - 用于在消息列表底部显示
  * 保留所有已完成的步骤，让用户看到整个进度过程
- * 
+ *
  * @param {Object} props
  * @param {GenerationPhase} props.phase - 当前进度阶段
  * @param {boolean} [props.isVisible=true] - 是否可见（正在生成中）
+ * @param {() => void} [props.onReset] - 重置进度状态的回调函数
  */
-export function FloatingProgressIndicator({ phase = "idle", isVisible = true }) {
+export function FloatingProgressIndicator({ phase = "idle", isVisible = true, onReset }) {
   // 追踪已完成的阶段历史
   const [completedPhases, setCompletedPhases] = useState([]);
   // 追踪上一次的阶段，用于检测变化
@@ -487,6 +488,21 @@ export function FloatingProgressIndicator({ phase = "idle", isVisible = true }) 
 
     previousPhaseRef.current = phase;
   }, [phase]); // 移除 completedPhases 依赖，避免循环更新
+
+  // 处理外部重置请求（用于对话回溯）
+  useEffect(() => {
+    if (onReset) {
+      // 重置所有内部状态
+      setCompletedPhases([]);
+      setElapsedSeconds(0);
+      setStartTime(Date.now());
+      setIsFlowCompleted(false);
+      setFinalPhase(null);
+      setHasStarted(false);
+      previousPhaseRef.current = "idle";
+      console.log("进度指示器状态已重置（外部请求）");
+    }
+  }, [onReset]);
 
   // 更新计时器（仅在生成进行中时）
   useEffect(() => {

@@ -384,7 +384,8 @@ function ChatMessageDisplay({
   isComparisonRunning = false,
   diagramResultVersion = 0,
   getDiagramResult,
-  generationPhase = "idle"
+  generationPhase = "idle",
+  onProgressReset,
 }) {
   const messagesEndRef = useRef(null);
   const [expandedTools, setExpandedTools] = useState({});
@@ -1330,6 +1331,7 @@ function ChatMessageDisplay({
             <FloatingProgressIndicator
               phase={generationPhase}
               isVisible={isGenerationBusy || generationPhase !== "idle"}
+              onReset={onProgressReset}
             />
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}
