@@ -1048,6 +1048,19 @@ function ChatMessageDisplay({
   }, [comparisonHistory]);
   const renderedAnchors = /* @__PURE__ */ new Set();
   const showExamplePanel = messages.length === 0 && leadingComparisons.length === 0 && comparisonHistory.length === 0;
+
+  // 计算最近一条 AI 消息的扣费结果，用于在进度指示器中展示“本次扣费”
+  const latestAssistantChargeInfo = useMemo(() => {
+    // 从后往前查找，找到最近一条带有 chargeResult 的 AI 消息
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const msg = messages[i];
+      if (msg.role !== "assistant") continue;
+      if (msg.metadata && msg.metadata.chargeResult && msg.metadata.chargeResult.eventValue > 0) {
+        return msg.metadata.chargeResult;
+      }
+    }
+    return null;
+  }, [messages]);
   // 添加 overflow-x-hidden 防止内容撑开容器
   return <div className="pr-4 overflow-x-hidden w-full max-w-full">
             {showExamplePanel ? <div className="py-2">
@@ -1332,6 +1345,7 @@ function ChatMessageDisplay({
               phase={generationPhase}
               isVisible={isGenerationBusy || generationPhase !== "idle"}
               onReset={onProgressReset}
+              chargeInfo={latestAssistantChargeInfo}
             />
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}

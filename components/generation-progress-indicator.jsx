@@ -429,15 +429,21 @@ function FloatingProgressStep({ phase, status, index }) {
 }
 
 /**
+ * @typedef {import("@/lib/charge-utils").ChargeInfo} ChargeInfo
+ */
+
+/**
  * 浮动进度提示组件 - 用于在消息列表底部显示
  * 保留所有已完成的步骤，让用户看到整个进度过程
+ * 支持在任务完成后显示本次扣费的简要信息
  *
  * @param {Object} props
  * @param {GenerationPhase} props.phase - 当前进度阶段
  * @param {boolean} [props.isVisible=true] - 是否可见（正在生成中）
  * @param {() => void} [props.onReset] - 重置进度状态的回调函数
+ * @param {ChargeInfo} [props.chargeInfo] - 本次任务的扣费信息（可选）
  */
-export function FloatingProgressIndicator({ phase = "idle", isVisible = true, onReset }) {
+export function FloatingProgressIndicator({ phase = "idle", isVisible = true, onReset, chargeInfo }) {
   // 追踪已完成的阶段历史
   const [completedPhases, setCompletedPhases] = useState([]);
   // 追踪上一次的阶段，用于检测变化
@@ -610,21 +616,42 @@ export function FloatingProgressIndicator({ phase = "idle", isVisible = true, on
           )}
         </div>
 
-        {/* 底部：进度概览 */}
+        {/* 底部：进度概览 + 扣费信息 */}
         <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/30">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>
-              {isFlowCompleted 
-                ? `已完成 ${completedPhases.length} 个步骤`
-                : `步骤 ${completedPhases.length + 1} / ${PHASE_ORDER.length}`
-              }
-            </span>
-            <span className={cn(
-              "font-medium",
-              isFlowCompleted ? "text-emerald-600" : (currentConfig?.color || "text-slate-600")
-            )}>
-              {isFlowCompleted ? "全部完成 ✓" : (currentConfig?.description || "")}
-            </span>
+          <div className="flex flex-col gap-1.5 text-xs text-slate-500">
+            <div className="flex items-center justify-between">
+              <span>
+                {isFlowCompleted 
+                  ? `已完成 ${completedPhases.length} 个步骤`
+                  : `步骤 ${completedPhases.length + 1} / ${PHASE_ORDER.length}`
+                }
+              </span>
+              <span className={cn(
+                "font-medium",
+                isFlowCompleted ? "text-emerald-600" : (currentConfig?.color || "text-slate-600")
+              )}>
+                {isFlowCompleted ? "全部完成 ✓" : (currentConfig?.description || "")}
+              </span>
+            </div>
+
+            {/* 扣费信息：仅在任务完成且存在扣费结果时显示 */}
+            {isFlowCompleted && chargeInfo && chargeInfo.eventValue > 0 && (
+              <div className="flex items-center justify-between text-[11px] rounded-md bg-emerald-50/80 px-2 py-1 text-emerald-700 border border-emerald-200/80">
+                <span className="font-medium">本次扣费</span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold">
+                    {chargeInfo.success ? `-${chargeInfo.eventValue} 光子` : `${chargeInfo.eventValue} 光子（未扣费）`}
+                  </span>
+                  <span className="text-emerald-600/80">
+                    {chargeInfo.chargeMode === "fixed" && "固定扣费"}
+                    {chargeInfo.chargeMode === "token" && "Token 扣费"}
+                    {chargeInfo.chargeMode === "mixed" && "混合扣费"}
+                    {!chargeInfo.success && chargeInfo.isInsufficientBalance && " · 余额不足"}
+                    {!chargeInfo.success && !chargeInfo.isInsufficientBalance && " · 扣费失败"}
+                  </span>
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
