@@ -5,6 +5,8 @@ import { streamText, convertToModelMessages, generateText, createUIMessageStream
 import { z } from "zod/v3";
 // resolveChatModel：根据前端传来的 runtime 配置解析出可直接调用的模型参数
 import { resolveChatModel } from "@/lib/server-models";
+// 扣费工具：用于在 metadata 中估算本次请求的扣费信息（仅用于前端展示）
+import { getChargeConfig, calculateTokenCharge } from "@/lib/charge-utils";
 // resolveSystemModel：解析系统内置模型配置
 import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/system-models";
 // 系统提示词：从统一的 prompts 模块导入
@@ -118,6 +120,56 @@ function actionToToolCall(action) {
     toolCallId: `call_${Date.now()}_${Math.random().toString(36).substring(7)}`,
     toolName: action.action,
     input: action.params
+  };
+}
+
+/**
+ * 基于环境变量和 token 使用量预估本次请求的扣费结果
+ * 用于在流式响应的 metadata 中提前传递 chargeResult，提升前端显示体验。
+ * 实际扣费仍由 chargePhotonIfEnabled 执行，此函数只负责"显示用"的预估值。
+ *
+ * @param {{ inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined} totalUsage
+ * @param {boolean} isTaskCompleted - 任务是否成功完成
+ * @returns {import("@/lib/charge-utils").ChargeInfo | null}
+ */
+function estimateChargeResultForMetadata(totalUsage, isTaskCompleted) {
+  const config = getChargeConfig();
+
+  if (!config.enabled) {
+    return null;
+  }
+
+  const totalTokens =
+    (totalUsage?.inputTokens || 0) + (totalUsage?.outputTokens || 0);
+
+  const chargeMode = config.chargeMode || "fixed";
+  const chargePerRequest = config.chargePerRequest || 0;
+  const chargePerKToken = config.chargePerKToken || 0;
+
+  let eventValue = 0;
+
+  if (chargeMode === "token") {
+    // 纯按量计费：始终按 token 计算预估费用
+    eventValue = calculateTokenCharge(totalTokens, chargePerKToken);
+  } else if (chargeMode === "mixed") {
+    // 混合计费：仅在任务成功完成时显示 token 费用（固定费用已在预扣阶段处理）
+    if (isTaskCompleted) {
+      eventValue = calculateTokenCharge(totalTokens, chargePerKToken);
+    }
+  } else {
+    // 固定计费：仅在任务成功完成时显示固定费用
+    if (isTaskCompleted) {
+      eventValue = chargePerRequest;
+    }
+  }
+
+  return {
+    success: true,
+    message: "预估扣费",
+    eventValue,
+    chargeMode,
+    isInsufficientBalance: false,
+    needsRollback: false,
   };
 }
 
@@ -1236,6 +1288,17 @@ ${safeUserText}
               // 包含扣费结果，如果还未设置则为 undefined，前端会在后续检查
               chargeResult: chargeResult
             };
+
+            // 如果 onFinish 中尚未写入实际扣费结果，则基于当前 usage 预估一个显示用的 chargeResult
+            if (!metadata.chargeResult) {
+              const estimatedCharge = estimateChargeResultForMetadata(
+                part.totalUsage,
+                isTaskCompleted
+              );
+              if (estimatedCharge) {
+                metadata.chargeResult = estimatedCharge;
+              }
+            }
 
             return metadata;
           }
