@@ -1055,7 +1055,7 @@ function ChatMessageDisplay({
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       const msg = messages[i];
       if (msg.role !== "assistant") continue;
-      if (msg.metadata && msg.metadata.chargeResult && msg.metadata.chargeResult.eventValue > 0) {
+      if (msg.metadata && msg.metadata.chargeResult) {
         return msg.metadata.chargeResult;
       }
     }

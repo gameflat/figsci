@@ -634,22 +634,28 @@ export function FloatingProgressIndicator({ phase = "idle", isVisible = true, on
               </span>
             </div>
 
-            {/* 扣费信息：仅在任务完成且存在扣费结果时显示 */}
-            {isFlowCompleted && chargeInfo && chargeInfo.eventValue > 0 && (
+            {/* 扣费信息：任务完成后展示；金额为 0 时显示“本次未扣费” */}
+            {isFlowCompleted && chargeInfo && (
               <div className="flex items-center justify-between text-[11px] rounded-md bg-emerald-50/80 px-2 py-1 text-emerald-700 border border-emerald-200/80">
-                <span className="font-medium">本次扣费</span>
-                <span className="flex items-center gap-2">
-                  <span className="font-semibold">
-                    {chargeInfo.success ? `-${chargeInfo.eventValue} 光子` : `${chargeInfo.eventValue} 光子（未扣费）`}
-                  </span>
-                  <span className="text-emerald-600/80">
-                    {chargeInfo.chargeMode === "fixed" && "固定扣费"}
-                    {chargeInfo.chargeMode === "token" && "Token 扣费"}
-                    {chargeInfo.chargeMode === "mixed" && "混合扣费"}
-                    {!chargeInfo.success && chargeInfo.isInsufficientBalance && " · 余额不足"}
-                    {!chargeInfo.success && !chargeInfo.isInsufficientBalance && " · 扣费失败"}
-                  </span>
-                </span>
+                {chargeInfo.eventValue > 0 ? (
+                  <>
+                    <span className="font-medium">本次扣费</span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        {chargeInfo.success ? `-${chargeInfo.eventValue} 光子` : `${chargeInfo.eventValue} 光子（未扣费）`}
+                      </span>
+                      <span className="text-emerald-600/80">
+                        {chargeInfo.chargeMode === "fixed" && "固定扣费"}
+                        {chargeInfo.chargeMode === "token" && "Token 扣费"}
+                        {chargeInfo.chargeMode === "mixed" && "混合扣费"}
+                        {!chargeInfo.success && chargeInfo.isInsufficientBalance && " · 余额不足"}
+                        {!chargeInfo.success && !chargeInfo.isInsufficientBalance && " · 扣费失败"}
+                      </span>
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-medium">本次未扣费</span>
+                )}
               </div>
             )}
           </div>

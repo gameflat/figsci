@@ -82,19 +82,33 @@ export function TokenUsageDisplay({
                         </span>
                     </div>
                 )}
-                {chargeInfo && chargeInfo.eventValue > 0 && (
+                {chargeInfo && (
                     <div className="flex items-center gap-1.5">
-                        <Coins className={cn(
-                            "h-3 w-3",
-                            chargeInfo.success ? "text-emerald-500" : "text-red-500"
-                        )} strokeWidth={2.5} />
-                        <span className={cn(
-                            "font-medium",
-                            chargeInfo.success ? "text-emerald-700" : "text-red-700"
-                        )}>
-                            {chargeInfo.success ? '-' : ''}{chargeInfo.eventValue}
-                        </span>
-                        <span className="text-slate-400">光子</span>
+                        <Coins
+                            className={cn(
+                                "h-3 w-3",
+                                chargeInfo.eventValue > 0
+                                    ? (chargeInfo.success ? "text-emerald-500" : "text-red-500")
+                                    : "text-slate-400"
+                            )}
+                            strokeWidth={2.5}
+                        />
+                        {chargeInfo.eventValue > 0 ? (
+                            <>
+                                <span
+                                    className={cn(
+                                        "font-medium",
+                                        chargeInfo.success ? "text-emerald-700" : "text-red-700"
+                                    )}
+                                >
+                                    {chargeInfo.success ? "-" : ""}
+                                    {chargeInfo.eventValue}
+                                </span>
+                                <span className="text-slate-400">光子</span>
+                            </>
+                        ) : (
+                            <span className="text-slate-500">本次未扣费</span>
+                        )}
                     </div>
                 )}
             </div>
@@ -102,7 +116,7 @@ export function TokenUsageDisplay({
     }
 
     // 计算列数（根据有数据的项数量）
-    const columnCount = [usage, durationMs !== undefined, chargeInfo?.eventValue > 0].filter(Boolean).length;
+    const columnCount = [usage, durationMs !== undefined, !!chargeInfo].filter(Boolean).length;
     const gridClass = columnCount === 3 ? "grid-cols-3" : "grid-cols-2";
 
     // 标准模式：详细展示
@@ -160,29 +174,37 @@ export function TokenUsageDisplay({
                 </div>
             )}
 
-            {/* 扣费信息 */}
-            {chargeInfo && chargeInfo.eventValue > 0 && (
+            {/* 扣费信息：即使金额为 0 也显示“本次未扣费” */}
+            {chargeInfo && (
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                         <Coins className="h-2.5 w-2.5" strokeWidth={3} />
                         <span>扣费</span>
                     </div>
-                    <div className="flex items-baseline gap-1.5">
-                        <span className={cn(
-                            "text-base font-bold",
-                            chargeInfo.success ? "text-emerald-600" : "text-red-600"
-                        )}>
-                            {chargeInfo.success ? '-' : ''}{formatNumber(chargeInfo.eventValue)}
-                        </span>
-                        <span className="text-[10px] text-slate-500">光子</span>
-                    </div>
-                    <div className="text-[9px] text-slate-500">
-                        {chargeInfo.chargeMode === 'fixed' && "固定扣费"}
-                        {chargeInfo.chargeMode === 'token' && "按量扣费"}
-                        {chargeInfo.chargeMode === 'mixed' && "混合扣费"}
-                        {!chargeInfo.success && chargeInfo.isInsufficientBalance && " · 余额不足"}
-                        {!chargeInfo.success && !chargeInfo.isInsufficientBalance && " · 扣费失败"}
-                    </div>
+                    {chargeInfo.eventValue > 0 ? (
+                        <>
+                            <div className="flex items-baseline gap-1.5">
+                                <span className={cn(
+                                    "text-base font-bold",
+                                    chargeInfo.success ? "text-emerald-600" : "text-red-600"
+                                )}>
+                                    {chargeInfo.success ? '-' : ''}{formatNumber(chargeInfo.eventValue)}
+                                </span>
+                                <span className="text-[10px] text-slate-500">光子</span>
+                            </div>
+                            <div className="text-[9px] text-slate-500">
+                                {chargeInfo.chargeMode === 'fixed' && "固定扣费"}
+                                {chargeInfo.chargeMode === 'token' && "按量扣费"}
+                                {chargeInfo.chargeMode === 'mixed' && "混合扣费"}
+                                {!chargeInfo.success && chargeInfo.isInsufficientBalance && " · 余额不足"}
+                                {!chargeInfo.success && !chargeInfo.isInsufficientBalance && " · 扣费失败"}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-[9px] text-slate-500">
+                            本次未扣费
+                        </div>
+                    )}
                 </div>
             )}
         </div>
