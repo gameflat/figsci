@@ -1,0 +1,404 @@
+---
+alwaysApply: false
+description: 测试规范和最佳实践，包括单元测试、集成测试和 E2E 测试
+---
+
+# 测试规范
+
+## 基本原则
+
+1. **所有新功能必须包含测试**，确保代码质量和可维护性
+2. **测试应该独立、可重复**，不依赖外部状态
+3. **测试命名应该清晰表达测试意图**，使用描述性的测试名称
+4. **优先测试关键业务逻辑**，覆盖主要场景和边界情况
+
+## 测试工具和框架
+
+### 1. 推荐测试工具栈
+
+```json
+{
+  "devDependencies": {
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/jest-dom": "^6.1.0",
+    "@testing-library/user-event": "^14.5.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0"
+  }
+}
+```
+
+### 2. 配置文件
+
+**jest.config.js**:
+```javascript
+const nextJest = require('next/jest')
+
+const createJestConfig = nextJest({
+  dir: './',
+})
+
+const customJestConfig = {
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testEnvironment: 'jest-environment-jsdom',
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
+  },
+  testMatch: [
+    '**/__tests__/**/*.[jt]s?(x)',
+    '**/?(*.)+(spec|test).[jt]s?(x)',
+  ],
+  collectCoverageFrom: [
+    'components/**/*.{js,jsx}',
+    'hooks/**/*.{js,jsx}',
+    'lib/**/*.{js,jsx}',
+    'app/**/*.{js,jsx}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!**/.next/**',
+  ],
+}
+
+module.exports = createJestConfig(customJestConfig)
+```
+
+**jest.setup.js**:
+```javascript
+import '@testing-library/jest-dom'
+```
+
+## 单元测试
+
+### 1. Hook 测试
+
+参考 [hooks/__tests__/use-drawio-fallback.test.tsx](mdc:hooks/__tests__/use-drawio-fallback.test.tsx)：
+
+```javascript
+import { renderHook, act } from "@testing-library/react";
+import { useCustomHook } from "../use-custom-hook";
+
+describe("useCustomHook", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  it("应该使用初始值初始化", () => {
+    const { result } = renderHook(() => useCustomHook({
+      initialValue: "test",
+    }));
+
+    expect(result.current.value).toBe("test");
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("状态更新应该正确反映", () => {
+    const { result } = renderHook(() => useCustomHook());
+
+    act(() => {
+      result.current.updateValue("new-value");
+    });
+
+    expect(result.current.value).toBe("new-value");
+  });
+});
+```
+
+### 2. 工具函数测试
+
+```javascript
+import { formatUser } from "@/lib/utils";
+
+describe("formatUser", () => {
+  it("应该正确格式化用户信息", () => {
+    const user = { name: "张三", age: 25 };
+    const result = formatUser(user);
+    expect(result).toBe("张三 (25)");
+  });
+
+  it("应该处理缺失的字段", () => {
+    const user = { name: "李四" };
+    const result = formatUser(user);
+    expect(result).toBe("李四 (未知)");
+  });
+});
+```
+
+### 3. 组件测试
+
+```javascript
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Button } from "@/components/ui/button";
+
+describe("Button", () => {
+  it("应该渲染按钮文本", () => {
+    render(<Button>点击我</Button>);
+    expect(screen.getByText("点击我")).toBeInTheDocument();
+  });
+
+  it("点击时应该调用 onClick 回调", () => {
+    const handleClick = jest.fn();
+    render(<Button onClick={handleClick}>点击我</Button>);
+    
+    fireEvent.click(screen.getByText("点击我"));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("禁用时不应该调用 onClick", () => {
+    const handleClick = jest.fn();
+    render(<Button onClick={handleClick} disabled>点击我</Button>);
+    
+    fireEvent.click(screen.getByText("点击我"));
+    expect(handleClick).not.toHaveBeenCalled();
+  });
+});
+```
+
+## 集成测试
+
+### 1. API 路由测试
+
+```javascript
+import { POST } from "@/app/api/chat/route";
+import { NextRequest } from "next/server";
+
+describe("POST /api/chat", () => {
+  it("应该处理有效的请求", async () => {
+    const request = new NextRequest("http://localhost:3000/api/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "Hello" }],
+        modelId: "gpt-4",
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+    
+    const data = await response.json();
+    expect(data).toHaveProperty("content");
+  });
+
+  it("应该拒绝缺少必需参数的请求", async () => {
+    const request = new NextRequest("http://localhost:3000/api/chat", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+  });
+});
+```
+
+### 2. Context 测试
+
+```javascript
+import { render, screen } from "@testing-library/react";
+import { ConversationProvider, useConversation } from "@/contexts/conversation-context";
+
+function TestComponent() {
+  const { branches } = useConversation();
+  return <div>{Object.keys(branches).length} 个分支</div>;
+}
+
+describe("ConversationProvider", () => {
+  it("应该提供默认的分支", () => {
+    render(
+      <ConversationProvider>
+        <TestComponent />
+      </ConversationProvider>
+    );
+
+    expect(screen.getByText(/个分支/)).toBeInTheDocument();
+  });
+});
+```
+
+## E2E 测试
+
+### 1. 使用 Playwright
+
+```javascript
+import { test, expect } from "@playwright/test";
+
+test.describe("图表生成流程", () => {
+  test("应该能够生成流程图", async ({ page }) => {
+    await page.goto("http://localhost:6002");
+    
+    // 输入消息
+    const input = page.locator('[data-testid="chat-input"]');
+    await input.fill("画一个简单的流程图");
+    await input.press("Enter");
+    
+    // 等待 AI 回复
+    await expect(page.locator('[data-testid="ai-message"]')).toBeVisible();
+    
+    // 验证图表已生成
+    await expect(page.locator('[data-testid="diagram-canvas"]')).toBeVisible();
+  });
+});
+```
+
+## 测试最佳实践
+
+### 1. 测试命名
+
+```javascript
+// ✅ 使用描述性的测试名称
+describe("useChatState", () => {
+  it("应该在对话开始时设置 isConversationStarted 为 true", () => {
+    // 测试实现
+  });
+
+  it("应该在清空对话时重置所有状态", () => {
+    // 测试实现
+  });
+});
+
+// ❌ 避免模糊的测试名称
+describe("useChatState", () => {
+  it("应该工作", () => {
+    // 不清楚测试什么
+  });
+});
+```
+
+### 2. 测试组织
+
+```javascript
+// ✅ 使用 describe 块组织相关测试
+describe("TemplateGallery", () => {
+  describe("筛选功能", () => {
+    it("应该按分类筛选模板", () => {});
+    it("应该按标签筛选模板", () => {});
+  });
+
+  describe("排序功能", () => {
+    it("应该按名称排序", () => {});
+    it("应该按使用次数排序", () => {});
+  });
+});
+```
+
+### 3. 测试隔离
+
+```javascript
+// ✅ 每个测试应该独立，不依赖其他测试的状态
+describe("数据持久化", () => {
+  beforeEach(() => {
+    // 清理 localStorage
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    // 清理状态
+    localStorage.clear();
+  });
+
+  it("应该保存数据到 localStorage", () => {
+    // 测试实现
+  });
+});
+```
+
+### 4. Mock 和 Spy
+
+```javascript
+// ✅ 使用 jest.fn() 创建 mock 函数
+const handleClick = jest.fn();
+render(<Button onClick={handleClick}>点击</Button>);
+
+// ✅ Mock 外部依赖
+jest.mock("@/lib/api", () => ({
+  fetchData: jest.fn(() => Promise.resolve({ data: "test" })),
+}));
+
+// ✅ Mock 环境变量
+const originalEnv = process.env;
+beforeEach(() => {
+  process.env = { ...originalEnv, NEXT_PUBLIC_API_URL: "http://test.com" };
+});
+
+afterEach(() => {
+  process.env = originalEnv;
+});
+```
+
+## 测试覆盖率
+
+### 1. 覆盖率目标
+
+```javascript
+// ✅ 关键业务逻辑应该达到 80%+ 覆盖率
+// - hooks/ - 80%+
+// - lib/ - 80%+
+// - components/ - 70%+
+// - app/api/ - 80%+
+```
+
+### 2. 查看覆盖率
+
+```bash
+# 运行测试并生成覆盖率报告
+npm test -- --coverage
+
+# 查看 HTML 报告
+open coverage/lcov-report/index.html
+```
+
+## 测试命令
+
+```json
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ui": "jest --ui",
+    "test:e2e": "playwright test"
+  }
+}
+```
+
+## 持续集成
+
+### 1. GitHub Actions 示例
+
+```yaml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: pnpm install
+      - run: pnpm test
+      - run: pnpm test:coverage
+```
+
+## 参考实现
+
+参考以下文件作为测试示例：
+- [hooks/__tests__/use-drawio-fallback.test.tsx](mdc:hooks/__tests__/use-drawio-fallback.test.tsx) - Hook 测试示例
+- [docs/charge-display-test.md](mdc:docs/charge-display-test.md) - 功能测试指南
+
+## 避免的实践
+
+- ❌ 测试依赖于特定的执行顺序（应该独立）
+- ❌ 测试包含业务逻辑（应该只测试行为）
+- ❌ 不清理测试数据（可能导致测试污染）
+- ❌ 测试过于复杂（应该保持简单和聚焦）
+- ❌ 缺少边界情况测试（应该测试错误场景）
+- ❌ 忽略异步操作的测试（应该使用 async/await 或 waitFor）
