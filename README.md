@@ -27,6 +27,7 @@
 - ⚙️ **Customizable Styles**: Configure drawing preferences once (sketch/formal/draft), apply globally
 - 🔄 **Multi-Model Comparison**: Compare up to 5 LLMs in parallel, pick the best result
 - 🌐 **Multi-Language Support**: Built-in internationalization with English and Chinese
+- 💰 **Photon Charging**: Automatic charging via Bohrium Platform Photon with flexible billing modes
 
 ## 📸 Screenshots & Examples
 
@@ -137,6 +138,14 @@ AWS_REGION=us-east-1
 
 # Optional: Custom draw.io URL
 NEXT_PUBLIC_DRAWIO_BASE_URL=https://app.diagrams.net
+
+# Optional: Bohrium Platform Photon Charge (see documentation)
+NEXT_PUBLIC_ENABLE_PHOTON_CHARGE=false
+BOHRIUM_SKU_ID=your-sku-id
+BOHRIUM_DEV_ACCESS_KEY=your-access-key
+BOHRIUM_CHARGE_MODE=fixed
+BOHRIUM_CHARGE_PER_REQUEST=1
+BOHRIUM_CHARGE_PER_1K_TOKEN=1
 ```
 
 ### Launch Application
@@ -221,6 +230,8 @@ Figsci natively supports multiple LLM providers:
 
 - [Architecture Guide](./docs/architecture.md) - System architecture and design decisions
 - [i18n Guide](./docs/i18n-guide.md) - Multi-language implementation
+- [Bohrium Photon Integration](./docs/bohrium-photon-integration.md) - Complete guide for photon charging
+- [Photon Quick Start](./docs/bohrium-photon-quickstart.md) - 5-minute setup guide
 
 ## 🎨 Figsci Brief Configuration
 

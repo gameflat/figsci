@@ -98,6 +98,67 @@ return result.toUIMessageStreamResponse({
 });
 ```
 
+## 主要 API 端点
+
+### 核心功能 API
+
+- **POST /api/chat** - 图表生成（主要 API）
+  - 支持流式响应（SSE）
+  - 支持文本和图片输入
+  - 集成光子扣费功能
+  - 参考：[app/api/chat/route.js](mdc:app/api/chat/route.js)
+
+- **POST /api/diagram-repair** - 图表修复
+  - 修复不完整的 draw.io XML
+  - 参考：[app/api/diagram-repair/route.js](mdc:app/api/diagram-repair/route.js)
+
+- **POST /api/model-compare** - 模型对比
+  - 并排对比多个模型的生成结果
+  - 参考：[app/api/model-compare/route.js](mdc:app/api/model-compare/route.js)
+
+### 模板相关 API
+
+- **POST /api/template-match** - 智能模板匹配
+  - 使用 AI Agents 匹配最合适的模板
+  - 参考：[app/api/template-match/route.js](mdc:app/api/template-match/route.js)
+  - 详细说明：[.cursor/rules/ai-agents-workflow.mdc](mdc:.cursor/rules/ai-agents-workflow.mdc)
+
+- **POST /api/search-template** - 模板搜索
+  - 根据查询内容搜索匹配的模板
+  - 参考：[app/api/search-template/route.js](mdc:app/api/search-template/route.js)
+
+### 模型管理 API
+
+- **GET /api/models** - 获取模型列表
+  - 从 LLM 提供商获取可用模型列表
+  - 参考：[app/api/models/route.js](mdc:app/api/models/route.js)
+
+- **GET /api/system-models** - 获取系统内置模型列表
+  - 返回系统预配置的模型（不包含敏感信息）
+  - 参考：[app/api/system-models/route.js](mdc:app/api/system-models/route.js)
+
+- **POST /api/configs** - 配置管理
+  - 管理模型配置信息
+  - 参考：[app/api/configs/route.js](mdc:app/api/configs/route.js)
+
+### 光子扣费 API
+
+- **POST /api/photon/charge** - 光子扣费
+  - 执行光子扣费操作
+  - 支持固定扣费和按 Token 扣费
+  - 参考：[app/api/photon/charge/route.js](mdc:app/api/photon/charge/route.js)
+  - 详细文档：[docs/bohrium-photon-integration.md](mdc:docs/bohrium-photon-integration.md)
+
+- **POST /api/photon/pre-charge** - 预扣费检查
+  - 检查是否需要扣费及扣费金额
+  - 参考：[app/api/photon/pre-charge/route.js](mdc:app/api/photon/pre-charge/route.js)
+
+### 认证 API
+
+- **POST /api/auth/validate** - 认证验证
+  - 验证访问密码等认证信息
+  - 参考：[app/api/auth/validate/route.js](mdc:app/api/auth/validate/route.js)
+
 ## 参考实现
 
 参考 [app/api/chat/route.js](mdc:app/api/chat/route.js) 作为标准实现示例。
