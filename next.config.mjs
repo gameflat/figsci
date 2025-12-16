@@ -6,9 +6,8 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 暂时禁用 standalone 输出模式，避免 Windows + pnpm 的符号链接权限问题
-  // 如需 Docker 部署，请取消注释以下行：
-  // output: 'standalone',
+  // Docker 部署专用：启用 standalone 输出模式，优化容器化部署
+  output: 'standalone',
   
   // config options stay aligned with the TS version; extend as needed
   webpack: (config) => {
