@@ -360,9 +360,16 @@ function ChatPanelOptimized({
     // 后端已配置 maxSteps: 5，支持多轮工具调用（如：搜索模板 -> 生成图表 -> 编辑图表）
     async onToolCall({ toolCall }) {
       if (toolCall.toolName === "display_diagram") {
-        const { xml } = toolCall.input;
+        console.log("[display_diagram] 工具调用开始", { 
+          toolCallId: toolCall.toolCallId, 
+          inputKeys: Object.keys(toolCall.input || {}),
+          inputPreview: JSON.stringify(toolCall.input).substring(0, 500)
+        });
+        const { xml } = toolCall.input || {};
+        console.log("[display_diagram] 提取 XML", { xmlLength: xml?.length, xmlType: typeof xml, xmlPreview: xml?.substring(0, 200) });
         try {
           if (!xml || typeof xml !== "string" || !xml.trim()) {
+            console.error("[display_diagram] XML 为空或无效", { xml, xmlType: typeof xml });
             throw new Error("大模型返回的 XML 为空，无法渲染。");
           }
           if (isSvgMode) {
@@ -373,27 +380,47 @@ function ChatPanelOptimized({
             });
             return;
           }
+          console.log("[display_diagram] 调用 handleCanvasUpdate", { xmlPreview: xml.substring(0, 200) });
           await handleCanvasUpdate(xml, {
             origin: "display",
             modelRuntime: selectedModel ?? void 0
           });
+          console.log("[display_diagram] handleCanvasUpdate 完成");
           diagramResultsRef.current.set(toolCall.toolCallId, {
             xml,
             mode: "drawio",
             runtime: selectedModel ?? void 0
           });
           setDiagramResultVersion((prev) => prev + 1);
-          if (toolCall.input && typeof toolCall.input === "object") {
-            toolCall.input.xmlRef = toolCall.toolCallId;
-            toolCall.input.xmlLength = xml.length;
-            toolCall.input.xml = void 0;
-          }
+          
+          // 保存图表到历史记录：等待图表加载到画布后，异步保存到历史记录
+          // 延迟一段时间确保图表已经完全加载到 draw.io 画布中
+          setTimeout(async () => {
+            try {
+              console.log("[display_diagram] 开始保存图表到历史记录");
+              await fetchDiagramXml({ saveHistory: true });
+              console.log("[display_diagram] 图表已保存到历史记录");
+            } catch (error) {
+              console.warn("[display_diagram] 保存图表到历史记录失败:", error);
+              // 保存失败不影响主要流程，只记录警告
+            }
+          }, 500); // 延迟 500ms 确保图表已加载
+          
+          // 注意：不要直接修改 toolCall.input，因为这会影响到后续的工具调用
+          // 如果需要清理内存，应该创建一个新的对象而不是修改原始对象
+          // 暂时移除这个内存优化逻辑，因为它会导致后续工具调用时 XML 丢失
+          // if (toolCall.input && typeof toolCall.input === "object") {
+          //   toolCall.input.xmlRef = toolCall.toolCallId;
+          //   toolCall.input.xmlLength = xml.length;
+          //   toolCall.input.xml = void 0;
+          // }
           addToolResult({
             tool: "display_diagram",
             toolCallId: toolCall.toolCallId,
             output: "Diagram rendered to canvas successfully."
           });
         } catch (error2) {
+          console.error("[display_diagram] 错误:", error2);
           const message = error2 instanceof Error ? error2.message : "Failed to display diagram.";
           addToolResult({
             tool: "display_diagram",
@@ -438,11 +465,24 @@ function ChatPanelOptimized({
             runtime: selectedModel ?? void 0
           });
           setDiagramResultVersion((prev) => prev + 1);
-          if (toolCall.input && typeof toolCall.input === "object") {
-            toolCall.input.svgRef = toolCall.toolCallId;
-            toolCall.input.svgLength = svg.length;
-            toolCall.input.svg = void 0;
-          }
+          
+          // 保存图表到历史记录（非 SVG 模式但使用 display_svg 工具时）
+          setTimeout(async () => {
+            try {
+              console.log("[display_svg] 开始保存图表到历史记录（draw.io 模式）");
+              await fetchDiagramXml({ saveHistory: true });
+              console.log("[display_svg] 图表已保存到历史记录");
+            } catch (error) {
+              console.warn("[display_svg] 保存图表到历史记录失败:", error);
+            }
+          }, 500);
+          // 注意：不要直接修改 toolCall.input，因为这会影响到后续的工具调用
+          // 暂时移除这个内存优化逻辑
+          // if (toolCall.input && typeof toolCall.input === "object") {
+          //   toolCall.input.svgRef = toolCall.toolCallId;
+          //   toolCall.input.svgLength = svg.length;
+          //   toolCall.input.svg = void 0;
+          // }
           addToolResult({
             tool: "display_svg",
             toolCallId: toolCall.toolCallId,

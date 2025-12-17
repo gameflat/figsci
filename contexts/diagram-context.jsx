@@ -80,7 +80,9 @@ export function DiagramProvider({ children }) {
         }
         
         loadDiagramTimeoutRef.current = setTimeout(() => {
-            if (drawioRef.current) {
+            if (drawioRef.current && chart) {
+                // 总是调用 load，让 draw.io 决定是否需要更新
+                // 这样即使 XML 字符串相同，也能确保画布刷新
                 drawioRef.current.load({
                     xml: chart,
                 });
@@ -88,6 +90,8 @@ export function DiagramProvider({ children }) {
             loadDiagramTimeoutRef.current = null;
         }, 150); // 150ms 防抖，平衡流畅度和性能
 
+        // 更新状态：如果 chart 与当前 chartXML 不同，则更新
+        // 注意：即使 XML 相同，draw.io 的 load 函数也会被调用，这样可以处理缓存问题
         if (chart && chart !== chartXML) {
             setChartXML(chart);
         }

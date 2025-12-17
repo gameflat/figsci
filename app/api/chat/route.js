@@ -1029,6 +1029,8 @@ ${safeUserText}
 ❌ style="rounded=1" → 缺少结尾分号
 ❌ <mxGeometry x="10" y="20"/> → 缺少 as="geometry"
 ❌ <mxCell id="2" vertex="1" parent="1"/> → 缺少 <mxGeometry>
+❌ <mxPoint x="200px" y="150" /> → x/y 必须是纯数字，不能包含单位
+❌ <mxPoint x="200" y="150" /> 直接在 <mxCell> 下 → mxPoint 必须在 <mxGeometry><Array> 内
 
 **输出前检查清单：**
 ✓ 根元素 id="0" 和 id="1" 存在
@@ -1225,13 +1227,25 @@ ${safeUserText}
 
           // 判断任务是否成功完成
           // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
-          // 其他情况（如 'length'、'error'、'cancelled' 等）表示任务未正常完成
+          // 其他情况（如 'length'、'error'、'cancelled'、'content-filter' 等）表示任务未正常完成
           const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
+          
+          // 为不同的 finishReason 提供更详细的说明
+          let finishReasonDescription = '';
+          if (finishReason === 'content-filter') {
+            finishReasonDescription = '（内容被安全过滤器拦截，响应被阻止）';
+          } else if (finishReason === 'length') {
+            finishReasonDescription = '（达到最大 token 限制，输出被截断）';
+          } else if (finishReason === 'error') {
+            finishReasonDescription = '（生成过程中发生错误）';
+          } else if (finishReason === 'cancelled') {
+            finishReasonDescription = '（请求被用户取消）';
+          }
 
           console.log("\n" + "📊".repeat(30));
           console.log("【流式生成】生成完成");
           console.log("-".repeat(60));
-          console.log(`完成原因: ${finishReason}`);
+          console.log(`完成原因: ${finishReason}${finishReasonDescription}`);
           console.log(`任务状态: ${isTaskCompleted ? '✅ 成功完成' : '⚠️ 未完成'}`);
           console.log(`生成耗时: ${durationMs}ms`);
           console.log("\nToken 使用量（本轮）:");
@@ -1358,12 +1372,34 @@ ${safeUserText}
       // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
       // 对于不支持工具调用的模型，如果成功解析出操作指令，也认为是成功完成
       const hasToolCalls = allToolCalls.length > 0;
-      const isTaskCompleted = result.finishReason === 'stop' || result.finishReason === 'tool-calls' || hasToolCalls;
+      
+      // content-filter 特殊情况处理：如果被拦截但已有部分工具调用，尝试继续处理
+      const isContentFiltered = result.finishReason === 'content-filter';
+      let isTaskCompleted = result.finishReason === 'stop' || result.finishReason === 'tool-calls' || hasToolCalls;
+      
+      // 如果遇到 content-filter 但已有工具调用，尝试标记为部分完成
+      // 这样至少可以处理已经生成的工具调用
+      if (isContentFiltered && hasToolCalls) {
+        console.warn("[非流式] 警告：遇到 content-filter，但已有工具调用，尝试继续处理");
+        // 不标记为完全完成，但允许处理已有的工具调用
+      }
+      
+      // 为不同的 finishReason 提供更详细的说明
+      let finishReasonDescription = '';
+      if (result.finishReason === 'content-filter') {
+        finishReasonDescription = '（内容被安全过滤器拦截，响应被阻止。建议：简化提示词、避免敏感词汇、或尝试分段生成）';
+      } else if (result.finishReason === 'length') {
+        finishReasonDescription = '（达到最大 token 限制，输出被截断）';
+      } else if (result.finishReason === 'error') {
+        finishReasonDescription = '（生成过程中发生错误）';
+      } else if (result.finishReason === 'cancelled') {
+        finishReasonDescription = '（请求被用户取消）';
+      }
       
       console.log("\n" + "📊".repeat(30));
       console.log("【非流式生成】生成完成");
       console.log("-".repeat(60));
-      console.log(`完成原因: ${result.finishReason}`);
+      console.log(`完成原因: ${result.finishReason}${finishReasonDescription}`);
       console.log(`任务状态: ${isTaskCompleted ? '✅ 成功完成' : '⚠️ 未完成'}`);
       console.log(`生成耗时: ${durationMs}ms`);
       console.log(`工具调用支持: ${supportsToolCalls ? '是' : '否'}`);
@@ -1433,12 +1469,69 @@ ${safeUserText}
       // 输出所有工具调用（包括原生的和解析出的）
       if (allToolCalls.length > 0) {
         for (const toolCall of allToolCalls) {
+          // AI SDK 的 generateText 返回的 toolCall 使用 args 字段，而不是 input
+          // 但为了与流式模式保持一致，我们统一使用 input 字段
+          // 注意：actionToToolCall 创建的 toolCall 使用 input 字段，而 AI SDK 原生的使用 args
+          // 重要：使用对象展开来创建新的对象，避免修改原始对象引用
+          const toolInput = toolCall.args || toolCall.input;
+          
+          // 检查 toolInput 是否包含 XML（而不是已经被替换成 xmlRef 和 xmlLength）
+          const hasXml = toolInput && typeof toolInput === 'object' && 'xml' in toolInput && typeof toolInput.xml === 'string';
+          
+          // 详细日志：检查工具调用的结构
+          console.log("[非流式] 工具调用详情", { 
+            toolCallId: toolCall.toolCallId, 
+            toolName: toolCall.toolName,
+            toolCallKeys: Object.keys(toolCall),
+            hasArgs: !!toolCall.args,
+            hasInput: !!toolCall.input,
+            argsType: typeof toolCall.args,
+            inputType: typeof toolCall.input,
+            toolInputKeys: toolInput ? Object.keys(toolInput) : null,
+            hasXml: hasXml,
+            xmlLength: hasXml ? toolInput.xml.length : null,
+            toolInputPreview: toolInput ? JSON.stringify(toolInput).substring(0, 500) : null
+          });
+          
+          // 只对需要 XML/SVG 的工具进行特殊验证
+          const requiresXmlOrSvg = toolCall.toolName === 'display_diagram' || toolCall.toolName === 'display_svg';
+          
+          if (requiresXmlOrSvg) {
+            // 如果 toolInput 不包含 XML/SVG（已经被替换成引用），记录警告
+            if (toolInput && typeof toolInput === 'object' && 'xmlRef' in toolInput && !('xml' in toolInput) && !('svg' in toolInput)) {
+              console.warn("[非流式] 警告：工具调用参数已经被修改，XML/SVG 被替换成了引用", {
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                toolInput: toolInput
+              });
+            }
+            
+            // 验证 display_diagram/display_svg 工具的参数必须包含 xml 或 svg
+            if (!toolInput || (typeof toolInput === 'object' && !('xml' in toolInput) && !('svg' in toolInput))) {
+              console.error("[非流式] 错误：display_diagram/display_svg 工具调用参数缺少 xml 或 svg", {
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                toolInput: toolInput,
+                toolCall: toolCall
+              });
+            }
+          } else {
+            // 对于其他工具（如 search_template、edit_diagram），只验证 toolInput 是否存在
+            if (!toolInput) {
+              console.error("[非流式] 错误：工具调用参数为空", {
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                toolCall: toolCall
+              });
+            }
+          }
+          
+          // 使用对象展开创建新的 input 对象，确保不会修改原始对象
           chunks.push({
             type: "tool-input-available",
             toolCallId: toolCall.toolCallId,
             toolName: toolCall.toolName,
-            input: toolCall.input
-            // 注意这里使用 input 而不是 args
+            input: toolInput ? { ...toolInput } : {}
           });
         }
       }
@@ -1447,22 +1540,34 @@ ${safeUserText}
         ? 'tool-calls' 
         : result.finishReason;
       
+      // 构建 finish 事件的 metadata
+      const finishMetadata = {
+        usage: {
+          inputTokens: result.usage.inputTokens || 0,
+          outputTokens: result.usage.outputTokens || 0,
+          totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
+        },
+        durationMs,
+        finishReason: finalFinishReason,
+        // 添加扣费结果到 finish 事件的 metadata
+        chargeResult: chargeResult,
+        isTaskCompleted: isTaskCompleted,
+        taskFailed: !isTaskCompleted
+      };
+      
+      // 如果是 content-filter，添加额外的错误信息和建议
+      if (isContentFiltered) {
+        finishMetadata.contentFilterError = {
+          message: "内容被安全过滤器拦截",
+          suggestion: "建议：1) 简化提示词，避免可能触发过滤的敏感词汇；2) 尝试分段生成图表；3) 使用更通用的描述方式",
+          hasPartialResults: hasToolCalls
+        };
+      }
+      
       chunks.push({
         type: "finish",
         finishReason: finalFinishReason,
-        messageMetadata: {
-          usage: {
-            inputTokens: result.usage.inputTokens || 0,
-            outputTokens: result.usage.outputTokens || 0,
-            totalTokens: (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
-          },
-          durationMs,
-          finishReason: finalFinishReason,
-          // 添加扣费结果到 finish 事件的 metadata
-          chargeResult: chargeResult,
-          isTaskCompleted: isTaskCompleted,
-          taskFailed: !isTaskCompleted
-        }
+        messageMetadata: finishMetadata
       });
       const stream = new ReadableStream({
         start(controller) {
