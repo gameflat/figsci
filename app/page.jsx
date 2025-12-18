@@ -417,9 +417,8 @@ useEffect(() => {
             <div
               className={cn(
                 "pointer-events-none",
-                isChatVisible 
-                  ? "absolute right-4 top-4 z-30" 
-                  : "fixed right-6 top-24 z-40"
+                // 无论聊天面板是否可见，都保持在工具栏位置
+                "absolute right-[120px] top-[14px] z-30"
               )}
             >
               {/* 
@@ -431,14 +430,7 @@ useEffect(() => {
                 type="button"
                 aria-label={isChatVisible ? t("workspace.focusCanvas") : t("workspace.showChat")}
                 onClick={() => setIsChatVisible((prev) => !prev)}
-                className={cn(
-                  "pointer-events-auto inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition",
-                  // 聊天面板可见时的样式：灰色边框，白色背景
-                  isChatVisible 
-                    ? "border-gray-200 bg-white/90 text-gray-700 shadow-sm hover:bg-white" 
-                    // 聊天面板隐藏时的样式：蓝色背景，更突出
-                    : "border-blue-500 bg-blue-600 text-white shadow-lg hover:bg-blue-500/90"
-                )}
+                className="pointer-events-auto inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
               >
                 {isChatVisible ? (
                   <>
@@ -509,6 +501,8 @@ useEffect(() => {
                       * libraries：禁用形状库（减少加载时间）
                       * saveAndExit：禁用保存并退出按钮
                       * noExitBtn：隐藏退出按钮
+                      * ui：设置为 "min" 启用最小化UI模式，默认隐藏形状和格式侧边栏
+                      * 注意：用户仍可通过"查看"菜单正常切换侧边栏的显示/隐藏状态
                   */}
                   <DrawIoEmbed
                     ref={drawioRef}
@@ -519,7 +513,9 @@ useEffect(() => {
                       spin: true,
                       libraries: false,
                       saveAndExit: false,
-                      noExitBtn: true
+                      noExitBtn: true,
+                      ui: "min",
+                      lang: "zh"
                     }}
                   />
                 </>
