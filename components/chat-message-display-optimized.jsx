@@ -17,6 +17,7 @@ import { svgToDataUrl } from "@/lib/svg";
 import ExamplePanel from "./chat-example-panel";
 import { TokenUsageDisplay } from "./token-usage-display";
 import { FloatingProgressIndicator } from "./generation-progress-indicator";
+import { useDiagram } from "@/contexts/diagram-context";
 // StreamingThoughtDisplay 已弃用，改用 FloatingProgressIndicator 以支持完成状态保持显示
 // import { StreamingThoughtDisplay } from "./streaming-thought-display";
 const LARGE_TOOL_INPUT_CHAR_THRESHOLD = 3e3;
@@ -91,6 +92,7 @@ const DiagramToolCard = memo(({
   onRetry,
   messageMetadata
 }) => {
+  const { loadDiagram } = useDiagram();
   const callId = part.toolCallId;
   const { state, input, output } = part;
   const toolName = part.type?.replace("tool-", "") || "display_diagram";
@@ -254,6 +256,37 @@ const DiagramToolCard = memo(({
             <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-[13px] leading-relaxed text-slate-700">
                 {statusMessage}
             </div>
+            {/* 在图表生成完成时显示缩略图 */}
+            {currentState === "output-available" && diagramResult && (diagramResult.svg || diagramResult.xml) && (
+                <div className="mt-3">
+                    <div className="text-xs text-slate-600 mb-2">点击缩略图恢复到画布：</div>
+                    <div 
+                        className="relative w-full h-32 bg-white border border-slate-200 rounded-lg overflow-hidden cursor-pointer hover:border-slate-300 transition-colors"
+                        onClick={() => {
+                            if (diagramResult.xml) {
+                                // 跳过验证，因为这是可信的图表数据
+                                loadDiagram(diagramResult.xml, true);
+                            }
+                        }}
+                    >
+                        {diagramResult.svg && (
+                            <Image
+                                src={diagramResult.svg}
+                                alt="图表缩略图"
+                                fill
+                                className="object-contain p-2"
+                                sizes="(max-width: 768px) 100vw, 400px"
+                                unoptimized
+                            />
+                        )}
+                        {!diagramResult.svg && diagramResult.xml && (
+                            <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
+                                点击恢复图表
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
             {diagramMode === "svg" && currentState === "output-available" && displaySvg && <div className="mt-2">
                     <details className="group">
                         <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-700">

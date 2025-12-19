@@ -18,6 +18,7 @@ import { HistoryDialog } from "@/components/history-dialog";
 import { ModelSelector } from "@/components/model-selector";
 import { cn } from "@/lib/utils";
 import { RenderModeToggle } from "@/components/render-mode-toggle";
+import { useDiagram } from "@/contexts/diagram-context";
 
 /**
  * @typedef {Object} ChatInputOptimizedProps
@@ -45,8 +46,6 @@ import { RenderModeToggle } from "@/components/render-mode-toggle";
  * @property {boolean} [comparisonEnabled]
  * @property {() => void} [onStop]
  * @property {boolean} [isBusy]
- * @property {Array<{ svg: string }>} [historyItems]
- * @property {(index: number) => void} [onRestoreHistory]
  */
 
 /**
@@ -77,9 +76,8 @@ export function ChatInputOptimized({
     comparisonEnabled = true,
     onStop,
     isBusy = false,
-    historyItems = [],
-    onRestoreHistory,
 }) {
+    const { diagramHistory } = useDiagram();
     const textareaRef = useRef(null);
     const fileInputRef = useRef(null);
     const controlBarRef = useRef(null);
@@ -328,7 +326,7 @@ export function ChatInputOptimized({
                             onClick={() => onToggleHistory(true)}
                             disabled={
                                 isBusy ||
-                                historyItems.length === 0 ||
+                                diagramHistory.length === 0 ||
                                 interactionLocked
                             }
                             tooltipContent="查看图表变更记录"
@@ -450,8 +448,6 @@ export function ChatInputOptimized({
             <HistoryDialog
                 showHistory={showHistory}
                 onToggleHistory={onToggleHistory}
-                items={historyItems}
-                onRestore={onRestoreHistory}
             />
         </form>
     );

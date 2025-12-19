@@ -366,11 +366,37 @@ function ChatPanelOptimized({
           inputPreview: JSON.stringify(toolCall.input).substring(0, 500)
         });
         const { xml } = toolCall.input || {};
-        console.log("[display_diagram] 提取 XML", { xmlLength: xml?.length, xmlType: typeof xml, xmlPreview: xml?.substring(0, 200) });
+        console.log("[display_diagram] 提取 XML", { 
+          xmlLength: xml?.length, 
+          xmlType: typeof xml, 
+          xmlPreview: xml?.substring(0, 200),
+          hasInput: !!toolCall.input,
+          inputType: typeof toolCall.input,
+          fullInput: toolCall.input
+        });
         try {
           if (!xml || typeof xml !== "string" || !xml.trim()) {
-            console.error("[display_diagram] XML 为空或无效", { xml, xmlType: typeof xml });
-            throw new Error("大模型返回的 XML 为空，无法渲染。");
+            console.error("[display_diagram] XML 为空或无效 - 详细调试信息", { 
+              xml, 
+              xmlType: typeof xml,
+              toolCallInput: toolCall.input,
+              toolCallKeys: toolCall.input ? Object.keys(toolCall.input) : [],
+              toolCallId: toolCall.toolCallId
+            });
+            
+            // 提供更友好的错误提示和可能的解决方案
+            const errorMessage = xml === undefined 
+              ? "AI 模型调用了图表工具但未提供 XML 参数。可能的原因：模型配置问题或工具调用格式不正确。"
+              : xml === ""
+              ? "AI 模型提供了空的 XML 内容。请尝试重新生成或使用更明确的提示词。"
+              : `AI 模型提供的 XML 格式无效（类型：${typeof xml}）。请重试生成。`;
+            
+            addToolResult({
+              tool: "display_diagram",
+              toolCallId: toolCall.toolCallId,
+              output: `${errorMessage}\n\n💡 提示：如果 AI 在文本中输出了 XML 代码，系统会自动检测并应用到画布。`
+            });
+            return; // 不抛出异常，而是返回错误信息
           }
           if (isSvgMode) {
             addToolResult({
@@ -386,25 +412,20 @@ function ChatPanelOptimized({
             modelRuntime: selectedModel ?? void 0
           });
           console.log("[display_diagram] handleCanvasUpdate 完成");
+          
+          // 获取经过处理后的完整 XML（包含 mxfile 格式）
+          const processedXml = getLatestDiagramXml();
+          console.log("[display_diagram] 获取处理后的 XML", { processedXmlLength: processedXml?.length });
+          
           diagramResultsRef.current.set(toolCall.toolCallId, {
-            xml,
+            xml: processedXml, // 使用完整的 mxfile 格式 XML
             mode: "drawio",
             runtime: selectedModel ?? void 0
           });
           setDiagramResultVersion((prev) => prev + 1);
           
-          // 保存图表到历史记录：等待图表加载到画布后，异步保存到历史记录
-          // 延迟一段时间确保图表已经完全加载到 draw.io 画布中
-          setTimeout(async () => {
-            try {
-              console.log("[display_diagram] 开始保存图表到历史记录");
-              await fetchDiagramXml({ saveHistory: true });
-              console.log("[display_diagram] 图表已保存到历史记录");
-            } catch (error) {
-              console.warn("[display_diagram] 保存图表到历史记录失败:", error);
-              // 保存失败不影响主要流程，只记录警告
-            }
-          }, 500); // 延迟 500ms 确保图表已加载
+          // 不在AI生成后保存历史，因为历史应该在用户操作前保存
+          // 这样可以避免重复保存和版本混乱
           
           // 注意：不要直接修改 toolCall.input，因为这会影响到后续的工具调用
           // 如果需要清理内存，应该创建一个新的对象而不是修改原始对象
@@ -421,11 +442,11 @@ function ChatPanelOptimized({
           });
         } catch (error2) {
           console.error("[display_diagram] 错误:", error2);
-          const message = error2 instanceof Error ? error2.message : "Failed to display diagram.";
+          const message = error2 instanceof Error ? error2.message : "图表渲染失败";
           addToolResult({
             tool: "display_diagram",
             toolCallId: toolCall.toolCallId,
-            output: `Failed to display diagram: ${message}`
+            output: `图表渲染失败: ${message}`
           });
         }
       } else if (toolCall.toolName === "display_svg") {
@@ -458,24 +479,16 @@ function ChatPanelOptimized({
             toolCallId: toolCall.toolCallId
           });
           const mergedXml = getLatestDiagramXml();
+          console.log("[display_svg] 存储合并后的 XML", { mergedXmlLength: mergedXml?.length });
           diagramResultsRef.current.set(toolCall.toolCallId, {
-            xml: mergedXml,
+            xml: mergedXml, // 这里已经使用了完整的格式
             svg,
             mode: "svg",
             runtime: selectedModel ?? void 0
           });
           setDiagramResultVersion((prev) => prev + 1);
           
-          // 保存图表到历史记录（非 SVG 模式但使用 display_svg 工具时）
-          setTimeout(async () => {
-            try {
-              console.log("[display_svg] 开始保存图表到历史记录（draw.io 模式）");
-              await fetchDiagramXml({ saveHistory: true });
-              console.log("[display_svg] 图表已保存到历史记录");
-            } catch (error) {
-              console.warn("[display_svg] 保存图表到历史记录失败:", error);
-            }
-          }, 500);
+          // 不在AI生成后保存历史，历史记录已在用户发送消息前保存
           // 注意：不要直接修改 toolCall.input，因为这会影响到后续的工具调用
           // 暂时移除这个内存优化逻辑
           // if (toolCall.input && typeof toolCall.input === "object") {
@@ -996,7 +1009,8 @@ function ChatPanelOptimized({
       if (lastMessageIndex >= 0 && messages[lastMessageIndex].role === "assistant") {
         setMessages(messages.slice(0, lastMessageIndex));
       }
-      const chartXml = await onFetchChart();
+      // 重试时不保存历史，因为用户在首次发送消息时已经保存过了
+      const chartXml = await fetchAndFormatDiagram({ saveHistory: false });
       const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
       sendMessage(
         { parts: lastUserMessage.parts || [] },
@@ -1255,7 +1269,9 @@ function ChatPanelOptimized({
       const abortController = new AbortController();
       submitAbortControllerRef.current = abortController;
       try {
-        let chartXml = await onFetchChart();
+        // 在发送消息前保存当前图表状态到历史记录
+        // 这样用户可以在 AI 修改图表后回溯到之前的版本
+        let chartXml = await fetchAndFormatDiagram({ saveHistory: true });
         // 检查是否已被取消
         if (abortController.signal.aborted) {
           return;
@@ -1351,7 +1367,8 @@ function ChatPanelOptimized({
     if (renderMode === "svg") {
       throw new Error("SVG 模式暂不支持校准，请切换回 draw.io XML 模式。");
     }
-    let chartXml = await onFetchChart();
+    // 校准时保存当前图表状态，以防校准失败需要恢复
+    let chartXml = await fetchAndFormatDiagram({ saveHistory: true });
     if (!chartXml.trim()) {
       throw new Error("当前画布为空，无法执行校准。");
     }
@@ -1893,8 +1910,6 @@ function ChatPanelOptimized({
     interactionLocked={requiresBranchDecision || !selectedModel}
     renderMode={renderMode}
     onRenderModeChange={handleRenderModeChange}
-    historyItems={historyItems}
-    onRestoreHistory={handleRestoreHistory}
     onStop={() => handleStopAll({
       type: "success",
       message: "已手动暂停当前生成任务。"
