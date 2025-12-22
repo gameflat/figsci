@@ -52,7 +52,6 @@ import { useDiagramOrchestrator } from "@/features/chat-panel/hooks/use-diagram-
 import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
 import { useModelRegistry } from "@/hooks/use-model-registry";
 import { ModelConfigDialog } from "@/components/model-config-dialog";
-import { TemplateGallery } from "@/components/template-gallery";
 import Link from "next/link";
 // 光子扣费客户端：用于 mixed 模式预扣费
 import { isPhotonChargeEnabled, getChargeMode, preChargePhoton } from "@/lib/photon-client";
@@ -244,7 +243,6 @@ function ChatPanelOptimized({
   );
   const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
   const hasPromptedModelSetup = useRef(false);
-  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const historyItems = useMemo(
     () => isSvgMode ? svgHistory.map((item) => ({
       svg: item.dataUrl || item.svg
@@ -539,8 +537,6 @@ function ChatPanelOptimized({
           });
         }
       }
-      // 注意：search_template 工具现在在后端执行（使用 maxSteps 自动处理）
-      // 前端不需要处理 search_template，后端会自动执行并将结果返回给 LLM 继续生成
     },
     onError: (error2) => {
       console.error("Chat error:", error2);
@@ -548,8 +544,6 @@ function ChatPanelOptimized({
       // 因为 rollbackToSnapshot 在 useChat 之后定义
     }
   });
-  
-  // 注意：formatTemplateGuidance 函数已移到后端，search_template 工具现在在后端执行
   
   // ========== Mixed 模式：保存状态快照 ==========
   // 在发送消息前调用，用于预扣费后任务失败时回滚
@@ -1068,25 +1062,6 @@ function ChatPanelOptimized({
         });
       });
       
-      // 检查是否只有 search_template 工具调用（没有 display_diagram）
-      const hasOnlySearchTemplate = messages.some((msg) => {
-        if (msg.role !== "assistant" || !Array.isArray(msg.parts)) return false;
-        return msg.parts.some((part) => {
-          if (!part.type?.startsWith("tool-")) return false;
-          const toolName = part.type.replace("tool-", "");
-          return toolName === "search_template" && part.state === "output-available";
-        });
-      });
-      
-      // 如果只有 search_template 但没有 display_diagram，说明 LLM 还在继续生成
-      // 添加延迟再设置为 idle，给 maxSteps 触发继续生成的机会
-      if (hasOnlySearchTemplate && !hasDiagramTool && status === "ready") {
-        // 延迟 500ms 检查，如果 status 仍然是 ready，才设置为 idle
-        const timer = setTimeout(() => {
-          setGenerationPhase("idle");
-        }, 500);
-        return () => clearTimeout(timer);
-      }
       
       // 正常完成或出错，重置进度状态
       setGenerationPhase("idle");
@@ -1278,8 +1253,7 @@ function ChatPanelOptimized({
         }
         const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
         
-        // 直接使用用户输入，不再进行强制模板匹配
-        // LLM 会自主决定是否需要调用 search_template 工具
+        // 直接使用用户输入
         const finalInput = input;
         
         // 设置进度阶段为"发送请求"
@@ -1686,22 +1660,8 @@ function ChatPanelOptimized({
                         </button>
                     </div>
                 </div>
-                {commandTab === "templates" ? <div className="flex h-full flex-col">
-                        <div className="flex-1 overflow-hidden">
-                            <TemplateGallery
-      variant="compact"
-      onSelectTemplate={(template) => {
-        if (status === "streaming") return;
-        if (!ensureBranchSelectionSettled()) return;
-        setInput(template.prompt);
-        if (files.length > 0) {
-          handleFileChange([]);
-        }
-        closeToolSidebar();
-      }}
-      onExpand={() => setIsTemplateDialogOpen(true)}
-    />
-                        </div>
+                {commandTab === "templates" ? <div className="flex h-full flex-col items-center justify-center text-slate-500">
+                        模板功能已移除
                     </div> : commandTab === "starter" ? <QuickActionBar
       actions={QUICK_ACTIONS}
       disabled={status === "streaming" || requiresBranchDecision}
@@ -1921,30 +1881,6 @@ function ChatPanelOptimized({
                 </div>
 
             </Card>
-            <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-                <DialogContent className="!max-w-[95vw] w-[95vw] h-[90vh] p-0 overflow-hidden">
-                    <DialogHeader className="px-6 pt-4 pb-2">
-                        <DialogTitle>全屏模板库</DialogTitle>
-                        <DialogDescription>
-                            大屏浏览全部模板，包含筛选、预览与快捷应用。
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="h-[calc(90vh-96px)]">
-                        <TemplateGallery
-    onSelectTemplate={(template) => {
-      if (status === "streaming") return;
-      if (!ensureBranchSelectionSettled()) return;
-      setInput(template.prompt);
-      if (files.length > 0) {
-        handleFileChange([]);
-      }
-      setIsTemplateDialogOpen(false);
-      closeToolSidebar();
-    }}
-  />
-                    </div>
-                </DialogContent>
-            </Dialog>
             <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>

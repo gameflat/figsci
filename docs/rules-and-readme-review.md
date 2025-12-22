@@ -61,11 +61,7 @@
    - `POST /api/photon/charge` - 光子扣费
    - `POST /api/photon/pre-charge` - 预扣费检查
 
-2. **模板匹配相关**：
-   - `POST /api/template-match` - 智能模板匹配
-   - `POST /api/search-template` - 模板搜索
-
-3. **系统模型相关**：
+2. **系统模型相关**：
    - `GET /api/system-models` - 获取系统内置模型列表
 
 4. **模型管理相关**：
@@ -199,10 +195,6 @@ NEXT_PUBLIC_PHOTON_CHARGE_PER_1K_TOKEN=1
 - `POST /api/chat` - 图表生成（主要 API）
 - `POST /api/diagram-repair` - 图表修复
 - `POST /api/model-compare` - 模型对比
-
-## 模板相关
-- `POST /api/template-match` - 智能模板匹配
-- `POST /api/search-template` - 模板搜索
 
 ## 模型管理
 - `GET /api/models` - 获取模型列表

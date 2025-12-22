@@ -579,13 +579,7 @@ const normalizeDiagramXml = useCallback((rawXml) => {
 
 ---
 
-## 模板使用记录
-
-### 最近使用模板
-
-`components/template-gallery.jsx` 实现了最近使用模板的记录和管理。
-
-#### 存储键名
+## 历史记录功能
 
 ```javascript
 const RECENT_KEY = "Figsci_recent_templates";
@@ -1003,7 +997,6 @@ Figsci 项目实现了一个完整而复杂的保存系统，涵盖了：
 ### 组件文件
 - `components/chat-panel-optimized.jsx` - 聊天面板（包含状态快照功能）
 - `components/history-dialog.jsx` - 历史记录对话框
-- `components/template-gallery.jsx` - 模板画廊（最近使用记录）
 - `components/model-config-dialog.jsx` - 模型配置对话框
 
 ### 工具库文件
