@@ -28,6 +28,9 @@ import ChatPanelOptimized from "@/components/chat-panel-optimized";
 import { useDiagram } from "@/contexts/diagram-context";  // 图表状态（XML、导出函数等）
 import { useLocale } from "@/contexts/locale-context";     // 国际化（翻译函数）
 
+// 保存对话框组件
+import { SaveDialog } from "@/components/save-dialog";
+
 // 工具函数：条件类名合并工具（类似 clsx）
 import { cn } from "@/lib/utils";
 
@@ -57,9 +60,14 @@ import { SvgStudio } from "@/components/svg-studio";
 export default function Home() {
   // ========== Context Hooks ==========
   // 从图表上下文获取 Draw.io 引用、导出处理函数和运行时错误设置函数
-const { drawioRef, handleDiagramExport, setRuntimeError, loadDiagram, chartXML } = useDiagram();
+const { drawioRef, handleDiagramExport, setRuntimeError, loadDiagram, chartXML, showSaveDialog, setShowSaveDialog, saveDiagramToFile } = useDiagram();
 const drawioReadyRef = React.useRef(false);
 const initialDiagramHydratedRef = React.useRef(false);
+
+// 防重复保存标记
+const isSavingRef = React.useRef(false);
+// 鼠标是否在 Draw.io 区域内
+const mouseOverDrawioRef = React.useRef(false);
 
 const hydrateDiagramFromContext = useCallback(() => {
   if (initialDiagramHydratedRef.current) {
@@ -183,6 +191,31 @@ const handleDrawioLoad = () => {
 useEffect(() => {
   hydrateDiagramFromContext();
 }, [hydrateDiagramFromContext]);
+
+/**
+ * Draw.io 保存事件处理函数
+ * 当用户在 Draw.io 中点击保存按钮或按 Ctrl+S 时触发
+ */
+const handleDrawioSave = useCallback(() => {
+    // 鼠标必须在 Draw.io 区域内
+    if (!mouseOverDrawioRef.current) return;
+    // 防止重复触发
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setShowSaveDialog(true);
+}, [setShowSaveDialog]);
+
+/**
+ * 重置保存标记（延迟重置以避免 draw.io 的后续事件）
+ */
+useEffect(() => {
+    if (!showSaveDialog) {
+        const timeout = setTimeout(() => {
+            isSavingRef.current = false;
+        }, 1000);
+        return () => clearTimeout(timeout);
+    }
+}, [showSaveDialog]);
   
   // ========== 主内容区域引用 ==========
   // 用于获取主内容区域的 DOM 元素，用于计算拖拽位置和滚动控制
@@ -398,15 +431,20 @@ useEffect(() => {
         */}
         <div
           ref={mainContentRef}
-          className="grid h-dvh min-h-0 flex-1"
-          style={{ gridTemplateColumns }}
+          className="relative grid h-dvh min-h-0 flex-1 gap-0"
+          style={{ 
+            gridTemplateColumns,
+            gap: 0,
+            columnGap: 0,
+            rowGap: 0
+           }}
         >
           {/* 
             画布区域：包含编辑器（Draw.io 或 SVG 工作室）和切换按钮
             - relative：为绝对定位的切换按钮提供定位上下文
             - min-w-0：防止 flex 子元素溢出
           */}
-          <div className="relative flex h-full min-h-0 min-w-0 p-1">
+          <div className="relative flex h-full min-h-0 min-w-0 pt-1 pb-1" style={{ marginRight: 0, paddingRight: 0 }}>
             {/* 
               聊天面板切换按钮容器
               - pointer-events-none：容器本身不接收鼠标事件
@@ -450,7 +488,13 @@ useEffect(() => {
             */}
             {showDrawio ? (
               // ========== Draw.io 模式 ==========
-              drawioError ? (
+              <div
+                onMouseEnter={() => (mouseOverDrawioRef.current = true)}
+                onMouseLeave={() => (mouseOverDrawioRef.current = false)}
+                className="h-full w-full m-0 p-0"
+                style={{ margin: 0, padding: 0 }}
+              >
+              {drawioError ? (
                 /* 
                   Draw.io 加载错误提示
                   当 Draw.io 加载失败时显示错误信息和解决方案
@@ -509,6 +553,7 @@ useEffect(() => {
                     baseUrl={drawioBaseUrl}
                     onExport={handleDiagramExport}
                     onLoad={handleDrawioLoad}
+                    onSave={handleDrawioSave}
                     urlParameters={{
                       spin: true,
                       libraries: false,
@@ -519,7 +564,8 @@ useEffect(() => {
                     }}
                   />
                 </>
-              )
+              )}
+              </div>
             ) : (
               // ========== SVG 模式 ==========
               /* 
@@ -544,7 +590,7 @@ useEffect(() => {
             className={cn(
               "h-full items-center justify-center border-x border-slate-100 bg-white/60 transition hover:bg-slate-100 active:bg-slate-200 cursor-col-resize",
               // Bug 3 修复：使用 CSS 控制可见性，避免组件卸载
-              isChatVisible ? "hidden lg:flex" : "hidden",
+              isChatVisible ? "flex" : "hidden",
               // 调整大小时的高亮样式
               isResizingChat && "bg-blue-50 border-blue-200"
             )}
@@ -563,12 +609,14 @@ useEffect(() => {
           <div
             className={cn(
               // min-w-0 和 overflow-hidden 防止内容撑开 grid 列
-              "h-full min-h-0 min-w-0 overflow-hidden p-1 transition-all duration-300",
+              "h-full min-h-0 min-w-0 overflow-hidden pt-1 pb-1 transition-all duration-300",
               // Bug 3 修复：通过 CSS 控制可见性和布局
+              // 桌面端始终显示（如果 isChatVisible 为 true），移动端隐藏
               isChatVisible 
-                ? "hidden lg:block opacity-100" 
-                : "hidden overflow-hidden pointer-events-none opacity-0 w-0"
+                ? "block opacity-100" 
+                : "hidden overflow-hidden pointer-events-none opacity-0"
             )}
+            style={{ marginLeft: 0, paddingLeft: 0 }}
           >
             {/* 
               优化的聊天面板组件
@@ -586,6 +634,16 @@ useEffect(() => {
           </div>
         </div>
       </section>
+
+      {/* 保存对话框 */}
+      <SaveDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        onSave={(filename, format) => {
+          saveDiagramToFile(filename, format);
+        }}
+        defaultFilename={`diagram-${new Date().toISOString().slice(0, 10)}`}
+      />
     </div>
   );
 }

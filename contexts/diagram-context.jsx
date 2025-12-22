@@ -12,6 +12,16 @@ import { extractDiagramXML } from "../lib/utils";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates.js";
 
 /**
+ * 存储键名：用于 localStorage 中保存图表 XML
+ */
+export const LAST_XML_STORAGE_KEY = "Figsci-diagram-xml";
+
+/**
+ * 导出格式类型
+ * @typedef {"drawio" | "png" | "svg"} ExportFormat
+ */
+
+/**
  * @typedef {import("react-drawio").DrawIoEmbedRef} DrawIoEmbedRef
  * @typedef {import("@/types/diagram").RuntimeErrorPayload} RuntimeErrorPayload
  * @typedef {{svg: string, xml: string}} DiagramHistoryEntry
@@ -32,6 +42,9 @@ import { EMPTY_MXFILE } from "@/lib/diagram-templates.js";
  * @property {(options?: { saveHistory?: boolean }) => Promise<string>} fetchDiagramXml - 获取图表 XML
  * @property {RuntimeErrorPayload | null} runtimeError - 运行时错误信息
  * @property {React.Dispatch<React.SetStateAction<RuntimeErrorPayload | null>>} setRuntimeError - 设置运行时错误
+ * @property {(filename: string, format: ExportFormat, sessionId?: string) => void} saveDiagramToFile - 保存图表到文件
+ * @property {boolean} showSaveDialog - 保存对话框显示状态
+ * @property {React.Dispatch<React.SetStateAction<boolean>>} setShowSaveDialog - 设置保存对话框显示状态
  */
 
 /** @type {React.Context<DiagramContextValue | undefined>} */
@@ -66,6 +79,9 @@ export function DiagramProvider({ children }) {
     const exportTimeoutRef = useRef(null);
     const loadDiagramTimeoutRef = useRef(null);
     const [runtimeError, setRuntimeError] = useState(null);
+    /** @type {React.MutableRefObject<{resolver: ((data: string) => void) | null, format: ExportFormat | null}>} 保存解析器引用 */
+    const saveResolverRef = useRef({ resolver: null, format: null });
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
 
     const handleExport = () => {
         if (drawioRef.current) {
@@ -121,6 +137,17 @@ export function DiagramProvider({ children }) {
     }, [chartXML]);
 
     const handleDiagramExport = (data) => {
+        // 优先处理文件保存请求（处理原始数据，在 XML 提取之前）
+        if (saveResolverRef.current.resolver) {
+            const format = saveResolverRef.current.format;
+            saveResolverRef.current.resolver(data.data);
+            saveResolverRef.current = { resolver: null, format: null };
+            // PNG/SVG 格式不包含 XML，直接返回
+            if (format === "png" || format === "svg") {
+                return;
+            }
+        }
+
         const extractedXML = extractDiagramXML(data.data);
         setChartXML(extractedXML);
         setLatestSvg(data.data);
@@ -234,6 +261,97 @@ export function DiagramProvider({ children }) {
         });
     };
 
+    /**
+     * 保存图表到文件
+     * @param {string} filename - 文件名（不含扩展名）
+     * @param {ExportFormat} format - 导出格式（drawio/png/svg）
+     * @param {string} [sessionId] - 会话 ID（可选，用于日志记录）
+     */
+    const saveDiagramToFile = useCallback((filename, format, sessionId) => {
+        if (!drawioRef.current) {
+            console.warn("Draw.io 编辑器未就绪");
+            return;
+        }
+
+        // 格式映射：drawio 格式使用 xmlsvg 导出格式
+        const drawioFormat = format === "drawio" ? "xmlsvg" : format;
+
+        // 设置保存解析器（在触发导出前设置回调函数）
+        saveResolverRef.current = {
+            resolver: (exportData) => {
+                let fileContent;
+                let mimeType;
+                let extension;
+
+                if (format === "drawio") {
+                    // 从 SVG 中提取 XML（用于 .drawio 格式）
+                    const xml = extractDiagramXML(exportData);
+                    let xmlContent = xml;
+                    // 确保有 mxfile 包装
+                    if (!xml.includes("<mxfile")) {
+                        xmlContent = `<mxfile><diagram name="Page-1" id="page-1">${xml}</diagram></mxfile>`;
+                    }
+                    fileContent = xmlContent;
+                    mimeType = "application/xml";
+                    extension = ".drawio";
+
+                    // 同步保存到 localStorage
+                    if (typeof window !== "undefined") {
+                        try {
+                            localStorage.setItem(LAST_XML_STORAGE_KEY, xmlContent);
+                        } catch (error) {
+                            console.warn("保存到 localStorage 失败:", error);
+                        }
+                    }
+                } else if (format === "png") {
+                    // PNG 数据已经是 base64 data URL
+                    fileContent = exportData;
+                    mimeType = "image/png";
+                    extension = ".png";
+                } else {
+                    // SVG 格式
+                    fileContent = exportData;
+                    mimeType = "image/svg+xml";
+                    extension = ".svg";
+                }
+
+                // 处理文件下载
+                let url;
+                if (typeof fileContent === "string" && fileContent.startsWith("data:")) {
+                    // 已经是 data URL（PNG 格式）
+                    url = fileContent;
+                } else {
+                    // 创建 Blob 对象
+                    const blob = new Blob([fileContent], { type: mimeType });
+                    url = URL.createObjectURL(blob);
+                }
+
+                // 创建隐藏的下载链接并触发下载
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${filename}${extension}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                // 延迟清理 URL 对象以确保下载完成
+                if (!url.startsWith("data:")) {
+                    setTimeout(() => {
+                        try {
+                            URL.revokeObjectURL(url);
+                        } catch (error) {
+                            console.warn("清理 URL 对象失败:", error);
+                        }
+                    }, 100);
+                }
+            },
+            format,
+        };
+
+        // 触发导出（回调将在 handleDiagramExport 中处理）
+        drawioRef.current.exportDiagram({ format: drawioFormat });
+    }, []);
+
     return (
         <DiagramContext.Provider
             value={{
@@ -252,6 +370,9 @@ export function DiagramProvider({ children }) {
                 fetchDiagramXml,
                 runtimeError,
                 setRuntimeError,
+                saveDiagramToFile,
+                showSaveDialog,
+                setShowSaveDialog,
             }}
         >
             {children}
