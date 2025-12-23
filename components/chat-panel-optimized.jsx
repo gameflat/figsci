@@ -53,6 +53,8 @@ import { ModelConfigDialog } from "@/components/model-config-dialog";
 import Link from "next/link";
 // 光子扣费客户端：用于 mixed 模式预扣费
 import { isPhotonChargeEnabled, getChargeMode, preChargePhoton } from "@/lib/photon-client";
+
+const PYTHON_MAX_ATTEMPTS = 3;
 function ChatPanelOptimized({
   onCollapse,
   isCollapsible = false,
@@ -310,12 +312,17 @@ function ChatPanelOptimized({
     "idle"
   );
   const diagramResultsRef = useRef(/* @__PURE__ */ new Map());
+  const pythonRetryStateRef = useRef(/* @__PURE__ */ new Map());
   const [diagramResultVersion, setDiagramResultVersion] = useState(0);
   const lastLoadedSvgResultIdRef = useRef(null);
   const getDiagramResult = useCallback(
     (toolCallId) => diagramResultsRef.current.get(toolCallId),
     []
   );
+  const getPythonRetryKey = useCallback(() => activeBranchId || "default", [activeBranchId]);
+  const resetPythonRetryState = useCallback(() => {
+    pythonRetryStateRef.current.delete(getPythonRetryKey());
+  }, [getPythonRetryKey]);
   useEffect(() => {
     if (isModelRegistryReady && !hasConfiguredModels && !hasPromptedModelSetup.current) {
       setIsModelConfigOpen(true);
@@ -510,6 +517,9 @@ function ChatPanelOptimized({
       } else if (toolCall.toolName === "execute_python") {
         const { code, description } = toolCall.input || {};
         try {
+          const retryKey = getPythonRetryKey();
+          const currentAttempt = (pythonRetryStateRef.current.get(retryKey) ?? 0) + 1;
+          pythonRetryStateRef.current.set(retryKey, currentAttempt);
           console.log("[execute_python] 工具调用开始", {
             toolCallId: toolCall.toolCallId,
             hasCode: !!code,
@@ -548,20 +558,81 @@ function ChatPanelOptimized({
             success: result.success,
             hasSvg: !!result.svg,
             svgLength: result.svg?.length,
-            error: result.error
+            error: result.error,
+            stdoutLength: result.stdout?.length,
+            stderrLength: result.stderr?.length
           });
 
           if (!result.success) {
             // 执行失败，返回错误信息给模型
             const errorMessage = result.error || "Python 代码执行失败";
             console.error("[execute_python] 执行失败:", errorMessage);
+            const remainingAttempts = PYTHON_MAX_ATTEMPTS - currentAttempt;
+            const stdoutSnippet = result.stdout ? `\nstdout（截断）：${result.stdout.slice(0, 800)}` : "";
+            const stderrSnippet = result.stderr ? `\nstderr（截断）：${result.stderr.slice(0, 800)}` : "";
+            const retryNotice = remainingAttempts > 0
+              ? `系统将基于错误信息自动请求模型修正代码并重试（剩余 ${remainingAttempts} 次）。`
+              : "已达到最大重试次数，停止自动重试。";
             addToolResult({
               tool: "execute_python",
               toolCallId: toolCall.toolCallId,
-              output: `Python 代码执行失败: ${errorMessage}`
+              output: `Python 代码执行失败（第 ${currentAttempt}/${PYTHON_MAX_ATTEMPTS} 次）: ${errorMessage}${stdoutSnippet}${stderrSnippet}\n${retryNotice}`
             });
+            if (remainingAttempts > 0) {
+              try {
+                const retryParts = [
+                  {
+                    type: "text",
+                    text: `Python 代码执行失败（第 ${currentAttempt}/${PYTHON_MAX_ATTEMPTS} 次）。错误：${errorMessage}\n请根据错误修复代码并再次调用 execute_python 工具，直到成功或达到 ${PYTHON_MAX_ATTEMPTS} 次上限。`
+                  }
+                ];
+                if (description) {
+                  retryParts.push({
+                    type: "text",
+                    text: `当前任务描述：${description}`
+                  });
+                }
+                if (code) {
+                  retryParts.push({
+                    type: "text",
+                    text: `上一版代码：\n\`\`\`python\n${code}\n\`\`\``
+                  });
+                }
+                if (result.stderr) {
+                  retryParts.push({
+                    type: "text",
+                    text: `stderr（截断 2000 字符）：\n${result.stderr.slice(0, 2000)}`
+                  });
+                }
+                if (result.stdout) {
+                  retryParts.push({
+                    type: "text",
+                    text: `stdout（截断 2000 字符）：\n${result.stdout.slice(0, 2000)}`
+                  });
+                }
+                const currentXml = await fetchAndFormatDiagram({ saveHistory: false });
+                const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
+                sendMessage(
+                  { parts: retryParts },
+                  {
+                    body: {
+                      xml: currentXml,
+                      ...buildModelRequestBody(selectedModel),
+                      enableStreaming: streamingFlag,
+                      renderMode
+                    }
+                  }
+                );
+                setGenerationPhase("thinking");
+              } catch (retryError) {
+                console.error("[execute_python] 自动重试触发失败:", retryError);
+              }
+            } else {
+              pythonRetryStateRef.current.delete(retryKey);
+            }
             return;
           }
+          pythonRetryStateRef.current.delete(retryKey);
 
           // 执行成功，获取 SVG
           const svg = result.svg;
@@ -1089,6 +1160,7 @@ function ChatPanelOptimized({
       // 重试时不保存历史，因为用户在首次发送消息时已经保存过了
       const chartXml = await fetchAndFormatDiagram({ saveHistory: false });
       const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
+      resetPythonRetryState();
       sendMessage(
         { parts: lastUserMessage.parts || [] },
         {
@@ -1277,6 +1349,7 @@ function ChatPanelOptimized({
         setIsModelConfigOpen(true);
         return;
       }
+      resetPythonRetryState();
       // 立即设置提交状态，禁用发送按钮，防止用户重复点击
       setIsSubmitting(true);
       // 设置进度阶段为"准备中"
@@ -1421,6 +1494,7 @@ function ChatPanelOptimized({
     if (!chartXml.trim()) {
       throw new Error("当前画布为空，无法执行校准。");
     }
+    resetPythonRetryState();
     const userVisibleMessage = "启动 AI 校准\n\n请优化当前流程图的布局：\n• 保持所有节点和内容不变\n• 优化节点位置和间距\n• 整理连接线路径\n• 使用 edit_diagram 工具进行批量调整";
     const streamingFlag = selectedModel?.isStreaming ?? false;
     await sendMessage(
