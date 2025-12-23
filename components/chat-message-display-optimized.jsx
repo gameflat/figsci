@@ -406,6 +406,7 @@ function ChatMessageDisplay({
   onStopAll,
   onRetryGeneration,
   isGenerationBusy = false,
+  isComparisonRunning = false,
   diagramResultVersion = 0,
   getDiagramResult,
   generationPhase = "idle",
@@ -509,7 +510,7 @@ function ChatMessageDisplay({
       message.parts.forEach((part) => {
         if (typeof part.type !== "string") return;
         const toolName = part.type.replace("tool-", "");
-        if (toolName !== "display_diagram" && toolName !== "display_svg") return;
+        if (toolName !== "display_diagram" && toolName !== "display_svg" && toolName !== "execute_python") return;
         const toolCallId = part.toolCallId;
         if (!toolCallId) return;
         const result = getDiagramResult?.(toolCallId);
@@ -601,7 +602,7 @@ function ChatMessageDisplay({
     const callId = part.toolCallId;
     const { state, input, output } = part;
     const toolName = part.type?.replace("tool-", "");
-    const isDisplayDiagramTool = toolName === "display_diagram" || toolName === "display_svg";
+    const isDisplayDiagramTool = toolName === "display_diagram" || toolName === "display_svg" || toolName === "execute_python";
     if (isDisplayDiagramTool) {
       const diagramResult = diagramResults.get(callId);
       return <DiagramToolCard
@@ -1008,15 +1009,15 @@ function ChatMessageDisplay({
                 <AlertDialogHeader>
                   <AlertDialogTitle>确认编辑此消息？</AlertDialogTitle>
                   <AlertDialogDescription className="space-y-2">
-                    <p>
+                    <div>
                       此操作将回溯对话历史和画布状态到该消息发送时的状态。
-                    </p>
-                    <p className="text-amber-600 font-medium">
+                    </div>
+                    <div className="text-amber-600 font-medium">
                       ⚠️ 注意：该消息之后的所有对话和画布修改都将被移除，此操作不可撤回。
-                    </p>
-                    <p className="text-slate-500 text-sm">
+                    </div>
+                    <div className="text-slate-500 text-sm">
                       原消息内容将填充到输入框，您可以重新编辑后发送。
-                    </p>
+                    </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

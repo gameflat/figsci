@@ -1051,6 +1051,57 @@ ${safeUserText}
             replace: z.string().describe("替换内容")
           })).describe("按顺序应用的搜索/替换对数组")
         })
+      }),
+      execute_python: tool({
+        description: `执行 Python 代码生成数据可视化图表。当需要生成统计图表、数据可视化、数学函数图像等时使用此工具。
+
+**重要：这是生成数据图表的首选工具！**
+
+**使用场景（优先使用此工具）：**
+- ✅ 用户要求生成数据图表（折线图、柱状图、散点图、饼图、直方图等）
+- ✅ 用户要求绘制数学函数图像（sin、cos、指数函数等）
+- ✅ 用户要求生成统计可视化（数据分布、相关性分析等）
+- ✅ 用户要求创建数据驱动的图表
+- ✅ 用户明确提到"数据"、"图表"、"可视化"、"matplotlib"、"Python"等关键词
+
+**代码要求（必须遵守）：**
+1. **必须使用 matplotlib**：代码必须导入并使用 matplotlib.pyplot
+2. **必须生成图形**：必须调用至少一个绘图函数（plt.plot()、plt.bar()、plt.scatter()、plt.hist() 等）
+3. **自包含代码**：代码应该包含所有必要的导入和数据生成，不依赖外部文件
+4. **SVG 输出**：系统会自动捕获 matplotlib 生成的 SVG，无需手动保存文件
+
+**标准代码模板：**
+\`\`\`python
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 生成数据
+x = np.linspace(0, 10, 100)
+y = np.sin(x)
+
+# 绘制图表
+plt.figure(figsize=(8, 6))
+plt.plot(x, y, linewidth=2)
+plt.title('正弦函数', fontsize=14)
+plt.xlabel('x', fontsize=12)
+plt.ylabel('y', fontsize=12)
+plt.grid(True, alpha=0.3)
+\`\`\`
+
+**关键提示：**
+- 代码执行后，系统会自动捕获 matplotlib 生成的 SVG 并显示在画布上
+- 不需要手动调用 plt.savefig()，系统会自动处理
+- 确保代码完整且可执行
+- 如果执行失败，可以回退使用 display_diagram 或 display_svg 工具
+
+**何时不使用此工具：**
+- ❌ 用户要求绘制流程图、架构图、UML 图等（使用 display_diagram）
+- ❌ 用户要求简单的文本图表或概念图（使用 display_diagram）
+- ❌ 用户没有提到数据或图表（使用 display_diagram）`,
+        parameters: z.object({
+          code: z.string().describe("完整的、可执行的 Python 代码，必须包含 matplotlib 绘图代码。代码应该生成一个图表（折线图、柱状图、散点图等）。"),
+          description: z.string().optional().describe("代码功能的简要描述，例如：'生成正弦函数折线图'、'绘制数据分布直方图'等")
+        })
       })
     }) : undefined; // 不支持工具调用时不传递 tools
     

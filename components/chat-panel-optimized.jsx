@@ -505,6 +505,131 @@ function ChatPanelOptimized({
             output: `Failed to display SVG: ${message}`
           });
         }
+      } else if (toolCall.toolName === "execute_python") {
+        const { code, description } = toolCall.input || {};
+        try {
+          console.log("[execute_python] 工具调用开始", {
+            toolCallId: toolCall.toolCallId,
+            hasCode: !!code,
+            codeLength: code?.length,
+            description,
+            isSvgMode
+          });
+
+          if (!code || typeof code !== "string" || code.trim().length === 0) {
+            throw new Error("Python 代码不能为空");
+          }
+
+          // 调用 Python 执行 API
+          console.log("[execute_python] 调用 Python 执行 API...");
+          const response = await fetch("/api/python-execute", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ code, description }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `API 请求失败: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log("[execute_python] API 响应:", {
+            success: result.success,
+            hasSvg: !!result.svg,
+            svgLength: result.svg?.length,
+            error: result.error
+          });
+
+          if (!result.success) {
+            // 执行失败，返回错误信息给模型
+            const errorMessage = result.error || "Python 代码执行失败";
+            console.error("[execute_python] 执行失败:", errorMessage);
+            addToolResult({
+              tool: "execute_python",
+              toolCallId: toolCall.toolCallId,
+              output: `Python 代码执行失败: ${errorMessage}`
+            });
+            return;
+          }
+
+          // 执行成功，获取 SVG
+          const svg = result.svg;
+          if (!svg || typeof svg !== "string" || !svg.trim()) {
+            throw new Error("Python 代码执行成功，但未生成 SVG 输出");
+          }
+
+          console.log("[execute_python] 执行成功，准备显示 SVG", {
+            svgLength: svg.length,
+            isSvgMode,
+            toolCallId: toolCall.toolCallId
+          });
+
+          // 将 SVG 显示在画布上（类似 display_svg 的处理）
+          if (isSvgMode) {
+            console.log("[execute_python] SVG 模式：直接加载 SVG");
+            loadSvgMarkup(svg);
+            updateActiveBranchDiagram(svg);
+            diagramResultsRef.current.set(toolCall.toolCallId, {
+              xml: svg,
+              svg,
+              mode: "svg",
+              runtime: selectedModel ?? void 0
+            });
+            setDiagramResultVersion((prev) => {
+              console.log("[execute_python] 更新 diagramResultVersion:", prev + 1);
+              return prev + 1;
+            });
+            console.log("[execute_python] SVG 已加载到画布，返回工具结果");
+            addToolResult({
+              tool: "execute_python",
+              toolCallId: toolCall.toolCallId,
+              output: `Python 代码执行成功，已生成 SVG 图表并显示在画布上。SVG 长度: ${svg.length} 字符。`
+            });
+            return;
+          }
+
+          // Draw.io 模式：将 SVG 转换为 XML 并显示
+          console.log("[execute_python] Draw.io 模式：转换 SVG 为 XML");
+          const { rootXml } = buildSvgRootXml(svg);
+          console.log("[execute_python] 转换后的 rootXml 长度:", rootXml?.length);
+          await handleCanvasUpdate(rootXml, {
+            origin: "display",
+            modelRuntime: selectedModel ?? void 0,
+            toolCallId: toolCall.toolCallId
+          });
+          console.log("[execute_python] handleCanvasUpdate 完成");
+          const mergedXml = getLatestDiagramXml();
+          console.log("[execute_python] 存储合并后的 XML", { mergedXmlLength: mergedXml?.length });
+          diagramResultsRef.current.set(toolCall.toolCallId, {
+            xml: mergedXml,
+            svg,
+            mode: "svg",
+            runtime: selectedModel ?? void 0
+          });
+          setDiagramResultVersion((prev) => {
+            console.log("[execute_python] 更新 diagramResultVersion:", prev + 1);
+            return prev + 1;
+          });
+
+          // 返回成功结果给模型
+          console.log("[execute_python] 返回工具结果给模型");
+          addToolResult({
+            tool: "execute_python",
+            toolCallId: toolCall.toolCallId,
+            output: `Python 代码执行成功，已生成 SVG 图表并显示在画布上。SVG 长度: ${svg.length} 字符。`
+          });
+        } catch (error2) {
+          console.error("[execute_python] 错误:", error2);
+          const message = error2 instanceof Error ? error2.message : "Python 代码执行失败";
+          addToolResult({
+            tool: "execute_python",
+            toolCallId: toolCall.toolCallId,
+            output: `Python 代码执行失败: ${message}`
+          });
+        }
       } else if (toolCall.toolName === "edit_diagram") {
         const { edits } = toolCall.input;
         let currentXml = "";
@@ -1698,6 +1823,7 @@ function ChatPanelOptimized({
     })}
     onRetryGeneration={handleRetryGeneration}
     isGenerationBusy={isGenerationBusy}
+    isComparisonRunning={false}
     diagramResultVersion={diagramResultVersion}
     getDiagramResult={getDiagramResult}
     generationPhase={generationPhase}
