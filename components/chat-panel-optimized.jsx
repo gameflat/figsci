@@ -39,7 +39,6 @@ import { ReportBlueprintTray } from "./report-blueprint-tray";
 import { CalibrationConsole } from "./calibration-console";
 import { useChatState } from "@/hooks/use-chat-state";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates";
-import { ModelComparisonConfigDialog } from "@/components/model-comparison-config-dialog";
 // IntelligenceToolbar 已移除
 import { ToolPanelSidebar } from "@/features/chat-panel/components/tool-panel-sidebar";
 import {
@@ -47,7 +46,6 @@ import {
   FLOW_SHOWCASE_PRESETS,
   QUICK_ACTIONS
 } from "@/features/chat-panel/constants";
-import { useComparisonWorkbench } from "@/features/chat-panel/hooks/use-comparison-workbench";
 import { useDiagramOrchestrator } from "@/features/chat-panel/hooks/use-diagram-orchestrator";
 import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
 import { useModelRegistry } from "@/hooks/use-model-registry";
@@ -584,49 +582,6 @@ function ChatPanelOptimized({
     }
   }, [isSvgMode]);
 
-  // 对比工作台相关能力，提前解构以避免依赖回调中的暂时性死区
-  const {
-    comparisonConfig,
-    setComparisonConfig,
-    isComparisonConfigOpen,
-    setIsComparisonConfigOpen,
-    comparisonHistory,
-    comparisonNotice,
-    isComparisonRunning,
-    activeComparisonPreview,
-    requiresBranchDecision,
-    handleCompareRequest,
-    handleRetryComparisonResult,
-    handleApplyComparisonResult,
-    handlePreviewComparisonResult,
-    handleDownloadXml,
-    buildComparisonPreviewUrl,
-    ensureBranchSelectionSettled,
-    resetWorkbench,
-    releaseBranchRequirement,
-    notifyComparison,
-    cancelComparisonJobs,
-    dismissComparisonNotice,
-    pruneHistoryByMessageIds
-  } = useComparisonWorkbench({
-    activeBranch,
-    activeBranchId,
-    createBranch,
-    switchBranch,
-    onFetchChart,
-    files,
-    input,
-    status,
-    tryApplyRoot: tryApplyCanvasRoot,
-    handleDiagramXml: handleCanvasUpdate,
-    getLatestDiagramXml: getLatestCanvasMarkup,
-    messages,
-    modelOptions,
-    selectedModelKey,
-    renderMode
-  });
-  const isComparisonAllowed = Boolean(selectedModel);
-
   // ========== Mixed 模式：回滚到快照状态 ==========
   // 当任务失败或 token 扣费失败时调用
   // 参考编辑历史对话的回滚机制，创建新分支保存回滚状态
@@ -779,10 +734,6 @@ function ChatPanelOptimized({
         }
       }
 
-      // 清理历史记录（移除失败的对话）
-      console.log("🧹 清理历史记录");
-      pruneHistoryByMessageIds(new Set());
-
       // 清空快照
       stateSnapshotRef.current = null;
 
@@ -806,7 +757,7 @@ function ChatPanelOptimized({
       });
 
       // 提示用户回滚失败，避免静默错误
-      notifyComparison("error", "回滚失败，页面状态可能不一致，请刷新重试。");
+      console.error("回滚失败，页面状态可能不一致，请刷新重试。");
       setGenerationPhase("idle");
       setIsSubmitting(false);
       if (typeof setChatStatus === "function") {
@@ -832,12 +783,10 @@ function ChatPanelOptimized({
     clearDiagram,
     createBranch,
     activeBranchId,
-    pruneHistoryByMessageIds,
     normalizeDiagramXml,
     setGenerationPhase,
     setIsSubmitting,
-    setChatStatus,
-    notifyComparison
+    setChatStatus
   ]);
   
   // ========== Mixed 模式：清空快照 ==========
@@ -856,10 +805,10 @@ function ChatPanelOptimized({
       console.log("检测到任务错误，执行状态回滚", { error });
       const rolled = rollbackToSnapshot();
       if (rolled) {
-        notifyComparison("error", "任务失败，已恢复到发送前的状态：" + (error.message || String(error)));
+        console.error("任务失败，已恢复到发送前的状态：" + (error.message || String(error)));
       }
     }
-  }, [error, rollbackToSnapshot, notifyComparison]);
+  }, [error, rollbackToSnapshot]);
   
   // ========== Mixed 模式：任务完成状态处理 Effect ==========
   // 监听 status 变化，任务成功完成时清空快照
@@ -897,10 +846,10 @@ function ChatPanelOptimized({
         const rolled = rollbackToSnapshot();
         if (rolled) {
           console.log("✅ 回滚操作成功完成");
-          notifyComparison("error", "Token 扣费失败，已恢复到发送前的状态：" + (chargeResult.message || "余额不足"));
+          console.error("Token 扣费失败，已恢复到发送前的状态：" + (chargeResult.message || "余额不足"));
         } else {
           console.error("❌ 回滚操作失败");
-          notifyComparison("error", "Token 扣费失败，但回滚操作失败，请手动刷新页面：" + (chargeResult.message || "余额不足"));
+          console.error("Token 扣费失败，但回滚操作失败，请手动刷新页面：" + (chargeResult.message || "余额不足"));
         }
         return true;
       }
@@ -919,7 +868,7 @@ function ChatPanelOptimized({
       console.log("检测到任务失败标记，执行回滚");
       const rolled = rollbackToSnapshot();
       if (rolled) {
-        notifyComparison("error", "任务未完成，已恢复到发送前的状态");
+        console.error("任务未完成，已恢复到发送前的状态");
       }
       return;
     }
@@ -947,23 +896,23 @@ function ChatPanelOptimized({
       clearStateSnapshot();
     }
     
-  }, [status, messages, rollbackToSnapshot, clearStateSnapshot, notifyComparison]);
+  }, [status, messages, rollbackToSnapshot, clearStateSnapshot]);
   
   const handleCopyXml = useCallback(
     async (xml) => {
       if (!xml || xml.trim().length === 0) {
-        notifyComparison("error", "当前结果缺少 XML 内容，无法复制。");
+        console.error("当前结果缺少 XML 内容，无法复制。");
         return;
       }
       try {
         await navigator.clipboard.writeText(xml);
-        notifyComparison("success", "XML 已复制到剪贴板。");
+        console.log("XML 已复制到剪贴板。");
       } catch (copyError) {
         console.error("Copy XML failed:", copyError);
-        notifyComparison("error", "复制 XML 失败，请检查浏览器权限。");
+        console.error("复制 XML 失败，请检查浏览器权限。");
       }
     },
-    [notifyComparison]
+    []
   );
   const handleStopAll = useCallback(
     async (notice) => {
@@ -982,12 +931,11 @@ function ChatPanelOptimized({
       } catch (stopError) {
         console.error("停止生成失败：", stopError);
       }
-      cancelComparisonJobs();
       if (notice) {
-        notifyComparison(notice.type, notice.message);
+        console.log(notice.message);
       }
     },
-    [isSubmitting, status, stop, cancelComparisonJobs, notifyComparison]
+    [isSubmitting, status, stop]
   );
   const handleRetryGeneration = useCallback(async () => {
     try {
@@ -1093,13 +1041,13 @@ function ChatPanelOptimized({
     updateActiveBranchMessages(messages);
   }, [messages, activeBranch, updateActiveBranchMessages]);
   useEffect(() => {
-    if (showHistory && (status === "streaming" || status === "submitted" || isComparisonRunning)) {
+    if (showHistory && (status === "streaming" || status === "submitted")) {
       void handleStopAll({
         type: "error",
         message: "查看历史时已暂停当前生成。"
       });
     }
-  }, [showHistory, status, isComparisonRunning, handleStopAll]);
+  }, [showHistory, status, handleStopAll]);
 
   // 检查是否接近底部（距离底部 100px 以内）
   const checkIsNearBottom = useCallback(() => {
@@ -1190,9 +1138,6 @@ function ChatPanelOptimized({
       if (!input.trim()) {
         return;
       }
-      if (!ensureBranchSelectionSettled()) {
-        return;
-      }
       if (!selectedModel) {
         setIsModelConfigOpen(true);
         return;
@@ -1224,7 +1169,7 @@ function ChatPanelOptimized({
             const errorMessage = preChargeResult.isInsufficientBalance
               ? "您的光子不足"
               : (preChargeResult.message || "预扣费失败，请稍后重试");
-            notifyComparison("error", errorMessage);
+            console.error(errorMessage);
             return;
           }
           
@@ -1235,7 +1180,7 @@ function ChatPanelOptimized({
           setGenerationPhase("idle");
           // 清空快照
           clearStateSnapshot();
-          notifyComparison("error", "预扣费请求失败：" + (preChargeError instanceof Error ? preChargeError.message : String(preChargeError)));
+          console.error("预扣费请求失败：" + (preChargeError instanceof Error ? preChargeError.message : String(preChargeError)));
           return;
         }
       }
@@ -1308,7 +1253,6 @@ function ChatPanelOptimized({
       isSubmitting,
       status,
       input,
-      ensureBranchSelectionSettled,
       onFetchChart,
       files,
       sendMessage,
@@ -1317,8 +1261,7 @@ function ChatPanelOptimized({
       renderMode,
       buildModelRequestBody,
       saveStateSnapshot,
-      clearStateSnapshot,
-      notifyComparison
+      clearStateSnapshot
     ]
   );
   const handleInputChange = (e) => {
@@ -1328,9 +1271,6 @@ function ChatPanelOptimized({
     setFiles(newFiles);
   };
   const handleAICalibrationRequest = async () => {
-    if (!ensureBranchSelectionSettled()) {
-      throw new Error("请先处理对比结果，再执行校准。");
-    }
     if (status === "streaming") {
       throw new Error("AI 正在回答其他请求，请稍后再试。");
     }
@@ -1370,7 +1310,6 @@ function ChatPanelOptimized({
   };
   const handleQuickAction = async (action) => {
     if (status === "streaming") return;
-    if (!ensureBranchSelectionSettled()) return;
     setInput(action.prompt);
     if (action.attachment) {
       try {
@@ -1389,7 +1328,6 @@ function ChatPanelOptimized({
   };
   const handleShowcasePreset = (preset) => {
     if (status === "streaming") return;
-    if (!ensureBranchSelectionSettled()) return;
     setInput(preset.prompt);
     if (files.length > 0) {
       handleFileChange([]);
@@ -1410,7 +1348,6 @@ function ChatPanelOptimized({
   );
   const handleBlueprintTemplate = (prompt) => {
     if (status === "streaming") return;
-    if (!ensureBranchSelectionSettled()) return;
     setInput(prompt);
     if (files.length > 0) {
       handleFileChange([]);
@@ -1430,7 +1367,6 @@ function ChatPanelOptimized({
       clearDiagram();
     }
     clearConversation();
-    resetWorkbench();
   };
   const exchanges = messages.filter(
     (message) => message.role === "user" || message.role === "assistant"
@@ -1468,7 +1404,7 @@ function ChatPanelOptimized({
       setMessages(activeBranch.messages);
     }
     if (branchChanged) {
-      if (status === "streaming" || status === "submitted" || isComparisonRunning) {
+      if (status === "streaming" || status === "submitted") {
         void handleStopAll({
           type: "error",
           message: "已切换分支，自动暂停生成。"
@@ -1481,7 +1417,6 @@ function ChatPanelOptimized({
     activeBranchId,
     handleStopAll,
     handleDiagramXml,
-    isComparisonRunning,
     messages,
     setMessages,
     status
@@ -1586,8 +1521,6 @@ function ChatPanelOptimized({
         updateActiveBranchDiagram(diagramXmlToRestore);
       }
       
-      pruneHistoryByMessageIds(new Set(truncated.map((msg) => msg.id)));
-      releaseBranchRequirement();
     },
     [
       activeBranch,
@@ -1598,8 +1531,6 @@ function ChatPanelOptimized({
       setInput,
       updateActiveBranchMessages,
       updateActiveBranchDiagram,
-      releaseBranchRequirement,
-      pruneHistoryByMessageIds,
       historyItems,
       handleRestoreHistory,
       isSvgMode,
@@ -1611,7 +1542,7 @@ function ChatPanelOptimized({
     if (!activeToolPanel) return null;
     if (activeToolPanel === "calibration") {
       return <CalibrationConsole
-        disabled={status === "streaming" || requiresBranchDecision}
+        disabled={status === "streaming"}
         onAiCalibrate={handleAICalibrationRequest}
       />;
     }
@@ -1664,24 +1595,24 @@ function ChatPanelOptimized({
                         模板功能已移除
                     </div> : commandTab === "starter" ? <QuickActionBar
       actions={QUICK_ACTIONS}
-      disabled={status === "streaming" || requiresBranchDecision}
+      disabled={status === "streaming"}
       onSelect={handleQuickAction}
       variant="plain"
       title=""
       subtitle=""
     /> : commandTab === "report" ? <ReportBlueprintTray
-      disabled={status === "streaming" || requiresBranchDecision}
+      disabled={status === "streaming"}
       onUseTemplate={(template) => handleBlueprintTemplate(template.prompt)}
     /> : <FlowShowcaseGallery
       presets={FLOW_SHOWCASE_PRESETS}
-      disabled={status === "streaming" || requiresBranchDecision}
+      disabled={status === "streaming"}
       onSelect={handleShowcasePreset}
     />}
             </div>;
   };
   const showSessionStatus = !isCompactMode || !isConversationStarted;
   // 包含 isSubmitting 状态，确保在用户点击发送后立即显示忙碌状态
-  const isGenerationBusy = isSubmitting || status === "streaming" || status === "submitted" || isComparisonRunning;
+  const isGenerationBusy = isSubmitting || status === "streaming" || status === "submitted";
   const shouldShowSidebar = Boolean(activeToolPanel && isToolSidebarOpen);
   return <>
             <Card className="relative flex h-full max-h-full min-h-0 w-full max-w-full flex-col gap-0 rounded-none py-0 overflow-hidden">
@@ -1737,24 +1668,6 @@ function ChatPanelOptimized({
                             </div>}
                         {/* 智能工具栏已移除 */}
                         <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
-                            {comparisonNotice && <div
-    className={cn(
-      "relative mb-3 flex shrink-0 items-start gap-2 rounded-xl border px-3 py-2 text-xs shadow-sm",
-      comparisonNotice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-600"
-    )}
-  >
-                                    {comparisonNotice.type === "success" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5" />}
-                                    <span className="leading-snug">
-                                        {comparisonNotice.message}
-                                    </span>
-                                    <button
-      type="button"
-      onClick={dismissComparisonNotice}
-      className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/40 bg-white/30 text-current transition hover:bg-white/60"
-    >
-                                        <X className="h-3.5 w-3.5" />
-                                    </button>
-                                </div>}
                             <div
     ref={messagesScrollRef}
     className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl bg-white px-2.5 py-2 pb-28"
@@ -1776,18 +1689,6 @@ function ChatPanelOptimized({
       origin: "display",
       modelRuntime: selectedModel ?? void 0
     })}
-    onComparisonApply={(result) => {
-      void handleApplyComparisonResult(result);
-    }}
-    onComparisonCopyXml={handleCopyXml}
-    onComparisonDownload={handleDownloadXml}
-    onComparisonPreview={(requestId, result) => {
-      void handlePreviewComparisonResult(requestId, result);
-    }}
-    onComparisonRetry={handleRetryComparisonResult}
-    buildComparisonPreviewUrl={buildComparisonPreviewUrl}
-    comparisonHistory={comparisonHistory}
-    activePreview={activeComparisonPreview}
     onMessageRevert={handleMessageRevert}
     runtimeDiagramError={runtimeError?.message ?? null}
     onConsumeRuntimeError={() => setRuntimeError(null)}
@@ -1797,7 +1698,6 @@ function ChatPanelOptimized({
     })}
     onRetryGeneration={handleRetryGeneration}
     isGenerationBusy={isGenerationBusy}
-    isComparisonRunning={isComparisonRunning}
     diagramResultVersion={diagramResultVersion}
     getDiagramResult={getDiagramResult}
     generationPhase={generationPhase}
@@ -1834,40 +1734,7 @@ function ChatPanelOptimized({
     onModelChange={selectModel}
     onManageModels={() => setIsModelConfigOpen(true)}
     onModelStreamingChange={handleModelStreamingChange}
-    comparisonEnabled={isComparisonAllowed}
-    onCompareRequest={async () => {
-      if (!input.trim()) {
-        return;
-      }
-      const parts = [{ type: "text", text: input }];
-      if (files.length > 0) {
-        const attachments = await serializeAttachments(files);
-        attachments.forEach(({ url, mediaType }) => {
-          parts.push({
-            type: "file",
-            url,
-            mediaType
-          });
-        });
-      }
-      const userMessageId = `user-compare-${Date.now()}`;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: userMessageId,
-          role: "user",
-          parts
-        }
-      ]);
-      void handleCompareRequest(userMessageId);
-      setInput("");
-      setFiles([]);
-    }}
-    onOpenComparisonConfig={() => {
-      setIsComparisonConfigOpen(true);
-    }}
-    isCompareLoading={isComparisonRunning}
-    interactionLocked={requiresBranchDecision || !selectedModel}
+    interactionLocked={!selectedModel}
     renderMode={renderMode}
     onRenderModeChange={handleRenderModeChange}
     onStop={() => handleStopAll({
@@ -1921,15 +1788,6 @@ function ChatPanelOptimized({
                     </div>
                 </DialogContent>
             </Dialog>
-            <ModelComparisonConfigDialog
-    open={isComparisonConfigOpen}
-    onOpenChange={setIsComparisonConfigOpen}
-    config={comparisonConfig}
-    onConfigChange={setComparisonConfig}
-    defaultPrimaryKey={selectedModelKey}
-    models={modelOptions}
-    onManageModels={() => setIsModelConfigOpen(true)}
-  />
             <ModelConfigDialog
     open={isModelConfigOpen}
     onOpenChange={setIsModelConfigOpen}
