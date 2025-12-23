@@ -1075,13 +1075,43 @@ ${safeUserText}
 - ✅ 用户要求创建数据驱动的图表
 - ✅ 用户明确提到"数据"、"图表"、"可视化"、"matplotlib"、"Python"等关键词
 
+**学术绘图标准（必须遵守）：**
+
+本工具生成的图表必须符合顶级学术会议（NeurIPS、CVPR、ICML）和高质量期刊（Nature、Science、Cell）的绘图标准。
+
+**1. 字体规范：**
+- 字体族：Arial（系统已自动配置，优先使用 Arial，备选 Helvetica）
+- 标题字号：14-16pt（使用 plt.title(fontsize=14) 或 plt.title(fontsize=16)）
+- 轴标签字号：12pt（使用 plt.xlabel(fontsize=12)、plt.ylabel(fontsize=12)）
+- 刻度标签字号：10pt（系统已自动配置）
+- 图例字号：10pt（使用 plt.legend(fontsize=10)）
+
+**2. 配色方案（学术标准）：**
+- **优先使用灰度方案**：确保黑白打印清晰，适合期刊发表
+- **主色调**：深灰色（#2C3E50）用于文字、边框、坐标轴
+- **强调色**：蓝色（#6c8ebf）、绿色（#82b366）、橙色（#d6b656）
+- **避免红绿搭配**：色盲不友好，改用蓝橙搭配
+- **对比度要求**：文字与背景对比度 ≥ 4.5:1
+
+**3. 图表质量要求：**
+- **DPI**：300 DPI（系统已自动配置，适合出版）
+- **默认尺寸**：8×6 英寸（适合单栏），或 12×6 英寸（适合双栏）
+- **线条粗细**：1.5-2pt（使用 linewidth=1.5 或 linewidth=2）
+- **网格样式**：浅灰色，透明度 0.3（使用 plt.grid(True, alpha=0.3, color='#E0E0E0')）
+
+**4. 布局和间距：**
+- 保留足够的边距（系统已自动配置）
+- 确保图表元素不重叠
+- 图例位置合理，不遮挡数据
+
 **代码要求（必须遵守）：**
 1. **必须使用 matplotlib**：代码必须导入并使用 matplotlib.pyplot
 2. **必须生成图形**：必须调用至少一个绘图函数（plt.plot()、plt.bar()、plt.scatter()、plt.hist() 等）
 3. **自包含代码**：代码应该包含所有必要的导入和数据生成，不依赖外部文件
 4. **SVG 输出**：系统会自动捕获 matplotlib 生成的 SVG，无需手动保存文件
+5. **遵循学术标准**：字体、配色、质量必须符合上述学术绘图标准
 
-**标准代码模板：**
+**学术绘图代码模板（推荐）：**
 \`\`\`python
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1090,20 +1120,49 @@ import numpy as np
 x = np.linspace(0, 10, 100)
 y = np.sin(x)
 
-# 绘制图表
-plt.figure(figsize=(8, 6))
-plt.plot(x, y, linewidth=2)
-plt.title('正弦函数', fontsize=14)
-plt.xlabel('x', fontsize=12)
-plt.ylabel('y', fontsize=12)
-plt.grid(True, alpha=0.3)
+# 绘制图表（符合学术标准）
+plt.figure(figsize=(8, 6))  # 8×6 英寸，适合单栏
+plt.plot(x, y, linewidth=1.5, color='#2C3E50', label='sin(x)')  # 使用学术配色
+plt.title('正弦函数', fontsize=14, fontweight='bold')  # 标题 14pt
+plt.xlabel('x', fontsize=12)  # 轴标签 12pt
+plt.ylabel('y', fontsize=12)  # 轴标签 12pt
+plt.grid(True, alpha=0.3, color='#E0E0E0', linestyle='--')  # 网格：浅灰，透明度 0.3
+plt.legend(fontsize=10, frameon=True, framealpha=0.9)  # 图例 10pt
+plt.tight_layout()  # 自动调整布局，确保边距合适
 \`\`\`
 
+**配色示例（学术标准）：**
+\`\`\`python
+# 方式一：使用系统提供的 academic_colors 字典（推荐）
+# 系统已自动配置 academic_colors 字典，可以直接使用
+plt.plot(x1, y1, color=academic_colors['primary'], linewidth=1.5, label='方法 A')
+plt.plot(x2, y2, color=academic_colors['blue'], linewidth=1.5, label='方法 B')
+plt.plot(x3, y3, color=academic_colors['green'], linewidth=1.5, label='方法 C')
+
+# 方式二：不指定颜色，使用默认颜色循环（系统已配置学术配色）
+plt.plot(x1, y1, linewidth=1.5, label='方法 A')  # 自动使用 academic_colors['primary']
+plt.plot(x2, y2, linewidth=1.5, label='方法 B')  # 自动使用 academic_colors['blue']
+plt.plot(x3, y3, linewidth=1.5, label='方法 C')  # 自动使用 academic_colors['green']
+
+# 方式三：直接使用十六进制颜色值（确保使用学术配色）
+plt.plot(x1, y1, color='#2C3E50', linewidth=1.5, label='方法 A')
+plt.plot(x2, y2, color='#6c8ebf', linewidth=1.5, label='方法 B')
+\`\`\`
+
+**重要提示：**
+- **推荐使用方式一**：使用 academic_colors 字典，系统已自动配置，无需重新定义
+- **避免使用颜色名**：不要使用 color='red'、color='blue' 等颜色名，这些可能不符合学术标准
+- **优先使用学术配色**：使用 academic_colors['primary']、academic_colors['blue'] 等确保符合期刊标准
+
 **关键提示：**
+- 系统已自动配置学术绘图风格（字体、DPI、配色等），无需手动设置
+- **配色使用**：系统提供了 academic_colors 字典，推荐使用 academic_colors['primary']、academic_colors['blue'] 等来指定颜色
+- **避免颜色冲突**：不要使用 color='red'、color='blue' 等颜色名，应使用 academic_colors 字典或十六进制值
 - 代码执行后，系统会自动捕获 matplotlib 生成的 SVG 并显示在画布上
 - 不需要手动调用 plt.savefig()，系统会自动处理
 - 确保代码完整且可执行
 - 如果执行失败，可以回退使用 display_diagram 或 display_svg 工具
+- **重要**：生成的图表必须符合学术期刊发表标准，确保字体清晰、配色专业、质量达标
 
 **何时不使用此工具：**
 - ❌ 用户要求绘制流程图、架构图、UML 图等（使用 display_diagram）
