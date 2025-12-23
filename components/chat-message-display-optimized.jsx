@@ -696,6 +696,7 @@ function ChatMessageDisplay({
             </div>;
   };
   // renderComparisonEntry 函数已删除（模型对比功能已移除）
+  const resolveMessageText = (message) => {
     if (typeof message.content === "string") {
       return message.content;
     }
