@@ -520,6 +520,12 @@ function ChatPanelOptimized({
             throw new Error("Python 代码不能为空");
           }
 
+          // 输出 Python 代码
+          console.log("[execute_python] 准备执行的 Python 代码:");
+          console.log("-".repeat(60));
+          console.log(code);
+          console.log("-".repeat(60));
+
           // 调用 Python 执行 API
           console.log("[execute_python] 调用 Python 执行 API...");
           const response = await fetch("/api/python-execute", {

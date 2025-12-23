@@ -35,6 +35,10 @@ export async function POST(req) {
       console.log(`描述: ${description}`);
     }
     console.log(`代码长度: ${code.length} 字符`);
+    console.log("\n执行的 Python 代码:");
+    console.log("-".repeat(60));
+    console.log(code);
+    console.log("-".repeat(60));
     console.log("=".repeat(60) + "\n");
 
     // 执行 Python 代码
