@@ -468,7 +468,9 @@ function ChatPanelOptimized({
             });
             return;
           }
-          const { rootXml } = buildSvgRootXml(svg);
+          // 获取当前画布的 XML，确保生成的 ID 不与现有节点冲突
+          const currentXml = getLatestDiagramXml();
+          const { rootXml } = buildSvgRootXml(svg, currentXml);
           await handleCanvasUpdate(rootXml, {
             origin: "display",
             modelRuntime: selectedModel ?? void 0,
@@ -599,7 +601,9 @@ function ChatPanelOptimized({
 
           // Draw.io 模式：将 SVG 转换为 XML 并显示
           console.log("[execute_python] Draw.io 模式：转换 SVG 为 XML");
-          const { rootXml } = buildSvgRootXml(svg);
+          // 获取当前画布的 XML，确保生成的 ID 不与现有节点冲突
+          const currentXml = getLatestDiagramXml();
+          const { rootXml } = buildSvgRootXml(svg, currentXml);
           console.log("[execute_python] 转换后的 rootXml 长度:", rootXml?.length);
           await handleCanvasUpdate(rootXml, {
             origin: "display",

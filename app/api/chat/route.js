@@ -865,11 +865,16 @@ async function POST(req) {
         imageCount: fileParts.length
       });
     }
+    // 检测画布上是否包含 SVG 图像节点
+    const hasSvgNodes = xml && typeof xml === "string" && 
+      xml.includes('shape=image') && xml.includes('data:image/svg+xml');
+    const svgHint = hasSvgNodes ? '\n\n提示：画布上包含 SVG 图像节点（可通过 style 属性中的 shape=image 和 image=data:image/svg+xml 识别），你可以创建新节点并连接到这些节点。' : '';
+    
     const formattedTextContent = `
 当前图表 XML:
 """xml
 ${xml || ""}
-"""
+"""${svgHint}
 用户输入:
 """md
 ${safeUserText}
@@ -1031,6 +1036,12 @@ ${safeUserText}
 ✓ 所有 mxGeometry 有 as="geometry"
 ✓ 所有标签正确闭合
 ✓ 每个节点包含 fontFamily=Arial;
+
+**重要：与现有节点交互**
+- 如果画布上已有节点（包括 SVG 图像节点），你可以在新生成的 XML 中创建连接线连接到这些节点
+- 使用现有节点的 ID 作为连接线的 source 或 target 属性
+- 确保新节点的 ID 不与现有节点冲突（从"当前图表 XML"中找到最大 ID，然后递增）
+- SVG 图像节点可以通过 style 属性中的 \`shape=image\` 和 \`image=data:image/svg+xml\` 特征识别
 
 **重要：** 图表将实时渲染到 draw.io 画布。`,
         parameters: z.object({
