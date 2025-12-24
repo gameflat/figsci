@@ -8,6 +8,50 @@ import { formatPrompt } from "./prompt-formatter";
 import { generateMermaid } from "./mermaid-generator";
 import { generateVisualSchema } from "./architect";
 import { generateXml } from "./renderer";
+import { getStaticSystemModelList, isSystemModelsEnabled } from "@/lib/system-models";
+
+/**
+ * 获取默认系统模型配置
+ * 当未传入 modelRuntime 时，从环境变量获取系统模型配置
+ * 使用 SYSTEM_MODELS 中倒数第一个模型（最后一个模型）
+ * 
+ * @returns {Object|null} 默认模型运行时配置，如果系统模型未启用则返回 null
+ */
+function getDefaultSystemModelRuntime() {
+  // 检查系统模型是否启用
+  if (!isSystemModelsEnabled()) {
+    console.log("[工作流] 系统模型未启用，无法使用默认系统模型配置");
+    return null;
+  }
+
+  // 获取系统模型列表
+  const systemModels = getStaticSystemModelList();
+  
+  if (!systemModels || systemModels.length === 0) {
+    console.log("[工作流] 系统模型列表为空，无法使用默认系统模型配置");
+    return null;
+  }
+
+  // 获取倒数第一个模型（最后一个模型）
+  const lastModel = systemModels[systemModels.length - 1];
+  
+  if (!lastModel || !lastModel.id) {
+    console.log("[工作流] 无法获取有效的系统模型ID");
+    return null;
+  }
+
+  console.log("[工作流] 使用默认系统模型配置:", {
+    modelId: lastModel.id,
+    label: lastModel.label,
+    description: lastModel.description,
+  });
+
+  // 构建 modelRuntime 对象，格式与前端传递的格式一致
+  return {
+    useSystemModel: true,
+    systemModelId: lastModel.id,
+  };
+}
 
 /**
  * 执行完整的智能体工作流
@@ -40,13 +84,24 @@ export async function executeWorkflow({
   };
   
   try {
+    // 如果未传入 modelRuntime，尝试使用默认系统模型配置
+    let effectiveModelRuntime = modelRuntime;
+    if (!effectiveModelRuntime) {
+      const defaultSystemModel = getDefaultSystemModelRuntime();
+      if (defaultSystemModel) {
+        effectiveModelRuntime = defaultSystemModel;
+        console.log("[工作流] 使用默认系统模型配置作为所有步骤的模型");
+      } else {
+        console.log("[工作流] 未传入 modelRuntime 且无法获取默认系统模型配置，各步骤将使用自己的默认配置");
+      }
+    }
     // 步骤 1: 提示词格式化
     console.log("[工作流] 步骤 1/5: 提示词格式化...");
     const formatStartTime = Date.now();
     const formatResult = await formatPrompt({
       userInput,
       currentXml,
-      modelRuntime,
+      modelRuntime: effectiveModelRuntime,
     });
     metadata.steps.formatPrompt = {
       duration: Date.now() - formatStartTime,
@@ -63,7 +118,7 @@ export async function executeWorkflow({
     try {
       mermaidResult = await generateMermaid({
         userInput: formattedPrompt,
-        modelRuntime,
+        modelRuntime: effectiveModelRuntime,
       });
       metadata.steps.generateMermaid = {
         duration: Date.now() - mermaidStartTime,
@@ -98,7 +153,7 @@ export async function executeWorkflow({
       architectResult = await generateVisualSchema({
         formattedPrompt,
         mermaid,
-        modelRuntime: architectModel || modelRuntime,
+        modelRuntime: architectModel || effectiveModelRuntime,
       });
       metadata.steps.generateVisualSchema = {
         duration: Date.now() - architectStartTime,
@@ -124,7 +179,7 @@ export async function executeWorkflow({
     try {
       rendererResult = await generateXml({
         visualSchema,
-        modelRuntime: rendererModel || modelRuntime,
+        modelRuntime: rendererModel || effectiveModelRuntime,
       });
       metadata.steps.generateXml = {
         duration: Date.now() - rendererStartTime,
