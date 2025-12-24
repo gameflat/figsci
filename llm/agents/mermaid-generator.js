@@ -208,10 +208,16 @@ export async function generateMermaid({
     
     if (!isValidMermaid && mermaidCode.length > 0) {
       console.warn("[Mermaid生成] ⚠️  生成的代码可能不是有效的Mermaid格式");
+      // 如果格式无效，返回空字符串，不传递给 Architect
+      return {
+        mermaid: "",
+        isValid: false,
+      };
     }
     
     return {
       mermaid: mermaidCode || "",
+      isValid: isValidMermaid || mermaidCode.length === 0,
     };
   } catch (error) {
     console.error("Mermaid生成失败:", error);

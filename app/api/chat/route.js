@@ -153,13 +153,17 @@ function estimateChargeResultForMetadata(totalUsage, isTaskCompleted) {
     }
   }
 
+  // 在 mixed 模式下，如果任务未完成，应该设置 needsRollback
+  // 这样前端可以在 chargeResult 中看到回滚标记，而不需要等待最终结果
+  const needsRollback = (chargeMode === "mixed" && !isTaskCompleted);
+
   return {
     success: true,
     message: "预估扣费",
     eventValue,
     chargeMode,
     isInsufficientBalance: false,
-    needsRollback: false,
+    needsRollback: needsRollback,
   };
 }
 

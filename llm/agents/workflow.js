@@ -69,11 +69,16 @@ export async function executeWorkflow({
         duration: Date.now() - mermaidStartTime,
         success: true,
         hasMermaid: !!mermaidResult.mermaid,
+        isValid: mermaidResult.isValid !== false, // 默认为 true（如果未返回该字段）
       };
-      console.log("[工作流] ✅ 步骤 2/5 完成: Mermaid生成", mermaidResult.mermaid ? "(已生成)" : "(跳过)");
+      if (mermaidResult.mermaid && mermaidResult.isValid === false) {
+        console.log("[工作流] ✅ 步骤 2/5 完成: Mermaid生成（格式无效，将不传递给 Architect）");
+      } else {
+        console.log("[工作流] ✅ 步骤 2/5 完成: Mermaid生成", mermaidResult.mermaid ? "(已生成)" : "(跳过)");
+      }
     } catch (error) {
       console.warn("[工作流] ⚠️  步骤 2/5 Mermaid生成失败，继续执行:", error.message);
-      mermaidResult = { mermaid: "" };
+      mermaidResult = { mermaid: "", isValid: false };
       metadata.steps.generateMermaid = {
         duration: Date.now() - mermaidStartTime,
         success: false,
@@ -81,7 +86,9 @@ export async function executeWorkflow({
       };
     }
     
-    const mermaid = mermaidResult.mermaid || "";
+    // 只有当 Mermaid 有效时才传递给 Architect
+    // 如果格式无效，只传递格式化的提示词
+    const mermaid = (mermaidResult.isValid !== false && mermaidResult.mermaid) ? mermaidResult.mermaid : "";
     
     // 步骤 3: The Architect - 生成VISUAL SCHEMA
     console.log("[工作流] 步骤 3/5: The Architect生成VISUAL SCHEMA...");
@@ -143,7 +150,8 @@ export async function executeWorkflow({
     return {
       xml: rendererResult.xml,
       formattedPrompt,
-      mermaid: mermaid || undefined,
+      // 只有当 Mermaid 有效时才返回
+      mermaid: (mermaid && mermaidResult?.isValid !== false) ? mermaid : undefined,
       visualSchema,
       metadata,
     };

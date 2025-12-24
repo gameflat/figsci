@@ -34,8 +34,6 @@ app/
       route.js            # 配置管理接口
     diagram-repair/
       route.js            # 图表修复功能接口
-    model-compare/
-      route.js            # 多模型对比功能接口
     models/
       route.js            # 模型列表获取接口
     photon/               # 光子扣费相关接口
@@ -43,12 +41,8 @@ app/
         route.js          # 光子扣费接口
       pre-charge/
         route.js          # 预扣费检查接口
-    search-template/
-      route.js            # 模板搜索接口
     system-models/
       route.js            # 系统内置模型列表接口
-    template-match/
-      route.js            # 智能模板匹配接口
   favicon.ico             # 网站图标
   globals.css             # 全局样式文件
   layout.jsx              # 根布局组件
@@ -74,14 +68,12 @@ components/               # React 组件
   chat-input-optimized.jsx       # 优化后的聊天输入组件
   chat-message-display-optimized.jsx  # 优化后的聊天消息展示组件
   chat-panel-optimized.jsx       # 聊天面板入口组件
-  comparison-review-modal.jsx    # 对比审查模态框组件
   figsci-brief.jsx               # Figsci 简介组件
   file-preview-list.jsx          # 文件预览列表组件
   flow-showcase-gallery.jsx      # 流程图展示画廊组件
   generation-progress-indicator.jsx  # 生成进度指示器组件
   history-dialog.jsx             # 历史记录对话框组件
   language-switcher.jsx          # 语言切换器组件
-  model-comparison-config-dialog.jsx  # 模型对比配置对话框组件
   model-config-dialog.jsx        # 模型配置对话框组件
   model-selector.jsx             # 模型选择器组件
   photon-charge-notice.jsx       # 光子扣费提示组件
@@ -111,7 +103,6 @@ features/                 # 功能模块
       intelligence-toolbar.jsx   # 智能工具栏组件
       tool-panel-sidebar.jsx     # 工具面板侧边栏组件
     hooks/
-      use-comparison-workbench.js    # 对比工作流管理 Hook
       use-diagram-orchestrator.js    # 图表编排管理 Hook
     utils/
       attachments.js             # 附件处理工具函数
@@ -140,8 +131,6 @@ lib/                      # 工具库
   system-models.js               # 系统模型配置
   utils.js                       # 通用工具函数
 types/                    # 类型定义
-  comparison.d.ts                # 对比功能类型定义（TypeScript）
-  comparison.js                  # 对比功能类型定义（JSDoc）
   diagram.d.ts                   # 图表类型定义（TypeScript）
   diagram.js                     # 图表类型定义（JSDoc）
   model-config.d.ts              # 模型配置类型定义（TypeScript）
@@ -151,12 +140,12 @@ types/                    # 类型定义
 llm/                      # AI Agents 工作流
   agents/
     prompt-formatter.js          # 提示词格式化 Agent
-    template-matcher.js          # 模板匹配 Agent
+    mermaid-generator.js         # Mermaid 生成器 Agent
+    architect.js                 # Architect Agent（逻辑构建）
+    renderer.js                  # Renderer Agent（绘图渲染）
     workflow.js                  # 工作流编排
   types/
     index.js                     # 类型定义
-  utils/
-    template-loader.js           # 模板加载工具
   README.md                      # AI Agents 工作流说明文档
 locales/                  # 国际化翻译文件
   translations.js                # 多语言翻译配置文件
@@ -180,7 +169,7 @@ tsconfig.json                   # TypeScript 编译器配置
 ```
 
 关键点：
-- 功能隔离 – `features/chat-panel/` 封装了所有与会话工具相关的内容，包括组件（`components/intelligence-toolbar.jsx`、`components/tool-panel-sidebar.jsx`）、hooks（`hooks/use-comparison-workbench.js`、`hooks/use-diagram-orchestrator.js`）、工具函数（`utils/attachments.js`、`utils/messages.js`）和常量定义。文件夹外部无需了解比较预览或自动修复的行为。
+- 功能隔离 – `features/chat-panel/` 封装了所有与会话工具相关的内容，包括组件（`components/intelligence-toolbar.jsx`、`components/tool-panel-sidebar.jsx`）、hooks（`hooks/use-diagram-orchestrator.js`）、工具函数（`utils/attachments.js`、`utils/messages.js`）和常量定义。文件夹外部无需了解自动修复的行为。
 
 - 共享上下文 – `contexts/` 目录包含四个核心 Context：`conversation-context.jsx`（对话状态管理）、`diagram-context.jsx`（Draw.io 图表状态）、`svg-editor-context.jsx`（SVG 编辑器状态）和 `locale-context.jsx`（国际化设置）。这些是单一数据源提供者，功能 hooks 消费它们的 API，而不是复制逻辑。
 
@@ -188,11 +177,11 @@ tsconfig.json                   # TypeScript 编译器配置
   - `components/ui/` – 基础 UI 组件（基于 Radix UI），包含 10 个原子组件（button、dialog、input 等）
   - `components/` 根目录 – 业务组件（chat-panel-optimized、model-config-dialog、template-gallery 等 30+ 个组件），它们通过 props 接收数据/处理函数，对编排细节保持无感知
 
-- API 路由分层 – `app/api/` 下的 10 个路由按功能域组织：核心功能（chat、diagram-repair、model-compare）、模板相关（template-match、search-template）、模型管理（models、system-models、configs）、光子扣费（photon/charge、photon/pre-charge）和认证（auth/validate）。每个路由处理特定的业务逻辑。
+- API 路由分层 – `app/api/` 下的 7 个路由按功能域组织：核心功能（chat、diagram-repair）、模型管理（models、system-models、configs）、光子扣费（photon/charge、photon/pre-charge）和认证（auth/validate）。每个路由处理特定的业务逻辑。
 
 - 工具库模块化 – `lib/` 中的 13 个工具文件按功能分类：模型管理（server-models.js、env-models.js、system-models.js）、图表处理（diagram-validation.js、diagram-repair-client.js、diagram-templates.js、svg.js）、扣费相关（photon-client.js、charge-utils.js）、AI 相关（llm-client.js、prompts.js、calibration.js）和通用工具（utils.js）。便于复用和维护。
 
-- 类型定义支持 – `types/` 目录同时支持 TypeScript（.d.ts）和 JSDoc（.js）类型定义，覆盖 comparison、diagram、model-config、template 等核心类型。
+- 类型定义支持 – `types/` 目录同时支持 TypeScript（.d.ts）和 JSDoc（.js）类型定义，覆盖 diagram、model-config、template 等核心类型。
 
 - 国际化支持 – `locales/translations.js` 提供多语言翻译配置，配合 `contexts/locale-context.jsx` 实现完整的国际化方案。
 
@@ -205,11 +194,6 @@ tsconfig.json                   # TypeScript 编译器配置
   - 拥有 Draw.io XML 生命周期（应用/验证/自动修复），并为功能消费者暴露 `handleDiagramXml`、`tryApplyRoot` 和 ref 工具函数。
   - 集中运行时错误处理，任何消费者只需调用单个函数即可同步画布状态。
   - 依赖 `contexts/diagram-context.jsx` 和 `lib/diagram-validation.js`、`lib/diagram-repair-client.js`。
-
-- `use-comparison-workbench.js`
-  - 管理模型比较工作流：分支创建、预览/应用/重试流程、通知队列、配置模态框状态和请求管道。
-  - 返回"守卫"辅助函数（`ensureBranchSelectionSettled`、`releaseBranchRequirement`、`notifyComparison`），以便其他 UI 操作在比较决策待定时可以短路。
-  - 调用 `app/api/model-compare/route.js` API 进行多模型并行对比。
 
 ### 组件（`features/chat-panel/components/`）
 - `intelligence-toolbar.jsx` – 使用清晰的 API 渲染智能工具切换组，提供模型对比、图表修复等功能入口。
@@ -234,7 +218,6 @@ tsconfig.json                   # TypeScript 编译器配置
 聊天面板功能还依赖以下共享组件：
 - `components/chat-input-optimized.jsx` – 优化的聊天输入组件
 - `components/chat-message-display-optimized.jsx` – 优化的消息展示组件
-- `components/model-comparison-config-dialog.jsx` – 模型对比配置对话框
 - `components/photon-charge-notice.jsx` – 光子扣费提示组件
 
 最终结果：`ChatPanelOptimized` 减少了约 60%，每个行为都可以独立演化，功能模块化程度显著提升。
@@ -315,55 +298,50 @@ AI 生成完成 → chargePhotonIfEnabled()
 - Token 扣费（token）：根据实际 token 使用量扣费
 - 混合扣费（mixed）：固定费用 + Token 费用
 
-### 4.3 多模型对比架构
-
-```
-用户配置模型
-  ↓
-ModelComparisonConfigDialog
-  ↓
-useComparisonWorkbench
-  ↓
-/api/model-compare (route.js)
-  ↓
-Promise.all([model1, model2, ...])  # 并行调用
-  ↓
-结果规范化 → 创建分支 → 展示对比
-```
-
-关键组件：
-- `features/chat-panel/hooks/use-comparison-workbench.js` – 对比工作流管理 Hook，处理分支创建、结果对比和用户交互
-- `app/api/model-compare/route.js` – 模型对比 API，并行调用多个模型接口，规范化返回结果
-- `components/model-comparison-config-dialog.jsx` – 模型配置对话框，允许用户选择要对比的模型和配置参数
-- `components/comparison-review-modal.jsx` – 对比审查模态框，展示对比结果供用户选择
-
-### 4.4 模板匹配架构
+### 4.3 Architect Workflow 架构
 
 ```
 用户输入提示词
   ↓
-TemplateMatcher Agent (llm/agents/template-matcher.js)
+/api/chat (route.js) - 检查 enableArchitectWorkflow
   ↓
-自定义 API 或 AI SDK
+executeWorkflow (llm/agents/workflow.js)
   ↓
-模板匹配结果
+步骤 1: 提示词格式化 (prompt-formatter.js)
   ↓
-TemplateGallery 展示
+步骤 2: Mermaid 生成 (mermaid-generator.js)
+  ↓
+步骤 3: The Architect (architect.js)
+  - 输入：格式化提示词 + Mermaid
+  - 输出：VISUAL SCHEMA (---BEGIN PROMPT--- ... ---END PROMPT---)
+  ↓
+步骤 4: The Renderer (renderer.js)
+  - 输入：VISUAL SCHEMA
+  - 输出：Draw.io XML 代码
+  ↓
+XML 验证和规范化 (lib/diagram-validation.js)
+  ↓
+应用到画布
 ```
 
 关键组件：
-- `llm/agents/template-matcher.js` – 模板匹配 Agent，使用 AI 分析用户输入并匹配最佳模板
-- `llm/agents/prompt-formatter.js` – 提示词格式化 Agent，根据模板格式化用户提示词
-- `llm/agents/workflow.js` – 工作流编排，协调模板匹配和提示词格式化的流程
-- `llm/utils/template-loader.js` – 模板加载工具，从 `data/templates.js` 加载模板数据
-- `app/api/template-match/route.js` – 模板匹配 API，调用 AI Agents 进行智能匹配
-- `app/api/search-template/route.js` – 模板搜索 API，提供关键词搜索功能
-- `components/template-gallery.jsx` – 模板画廊组件，展示可用模板
-- `components/template-card.jsx` – 模板卡片组件，单个模板的展示卡片
-- `components/template-detail-modal.jsx` – 模板详情模态框，展示模板详细信息和使用说明
-- `data/templates.js` – 模板数据源，包含所有图表模板的定义和元数据
+- `llm/agents/prompt-formatter.js` – 提示词格式化 Agent，将用户输入格式化为规范的 Markdown 格式
+- `llm/agents/mermaid-generator.js` – Mermaid 生成器 Agent，根据用户输入生成 Mermaid 图表代码，帮助理解逻辑结构
+- `llm/agents/architect.js` – Architect Agent（逻辑构建），使用强大的 LLM（如 Gemini 3 Pro、GPT-5、Claude 4.5）将用户输入和 Mermaid 转换为 VISUAL SCHEMA
+- `llm/agents/renderer.js` – Renderer Agent（绘图渲染），将 VISUAL SCHEMA 转换为 Draw.io XML 代码
+- `llm/agents/workflow.js` – 工作流编排，协调整个 Architect Workflow 的执行流程
+- `app/api/chat/route.js` – 聊天 API，集成 Architect Workflow，通过 `enableArchitectWorkflow` 参数启用
+- `components/model-config-dialog.jsx` – 模型配置对话框，包含 Architect Workflow 配置区域，允许用户启用/禁用工作流并选择 Architect 和 Renderer 模型
+- `lib/prompts.js` – 包含 `ARCHITECT_SYSTEM_MESSAGE` 和 `RENDERER_SYSTEM_MESSAGE` 系统提示词
+- `lib/diagram-validation.js` – 图表验证工具，验证和规范化生成的 XML
 
-### 4.5 Draw.io 降级架构
+工作流特点：
+- 两阶段智能体设计：Architect 负责逻辑构建，Renderer 负责绘图渲染
+- 支持独立模型配置：可以为 Architect 和 Renderer 选择不同的模型
+- 完整的错误处理：每个步骤都有错误处理和回退机制
+- XML 验证：生成的 XML 会经过验证和规范化，确保可以正确应用到画布
+
+### 4.4 Draw.io 降级架构
 
 ```
 加载 Draw.io 编辑器
@@ -403,7 +381,7 @@ useDrawioFallback Hook
    - 工具函数：复用 `lib/` 中的验证、处理、客户端工具
 
 4. 暴露最小入口点 – 导出一个应用层可以消费的 hook 或组件；保持其他所有内容对功能私有：
-   - 示例：`features/chat-panel/` 对外只暴露 `useComparisonWorkbench` 和 `useDiagramOrchestrator` hooks
+   - 示例：`features/chat-panel/` 对外只暴露 `useDiagramOrchestrator` hook
    - 内部组件和工具函数保持私有，通过 hooks 暴露接口
 
 5. API 路由创建 – 在 `app/api/<route-name>/route.js` 创建对应的 API 路由：
@@ -431,29 +409,17 @@ useDrawioFallback Hook
 ### 6.1 路由分类
 
 #### 核心功能路由（`app/api/`）
-- `chat/route.js` – 聊天和图表生成的主要接口，集成光子扣费功能
+- `chat/route.js` – 聊天和图表生成的主要接口，集成光子扣费功能和 Architect Workflow
   - 处理用户消息，调用 AI 模型生成图表
   - 支持流式响应，使用 Vercel AI SDK
   - 集成 `lib/photon-client.js` 进行扣费操作
+  - 支持 Architect Workflow：通过 `enableArchitectWorkflow` 参数启用两阶段智能体工作流
+  - Architect Workflow 包含：提示词格式化 → Mermaid 生成 → Architect 生成 VISUAL SCHEMA → Renderer 生成 XML
+  - 支持独立的模型配置：`architectModel` 和 `rendererModel` 参数
   
 - `diagram-repair/route.js` – 图表修复功能
   - 调用 `lib/diagram-repair-client.js` 修复无效的 Draw.io XML
   - 使用 AI 分析图表问题并生成修复方案
-  
-- `model-compare/route.js` – 多模型并行对比
-  - 并行调用多个模型接口（Promise.all）
-  - 规范化不同模型的返回格式
-  - 支持结果对比和分支创建
-
-#### 模板相关路由
-- `template-match/route.js` – 智能模板匹配（使用 AI Agents）
-  - 调用 `llm/agents/template-matcher.js` 进行智能匹配
-  - 从 `data/templates.js` 加载模板数据
-  - 返回匹配度最高的模板列表
-  
-- `search-template/route.js` – 模板搜索
-  - 支持关键词、标签、分类等多维度搜索
-  - 从 `data/templates.js` 中筛选匹配模板
 
 #### 模型管理路由
 - `models/route.js` – 获取模型列表
@@ -568,7 +534,9 @@ App (app/page.jsx)
 
 ### 8.6 AI Agents 工作流
 - 建立了 `llm/` 目录，包含 AI Agents 实现
-- `llm/agents/template-matcher.js` 实现智能模板匹配
+- `llm/agents/mermaid-generator.js` 实现 Mermaid 生成，根据用户输入生成 Mermaid 图表代码
+- `llm/agents/architect.js` 实现 Architect Agent，将用户输入和 Mermaid 转换为 VISUAL SCHEMA
+- `llm/agents/renderer.js` 实现 Renderer Agent，将 VISUAL SCHEMA 转换为 Draw.io XML 代码
 - `llm/agents/prompt-formatter.js` 实现提示词格式化
 - `llm/agents/workflow.js` 编排整个 AI 工作流
 
@@ -682,7 +650,9 @@ App (app/page.jsx)
 
 ### 10.6 AI Agents
 - 自定义 AI Agents（`llm/agents/`）：
-  - `template-matcher.js` – 模板匹配 Agent
+  - `mermaid-generator.js` – Mermaid 生成器 Agent
+  - `architect.js` – Architect Agent（逻辑构建）
+  - `renderer.js` – Renderer Agent（绘图渲染）
   - `prompt-formatter.js` – 提示词格式化 Agent
   - `workflow.js` – 工作流编排
 
@@ -715,6 +685,6 @@ App (app/page.jsx)
 
 ---
 
-文档版本：2.0.0  
-最后更新：2025-12-23 
+文档版本：2.1.0  
+最后更新：2025-01-18 
 维护者：Figsci Team

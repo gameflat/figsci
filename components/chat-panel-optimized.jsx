@@ -894,18 +894,30 @@ function ChatPanelOptimized({
       return false;
     };
 
-    // 首先检查 metadata 中是否已有 chargeResult
-    if (metadata?.chargeResult && checkChargeResult(metadata.chargeResult)) {
+    // 首先检查任务是否失败（通过 metadata.taskFailed）
+    // 这个检查应该优先于 chargeResult 检查，因为任务失败时必须回滚
+    // 即使 chargeResult 是预估的且 needsRollback 为 false
+    if (metadata?.taskFailed) {
+      console.log("检测到任务失败标记，执行回滚", {
+        finishReason: metadata.finishReason,
+        hasChargeResult: !!metadata.chargeResult,
+        chargeResultNeedsRollback: metadata.chargeResult?.needsRollback
+      });
+      
+      // 如果 chargeResult 存在且需要回滚，使用 chargeResult 中的消息
+      const rollbackMessage = metadata.chargeResult?.needsRollback 
+        ? (metadata.chargeResult.message || "任务未完成，已恢复到发送前的状态")
+        : "任务未完成，已恢复到发送前的状态";
+      
+      const rolled = rollbackToSnapshot();
+      if (rolled) {
+        notifyUser("error", rollbackMessage);
+      }
       return;
     }
 
-    // 检查任务是否失败（通过 metadata.taskFailed）
-    if (metadata?.taskFailed) {
-      console.log("检测到任务失败标记，执行回滚");
-      const rolled = rollbackToSnapshot();
-      if (rolled) {
-        notifyUser("error", "任务未完成，已恢复到发送前的状态");
-      }
+    // 然后检查 metadata 中是否已有 chargeResult
+    if (metadata?.chargeResult && checkChargeResult(metadata.chargeResult)) {
       return;
     }
 

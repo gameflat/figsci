@@ -20,10 +20,7 @@
    - [核心功能路由](#51-核心功能路由)
      - [聊天和图表生成（/api/chat）](#511-聊天和图表生成apichat)
      - [图表修复（/api/diagram-repair）](#512-图表修复apidiagram-repair)
-     - [模型对比（/api/model-compare）](#513-模型对比apimodel-compare)
-   - [模板相关路由](#52-模板相关路由)
-     - [模板匹配（/api/template-match）](#521-模板匹配apitemplate-match)
-     - [模板搜索（/api/search-template）](#522-模板搜索apisearch-template)
+     - [Architect Workflow（/api/chat 集成）](#513-architect-workflowapichat-集成)
    - [模型管理路由](#53-模型管理路由)
      - [模型列表（/api/models）](#531-模型列表apimodels)
      - [系统模型（/api/system-models）](#532-系统模型apisystem-models)
@@ -39,7 +36,6 @@
    - [功能概述](#61-功能概述)
    - [Hooks 实现](#62-hooks-实现)
      - [图表编排器（use-diagram-orchestrator.js）](#621-图表编排器use-diagram-orchestratorjs)
-     - [对比工作台（use-comparison-workbench.js）](#622-对比工作台use-comparison-workbenchjs)
    - [组件实现](#63-组件实现)
      - [智能工具栏（intelligence-toolbar.jsx）](#631-智能工具栏intelligence-toolbarjsx)
      - [工具面板侧边栏（tool-panel-sidebar.jsx）](#632-工具面板侧边栏tool-panel-sidebarjsx)
@@ -59,8 +55,7 @@
      - [SVG 工作室（svg-studio.jsx）](#724-svg-工作室svg-studiojsx)
      - [模板画廊（template-gallery.jsx）](#725-模板画廊template-galleryjsx)
      - [模型配置对话框（model-config-dialog.jsx）](#726-模型配置对话框model-config-dialogjsx)
-     - [模型对比配置对话框（model-comparison-config-dialog.jsx）](#727-模型对比配置对话框model-comparison-config-dialogjsx)
-     - [其他业务组件](#728-其他业务组件)
+     - [其他业务组件](#727-其他业务组件)
 
 8. [状态管理实现（contexts/）](#8-状态管理实现contexts)
    - [对话上下文（conversation-context.jsx）](#81-对话上下文conversation-contextjsx)
@@ -94,11 +89,12 @@
     - [通用工具（utils.js）](#105-通用工具utilsjs)
 
 11. [AI Agents 工作流实现（llm/）](#11-ai-agents-工作流实现llm)
-    - [模板匹配 Agent（agents/template-matcher.js）](#111-模板匹配-agentagentstemplate-matcherjs)
-    - [提示词格式化 Agent（agents/prompt-formatter.js）](#112-提示词格式化-agentagentsprompt-formatterjs)
-    - [工作流编排（agents/workflow.js）](#113-工作流编排agentsworkflowjs)
-    - [模板加载工具（utils/template-loader.js）](#114-模板加载工具utilstemplate-loaderjs)
-    - [类型定义（types/index.js）](#115-类型定义typesindexjs)
+    - [Architect Agent（agents/architect.js）](#111-architect-agentagentsarchitectjs)
+    - [Renderer Agent（agents/renderer.js）](#112-renderer-agentagentsrendererjs)
+    - [Mermaid 生成器（agents/mermaid-generator.js）](#113-mermaid-生成器agentsmermaid-generatorjs)
+    - [提示词格式化 Agent（agents/prompt-formatter.js）](#114-提示词格式化-agentagentsprompt-formatterjs)
+    - [工作流编排（agents/workflow.js）](#115-工作流编排agentsworkflowjs)
+    - [类型定义（types/index.js）](#116-类型定义typesindexjs)
 
 12. [数据文件（data/）](#12-数据文件data)
     - [模板数据（templates.js）](#121-模板数据templatesjs)
@@ -117,11 +113,10 @@
     - [流式与非流式响应实现](#152-流式与非流式响应实现)
     - [光子扣费功能实现](#153-光子扣费功能实现)
     - [扣费显示功能实现](#154-扣费显示功能实现)
-    - [多模型对比功能实现](#155-多模型对比功能实现)
+    - [Architect Workflow 功能实现](#155-architect-workflow-功能实现)
     - [数据持久化功能实现](#156-数据持久化功能实现)
-    - [模板匹配功能实现](#157-模板匹配功能实现)
-    - [超时设置实现](#158-超时设置实现)
-    - [Draw.io XML 格式指南](#159-drawio-xml-格式指南)
+    - [超时设置实现](#157-超时设置实现)
+    - [Draw.io XML 格式指南](#158-drawio-xml-格式指南)
 
 ---
 
@@ -664,19 +659,25 @@ NEXT_PUBLIC_DRAWIO_BASE_URL=https://your-drawio.com
 
 （待补充详细实现）
 
-#### 5.1.3 模型对比（/api/model-compare）
+#### 5.1.3 Architect Workflow（/api/chat 集成）
 
-（待补充详细实现）
+Architect Workflow 集成在 `/api/chat` 路由中，通过 `enableArchitectWorkflow` 参数启用。
 
-### 5.2 模板相关路由
+**启用条件**：
+- `enableArchitectWorkflow` 为 `true`（从请求体或环境变量 `ENABLE_ARCHITECT_WORKFLOW` 获取）
+- `renderMode` 为 `"drawio"`（Draw.io 模式）
+- `isContinuation` 为 `false`（非继续对话）
 
-#### 5.2.1 模板匹配（/api/template-match）
+**工作流程**：
+1. 检查是否启用 Architect Workflow
+2. 调用 `llm/agents/workflow.js` 的 `executeWorkflow` 函数
+3. 传递 `architectModel` 和 `rendererModel` 配置（如果提供）
+4. 工作流执行完成后，验证和规范化生成的 XML
+5. 返回流式响应格式，包含工具调用 `display_diagram`
 
-（待补充详细实现）
-
-#### 5.2.2 模板搜索（/api/search-template）
-
-（待补充详细实现）
+**关键代码位置**：
+- `app/api/chat/route.js`（第 1088-1156 行）
+- `llm/agents/workflow.js` - 工作流编排
 
 ### 5.3 模型管理路由
 
@@ -722,9 +723,6 @@ NEXT_PUBLIC_DRAWIO_BASE_URL=https://your-drawio.com
 
 （待补充详细实现）
 
-#### 6.2.2 对比工作台（use-comparison-workbench.js）
-
-（待补充详细实现）
 
 ### 6.3 组件实现
 
@@ -1607,174 +1605,258 @@ sendMessage(
 
 ---
 
-### 15.5 多模型对比功能实现
+### 15.5 Architect Workflow 功能实现
 
-### 7.1 概述
+#### 15.5.1 概述
 
-Figsci 支持同时配置最多 5 个来自不同 LLM API 服务商的大模型进行对比。当用户触发对比请求时，系统会将同一条提示词同步发送给所有配置的模型，并展示各个模型的生成结果，方便用户对比不同模型的效果。
+Architect Workflow 是一个两阶段智能体工作流，用于将用户输入转换为高质量的 Draw.io XML 图表。工作流分为两个核心阶段：
 
-### 7.2 整体流程
+1. **The Architect（逻辑构建）**：使用强大的 LLM（如 Gemini 3 Pro、GPT-5、Claude 4.5）将用户输入和 Mermaid 图表转换为 VISUAL SCHEMA
+2. **The Renderer（绘图渲染）**：将 VISUAL SCHEMA 转换为 Draw.io XML 代码
+
+#### 15.5.2 架构设计
 
 ```
-用户配置模型 → 触发对比请求 → 并行调用多个模型 → 收集结果 → 展示对比结果 → 用户选择应用
+用户输入提示词
+  ↓
+步骤 1: 提示词格式化 (prompt-formatter.js)
+  - 将用户输入格式化为规范的 Markdown 格式
+  ↓
+步骤 2: Mermaid 生成 (mermaid-generator.js)
+  - 根据用户输入生成 Mermaid 图表代码
+  - 帮助理解用户输入的逻辑结构
+  ↓
+步骤 3: The Architect (architect.js)
+  - 输入：格式化提示词 + Mermaid
+  - 输出：VISUAL SCHEMA (---BEGIN PROMPT--- ... ---END PROMPT---)
+  - 使用 ARCHITECT_SYSTEM_MESSAGE 系统提示词
+  ↓
+步骤 4: The Renderer (renderer.js)
+  - 输入：VISUAL SCHEMA
+  - 输出：Draw.io XML 代码
+  - 使用 RENDERER_SYSTEM_MESSAGE 系统提示词
+  ↓
+XML 验证和规范化 (lib/diagram-validation.js)
+  ↓
+应用到画布
 ```
 
-### 7.3 详细处理逻辑
+#### 15.5.3 核心文件
 
-#### 模型配置阶段
+- `llm/agents/prompt-formatter.js` - 提示词格式化 Agent
+- `llm/agents/mermaid-generator.js` - Mermaid 生成器 Agent
+- `llm/agents/architect.js` - Architect Agent（逻辑构建）
+- `llm/agents/renderer.js` - Renderer Agent（绘图渲染）
+- `llm/agents/workflow.js` - 工作流编排
+- `app/api/chat/route.js` - 聊天 API，集成 Architect Workflow
+- `components/model-config-dialog.jsx` - 模型配置对话框，包含 Architect Workflow 配置
+- `lib/prompts.js` - 包含 `ARCHITECT_SYSTEM_MESSAGE` 和 `RENDERER_SYSTEM_MESSAGE`
+- `lib/diagram-validation.js` - XML 验证和规范化
 
-文件位置: `components/model-comparison-config-dialog.jsx`
+#### 15.5.4 工作流步骤详解
 
-功能：
-- 允许用户选择 2-5 个模型进行对比
-- 支持添加/删除模型
-- 支持同步当前对话模型到模型 A
-- 支持全部同步到当前模型
+**步骤 1: 提示词格式化**
 
-关键常量：
+文件位置: `llm/agents/prompt-formatter.js`
+
+功能：将用户输入的原始文本格式化为规范的 Markdown 格式，作为后续步骤的输入。
+
 ```javascript
-const MAX_MODELS = 5;  // 最多 5 个模型
-const MIN_MODELS = 2;  // 最少 2 个模型
-const SLOT_LABELS = ["A", "B", "C", "D", "E"];  // 模型槽位标签
+export async function formatPrompt({ userInput, currentXml, modelRuntime }) {
+  // 构建用户提示词
+  let userPrompt = userInput;
+  if (currentXml && currentXml.trim()) {
+    userPrompt = `${userInput}\n\n## 当前画布状态\n当前画布已有内容，请在现有基础上进行修改或扩展。`;
+  }
+  
+  // 调用 AI 模型进行格式化
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: PROMPT_FORMATTER_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: userPrompt }],
+    temperature: 0.1,
+  });
+  
+  return { formattedPrompt: response.text };
+}
 ```
 
-#### 对比请求处理阶段
+**步骤 2: Mermaid 生成**
 
-文件位置: `features/chat-panel/hooks/use-comparison-workbench.js`
+文件位置: `llm/agents/mermaid-generator.js`
 
-主要函数：`handleCompareRequest`
-处理流程：
+功能：根据格式化后的用户输入生成 Mermaid 图表代码，帮助理解用户输入的逻辑结构。
 
-1. 前置检查   - 检查是否正在流式生成
-   - 检查是否已有对比任务在执行
-   - 检查输入是否为空
-   - 检查分支选择是否已确定
-
-2. 模型解析   - 从配置中解析模型选项
-   - 如果配置为空，使用当前选中的模型作为后备
-   - 如果少于 2 个模型，复制第一个模型
-
-3. 模型元数据构建   - 区分系统模型和自定义模型
-   - 系统模型：只传递标志，服务端从环境变量获取配置
-   - 自定义模型：传递完整的 runtime 配置
-
-4. 创建对比条目   - 创建对比请求记录
-   - 包含提示词、模型列表、锚点消息 ID
-
-5. 发送 API 请求   - 构建请求体，包含模型配置、提示词、画布 XML、附件等
-   - 发送到 `/api/model-compare`
-   - 支持取消请求（AbortSignal）
-
-6. 结果处理   - 规范化结果格式
-   - 为每个结果创建分支
-   - 更新对比条目状态
-
-#### API 处理阶段
-
-文件位置: `app/api/model-compare/route.js`
-
-关键实现：
-
-并行调用多个模型：
 ```javascript
-const results = await Promise.all(
-  normalizedModels.map(async (model) => {
-    const startTime = Date.now();
-    try {
-      // 解析模型配置
-      let resolved;
-      if (model.isSystemModel) {
-        resolved = resolveSystemModel(model.id);
-      } else {
-        resolved = resolveChatModel(model.runtime);
-      }
-      
-      // 调用模型生成图表（非流式）
-      const response = await generateText({
-        model: resolved.model,
-        system: mode === "svg" 
-          ? MODEL_COMPARE_SYSTEM_PROMPT_SVG 
-          : MODEL_COMPARE_SYSTEM_PROMPT_XML,
-        messages: [{ role: "user", content: userPrompt }],
-        temperature: 0.1,
-        abortSignal
-      });
-      
-      // 解析 JSON 结果
-      const payload = extractJsonPayload(response.text, mode);
-      
-      // 生成预览图（drawio 模式）
-      const preview = payload.xml 
-        ? await exportDiagramPreview(payload.xml) 
-        : {};
-      
-      return {
-        id: resolved.id,
-        label: model.label ?? resolved.label,
-        status: "ok",
-        summary: payload.summary,
-        xml: payload.xml,
-        svg: payload.svg,
-        previewImage: preview.image,
-        usage: response.usage,
-        durationMs: Date.now() - startTime
-      };
-    } catch (error) {
-      // 错误处理：返回错误结果但不抛出异常
-      return {
-        id: model.id,
-        status: "error",
-        error: error.message,
-        durationMs: Date.now() - startTime
-      };
-    }
-  })
-);
-
-return Response.json({ results });
+export async function generateMermaid({ userInput, modelRuntime }) {
+  // 调用 AI 模型生成 Mermaid 代码
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: MERMAID_GENERATOR_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: userInput }],
+    temperature: 0.3,
+  });
+  
+  // 从代码块中提取 Mermaid 代码
+  const mermaidMatch = response.text.match(/```mermaid\s*([\s\S]*?)\s*```/i);
+  const mermaid = mermaidMatch ? mermaidMatch[1].trim() : "";
+  
+  return { mermaid };
+}
 ```
 
-关键设计点：
-- ✅ 并行处理：使用 `Promise.all` 同时调用所有模型，提高效率
-- ✅ 错误隔离：单个模型失败不影响其他模型的结果
-- ✅ 统一格式：所有结果统一格式，便于前端处理
-- ✅ 支持取消：通过 `AbortSignal` 支持请求取消
+**步骤 3: The Architect**
 
-### 7.4 结果展示
+文件位置: `llm/agents/architect.js`
 
-#### 对比结果渲染
+功能：将格式化提示词和 Mermaid 转换为 VISUAL SCHEMA。
 
-文件位置: `components/chat-message-display-optimized.jsx`
+```javascript
+export async function generateVisualSchema({ formattedPrompt, mermaid, modelRuntime }) {
+  // 构建用户提示词
+  let userPrompt = formattedPrompt;
+  if (mermaid && mermaid.trim()) {
+    userPrompt = `${formattedPrompt}\n\n## Mermaid 图表参考\n以下Mermaid图表可以帮助理解逻辑结构：\n\n\`\`\`mermaid\n${mermaid}\n\`\`\`\n\n请结合上述Mermaid图表和用户输入，生成VISUAL SCHEMA。`;
+  }
+  
+  // 调用 AI 模型生成 VISUAL SCHEMA
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: ARCHITECT_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: userPrompt }],
+    temperature: 0.1,
+  });
+  
+  // 提取 VISUAL SCHEMA
+  const visualSchema = extractVisualSchema(response.text);
+  
+  return { visualSchema, rawOutput: response.text };
+}
+```
 
-展示方式：
-- 2 个结果：并排展示
-- 超过 2 个结果：横向滑动展示（每个卡片宽度 360px）
+**步骤 4: The Renderer**
 
-每个结果卡片包含：
-- 预览图：支持 SVG、PNG 图片或 iframe（draw.io 预览）
-- 模型标签：左上角显示 "模型 A"、"模型 B" 等
-- 使用中标签：右上角显示 "✓ 使用中"（如果该结果已应用到画布）
-- 操作按钮：
-  - "设为画布"：应用该结果到主画布
-  - "复制 XML"：复制 XML 到剪贴板
-  - "下载 XML"：下载 XML 文件
-  - "预览"：全屏预览图表
-  - "重试"：重新生成该模型的结果
+文件位置: `llm/agents/renderer.js`
 
-#### 分支管理
+功能：将 VISUAL SCHEMA 转换为 Draw.io XML 代码。
 
-为每个结果创建独立分支，用户可以在不同结果之间切换，每个结果都有独立的对话历史。
+```javascript
+export async function generateXml({ visualSchema, modelRuntime }) {
+  // 调用 AI 模型生成 XML
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: RENDERER_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: visualSchema }],
+    temperature: 0.1,
+  });
+  
+  // 提取 XML 代码
+  const xml = extractXml(response.text);
+  
+  return { xml };
+}
+```
 
-### 7.5 错误处理
+**工作流编排**
 
-#### 单个模型失败
-- ✅ 不影响其他模型：使用 `Promise.all` 时，单个模型失败不会阻止其他模型继续执行
-- ✅ 返回错误结果：失败的模型会返回 `status: "error"` 的结果
-- ✅ 前端展示错误：错误结果会以红色背景展示，显示错误消息
+文件位置: `llm/agents/workflow.js`
 
-#### 所有模型失败
-- ✅ 显示错误提示：前端会显示 "两个模型均未返回有效结果，请检查提示词或模型设置。"
-- ✅ 不要求分支决策：如果所有模型都失败，不会要求用户选择分支
+功能：协调整个 Architect Workflow 的执行流程。
+
+```javascript
+export async function executeWorkflow({ userInput, currentXml, modelRuntime, architectModel, rendererModel }) {
+  // 步骤 1: 提示词格式化
+  const formatResult = await formatPrompt({ userInput, currentXml, modelRuntime });
+  
+  // 步骤 2: Mermaid 生成（可选，失败时继续）
+  let mermaidResult;
+  try {
+    mermaidResult = await generateMermaid({ userInput: formatResult.formattedPrompt, modelRuntime });
+  } catch (error) {
+    console.warn("Mermaid 生成失败，继续执行:", error);
+    mermaidResult = { mermaid: "" };
+  }
+  
+  // 步骤 3: The Architect
+  const architectResult = await generateVisualSchema({
+    formattedPrompt: formatResult.formattedPrompt,
+    mermaid: mermaidResult.mermaid || "",
+    modelRuntime: architectModel || modelRuntime,
+  });
+  
+  // 步骤 4: The Renderer
+  const rendererResult = await generateXml({
+    visualSchema: architectResult.visualSchema,
+    modelRuntime: rendererModel || modelRuntime,
+  });
+  
+  return {
+    xml: rendererResult.xml,
+    formattedPrompt: formatResult.formattedPrompt,
+    mermaid: mermaidResult.mermaid,
+    visualSchema: architectResult.visualSchema,
+    metadata: { /* ... */ },
+  };
+}
+```
+
+#### 15.5.5 UI 配置
+
+文件位置: `components/model-config-dialog.jsx`
+
+Architect Workflow 配置区域包含：
+
+1. **启用开关**：`Switch` 组件控制 `enableArchitectWorkflow`
+2. **Architect 模型选择器**：选择用于逻辑构建的模型（推荐：GPT-4o、Claude 3 Opus）
+3. **Renderer 模型选择器**：选择用于绘图渲染的模型（推荐：GPT-4o、Gemini 1.5 Pro）
+
+配置存储在 `localStorage` 中，键名为 `architectWorkflowConfig`：
+
+```javascript
+{
+  enabled: true,
+  architectModel: { /* 模型配置 */ },
+  rendererModel: { /* 模型配置 */ }
+}
+```
+
+#### 15.5.6 配置说明
+
+**环境变量配置**（可选）：
+
+```bash
+# Architect 模型配置
+ARCHITECT_MODEL_ID=gemini-2.5-pro
+ARCHITECT_MODEL_BASE_URL=https://api.example.com
+ARCHITECT_MODEL_API_KEY=your-api-key
+
+# Renderer 模型配置
+RENDERER_MODEL_ID=gpt-4o
+RENDERER_MODEL_BASE_URL=https://api.openai.com
+RENDERER_MODEL_API_KEY=your-api-key
+
+# 全局启用 Architect Workflow
+ENABLE_ARCHITECT_WORKFLOW=true
+```
+
+**前端配置**：
+
+通过模型配置对话框启用和配置 Architect Workflow，配置会自动保存到 `localStorage`。
+
+#### 15.5.7 错误处理
+
+- **Mermaid 生成失败**：工作流会继续执行，使用空的 Mermaid 代码
+- **Architect 失败**：工作流会抛出错误，回退到原有的聊天逻辑
+- **Renderer 失败**：工作流会抛出错误，回退到原有的聊天逻辑
+- **XML 验证失败**：会尝试修复 XML，如果修复失败则抛出错误
+
+#### 15.5.8 关键设计点
+
+- ✅ 两阶段设计：逻辑构建和绘图渲染分离，各司其职
+- ✅ 独立模型配置：可以为 Architect 和 Renderer 选择不同的模型
+- ✅ 完整的错误处理：每个步骤都有错误处理和回退机制
+- ✅ XML 验证：生成的 XML 会经过验证和规范化，确保可以正确应用到画布
+- ✅ 灵活的配置：支持环境变量和前端 UI 配置
 
 ---
 
@@ -1957,107 +2039,227 @@ const saveData = (key, data) => {
 
 ---
 
-### 15.7 模板匹配功能实现
-
-### 9.1 概述
-
-模板匹配功能支持使用自定义的大模型 API 来匹配用户提示词和图表模板，而不是使用项目默认的 AI SDK。
-
-### 9.2 配置方式
-
-#### 使用环境变量（推荐）
-
-在项目根目录的 `.env.local` 或 `.env` 文件中添加以下配置：
-
-```env
-# 模板匹配专用的 API URL
-NEXT_PUBLIC_TEMPLATE_MATCH_API_URL=https://api.your-custom-ai.com/v1/chat/completions
-
-# 模板匹配专用的 API Key
-NEXT_PUBLIC_TEMPLATE_MATCH_API_KEY=your-api-key-here
-
-# 模板匹配使用的模型名称（可选，默认使用当前选中的模型）
-NEXT_PUBLIC_TEMPLATE_MATCH_MODEL=gpt-4o-mini
-```
-
-优点：
-- ✅ 安全：API Key 不会暴露在代码中
-- ✅ 灵活：可以为不同环境配置不同的 API
-- ✅ 易于管理：通过环境变量统一管理
-
-### 9.3 API 响应格式要求
-
-自定义 API 必须返回以下格式之一：
-
-#### 格式 1：OpenAI 兼容格式（推荐）
-```json
-{
-  "choices": [
-    {
-      "message": {
-        "content": "返回的文本内容"
-      }
-    }
-  ]
-}
-```
-
-#### 格式 2：直接 content 字段
-```json
-{
-  "content": "返回的文本内容"
-}
-```
-
-#### 格式 3：直接 text 字段
-```json
-{
-  "text": "返回的文本内容"
-}
-```
-
-#### 格式 4：纯字符串
-```
-"返回的文本内容"
-```
-
-### 9.4 请求格式
-
-系统会向你的 API 发送以下格式的请求：
-
-```json
-{
-  "model": "gpt-4o-mini",
-  "messages": [
-    {
-      "role": "system",
-      "content": "你是一个专业的图表模板匹配专家..."
-    },
-    {
-      "role": "user",
-      "content": "用户输入的提示词..."
-    }
-  ],
-  "temperature": 0.3
-}
-```
-
-### 9.5 优先级
-
-系统按以下优先级选择 API：
-
-1. 自定义 API（如果设置了 `NEXT_PUBLIC_TEMPLATE_MATCH_API_URL` 和 `NEXT_PUBLIC_TEMPLATE_MATCH_API_KEY`）
-2. 当前选中的模型（通过 `modelRuntime` 传递）
-3. 系统模型（如果启用）
-4. 降级到关键词匹配（如果所有 API 都不可用）
-
-### 9.6 验证配置
-
-配置完成后，在浏览器控制台查看日志：
 
 - `🔄 使用自定义 AI API 进行匹配...` - 表示正在使用自定义 API
 - `✅ 自定义 AI API 调用成功` - 表示 API 调用成功
 - `❌ 自定义 API 调用失败` - 表示 API 调用失败，会降级到关键词匹配
+
+---
+
+## 11. AI Agents 工作流实现（llm/）
+
+### 11.1 Architect Agent（agents/architect.js）
+
+**功能**：将用户输入和 Mermaid 转换为 VISUAL SCHEMA
+
+**核心函数**：`generateVisualSchema`
+
+**输入参数**：
+- `formattedPrompt` - 格式化后的用户提示词
+- `mermaid` - Mermaid 图表代码（可选）
+- `modelRuntime` - 模型运行时配置（可选）
+
+**输出**：
+- `visualSchema` - VISUAL SCHEMA 内容（`---BEGIN PROMPT---` 到 `---END PROMPT---` 之间的内容）
+- `rawOutput` - Architect 的原始输出
+
+**关键实现**：
+```javascript
+export async function generateVisualSchema({ formattedPrompt, mermaid, modelRuntime }) {
+  // 构建用户提示词
+  let userPrompt = formattedPrompt;
+  if (mermaid && mermaid.trim()) {
+    userPrompt = `${formattedPrompt}\n\n## Mermaid 图表参考\n以下Mermaid图表可以帮助理解逻辑结构：\n\n\`\`\`mermaid\n${mermaid}\n\`\`\`\n\n请结合上述Mermaid图表和用户输入，生成VISUAL SCHEMA。`;
+  }
+  
+  // 解析模型配置
+  const resolvedModel = getArchitectModelConfig(modelRuntime);
+  
+  // 调用 AI 模型生成 VISUAL SCHEMA
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: ARCHITECT_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: userPrompt }],
+    temperature: 0.1,
+  });
+  
+  // 提取 VISUAL SCHEMA
+  const visualSchema = extractVisualSchema(response.text);
+  
+  return { visualSchema, rawOutput: response.text };
+}
+```
+
+**模型配置优先级**：
+1. 环境变量配置（`ARCHITECT_MODEL_ID`、`ARCHITECT_MODEL_BASE_URL`、`ARCHITECT_MODEL_API_KEY`）
+2. 传入的 `modelRuntime` 参数
+3. 系统模型（如果启用）
+
+### 11.2 Renderer Agent（agents/renderer.js）
+
+**功能**：将 VISUAL SCHEMA 转换为 Draw.io XML 代码
+
+**核心函数**：`generateXml`
+
+**输入参数**：
+- `visualSchema` - VISUAL SCHEMA 内容
+- `modelRuntime` - 模型运行时配置（可选）
+
+**输出**：
+- `xml` - Draw.io XML 代码
+
+**关键实现**：
+```javascript
+export async function generateXml({ visualSchema, modelRuntime }) {
+  // 解析模型配置
+  const resolvedModel = getRendererModelConfig(modelRuntime);
+  
+  // 调用 AI 模型生成 XML
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: RENDERER_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: visualSchema }],
+    temperature: 0.1,
+  });
+  
+  // 提取 XML 代码
+  const xml = extractXml(response.text);
+  
+  // 检测并拒绝图像数据
+  if (xml.includes('data:image/') || xml.includes('base64')) {
+    throw new Error('Renderer 返回了图像数据而不是 XML 代码。请确保模型输出的是 Draw.io XML 代码。');
+  }
+  
+  return { xml };
+}
+```
+
+**XML 提取逻辑**：
+1. 尝试从代码块中提取（`\`\`\`xml ... \`\`\``）
+2. 尝试提取 `<root>...</root>` 块
+3. 尝试提取 `<mxfile>...</mxfile>` 块
+4. 如果都找不到，返回原始输出
+
+**模型配置优先级**：
+1. 环境变量配置（`RENDERER_MODEL_ID`、`RENDERER_MODEL_BASE_URL`、`RENDERER_MODEL_API_KEY`）
+2. 传入的 `modelRuntime` 参数
+3. 系统模型（如果启用）
+
+### 11.3 Mermaid 生成器（agents/mermaid-generator.js）
+
+**功能**：根据用户输入生成 Mermaid 图表代码
+
+**核心函数**：`generateMermaid`
+
+**输入参数**：
+- `userInput` - 用户输入的原始内容或格式化后的提示词
+- `modelRuntime` - 模型运行时配置（可选）
+
+**输出**：
+- `mermaid` - Mermaid 图表代码
+
+**关键实现**：
+```javascript
+export async function generateMermaid({ userInput, modelRuntime }) {
+  // 解析模型配置
+  const resolvedModel = getMermaidModelConfig(modelRuntime);
+  
+  // 调用 AI 模型生成 Mermaid 代码
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: MERMAID_GENERATOR_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: userInput }],
+    temperature: 0.3,
+  });
+  
+  // 从代码块中提取 Mermaid 代码
+  const mermaidMatch = response.text.match(/```mermaid\s*([\s\S]*?)\s*```/i);
+  const mermaid = mermaidMatch ? mermaidMatch[1].trim() : "";
+  
+  return { mermaid };
+}
+```
+
+**模型配置优先级**：
+1. 传入的 `modelRuntime` 参数
+2. 系统模型（如果启用）
+
+### 11.4 提示词格式化 Agent（agents/prompt-formatter.js）
+
+**功能**：将用户输入格式化为规范的 Markdown 格式
+
+**核心函数**：`formatPrompt`
+
+**输入参数**：
+- `userInput` - 用户输入的原始内容
+- `currentXml` - 当前画布的 XML（可选）
+- `modelRuntime` - 模型运行时配置（可选）
+
+**输出**：
+- `formattedPrompt` - 格式化后的用户提示词
+
+**关键实现**：
+```javascript
+export async function formatPrompt({ userInput, currentXml, modelRuntime }) {
+  // 构建用户提示词
+  let userPrompt = userInput;
+  if (currentXml && currentXml.trim()) {
+    userPrompt = `${userInput}\n\n## 当前画布状态\n当前画布已有内容，请在现有基础上进行修改或扩展。`;
+  }
+  
+  // 解析模型配置
+  const resolvedModel = getFormatterModelConfig(modelRuntime);
+  
+  // 调用 AI 模型进行格式化
+  const response = await generateText({
+    model: resolvedModel.model,
+    system: PROMPT_FORMATTER_SYSTEM_MESSAGE,
+    messages: [{ role: "user", content: userPrompt }],
+    temperature: 0.1,
+  });
+  
+  return { formattedPrompt: response.text };
+}
+```
+
+### 11.5 工作流编排（agents/workflow.js）
+
+**功能**：协调整个 Architect Workflow 的执行流程
+
+**核心函数**：`executeWorkflow`
+
+**输入参数**：
+- `userInput` - 用户输入的原始内容
+- `currentXml` - 当前画布的 XML（可选）
+- `modelRuntime` - 默认模型运行时配置（可选）
+- `architectModel` - Architect 模型配置（可选，覆盖默认配置）
+- `rendererModel` - Renderer 模型配置（可选，覆盖默认配置）
+
+**输出**：
+- `xml` - 生成的 Draw.io XML 代码
+- `formattedPrompt` - 格式化后的用户提示词
+- `mermaid` - 生成的 Mermaid 代码
+- `visualSchema` - 生成的 VISUAL SCHEMA
+- `metadata` - 工作流执行元数据
+
+**工作流步骤**：
+1. 提示词格式化（`formatPrompt`）
+2. Mermaid 生成（`generateMermaid`，失败时继续）
+3. The Architect 生成 VISUAL SCHEMA（`generateVisualSchema`）
+4. The Renderer 生成 XML（`generateXml`）
+
+**错误处理**：
+- Mermaid 生成失败：记录警告，继续执行（使用空的 Mermaid）
+- Architect 失败：抛出错误，回退到原有的聊天逻辑
+- Renderer 失败：抛出错误，回退到原有的聊天逻辑
+
+### 11.6 类型定义（types/index.js）
+
+**类型定义**：
+- `WorkflowInput` - 工作流输入类型
+- `WorkflowOutput` - 工作流输出类型
+- `VisualSchema` - VISUAL SCHEMA 类型
+- `ArchitectWorkflowConfig` - Architect Workflow 配置类型
 
 ---
 
@@ -2358,17 +2560,16 @@ Draw.io 文件包含两个始终存在的特殊单元格：
 4. ✅ 光子扣费：三种扣费模式的完整实现
 5. ✅ 扣费显示：用户界面和后台日志
 6. ✅ 流式响应：流式与非流式两种响应模式
-7. ✅ 模型对比：多模型并行对比功能
+7. ✅ Architect Workflow：两阶段智能体工作流（Architect + Renderer）
 8. ✅ 保存功能：多层次的数据持久化
-9. ✅ 模板匹配：自定义 API 支持
-10. ✅ 超时设置：智能超时检测
-11. ✅ XML 指南：Draw.io XML 格式参考
+9. ✅ 超时设置：智能超时检测
+10. ✅ XML 指南：Draw.io XML 格式参考
 
 所有功能都经过精心设计和实现，确保了系统的稳定性、可维护性和用户体验。
 
 ---
 
-文档版本：1.0.0  
-最后更新：2025-01-19  
+文档版本：1.1.0  
+最后更新：2025-01-18  
 维护者：Figsci Team
 
