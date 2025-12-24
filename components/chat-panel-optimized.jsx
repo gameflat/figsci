@@ -50,7 +50,6 @@ import { useDiagramOrchestrator } from "@/features/chat-panel/hooks/use-diagram-
 import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
 import { useModelRegistry } from "@/hooks/use-model-registry";
 import { ModelConfigDialog } from "@/components/model-config-dialog";
-import { TemplateGallery } from "@/components/template-gallery";
 import Link from "next/link";
 // 光子扣费客户端：用于 mixed 模式预扣费
 import { isPhotonChargeEnabled, getChargeMode, preChargePhoton } from "@/lib/photon-client";
@@ -327,7 +326,7 @@ function ChatPanelOptimized({
     }
   }, []);
   const [commandTab, setCommandTab] = useState(
-    "templates"
+    "starter"
   );
   const [activeToolPanel, setActiveToolPanel] = useState(null);
   const [isToolSidebarOpen, setIsToolSidebarOpen] = useState(false);
@@ -1590,16 +1589,6 @@ function ChatPanelOptimized({
                     <div className="inline-flex min-w-[280px] items-center rounded-full bg-slate-100 p-1 overflow-x-auto scrollbar-hide">
                         <button
       type="button"
-      onClick={() => setCommandTab("templates")}
-      className={cn(
-        "rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition",
-        commandTab === "templates" ? "bg-white text-slate-900 shadow" : "text-slate-500"
-      )}
-    >
-                            📚 模板库
-                        </button>
-                        <button
-      type="button"
       onClick={() => setCommandTab("starter")}
       className={cn(
         "rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap transition",
@@ -1630,23 +1619,7 @@ function ChatPanelOptimized({
                         </button>
                     </div>
                 </div>
-                {commandTab === "templates" ? <div className="flex h-full flex-col">
-                        <div className="flex-1 overflow-hidden">
-                            <TemplateGallery
-      variant="compact"
-      onSelectTemplate={(template) => {
-        if (status === "streaming") return;
-        if (!ensureBranchSelectionSettled()) return;
-        setInput(template.prompt);
-        if (files.length > 0) {
-          handleFileChange([]);
-        }
-        closeToolSidebar();
-      }}
-      onExpand={() => setIsTemplateDialogOpen(true)}
-    />
-                        </div>
-                    </div> : commandTab === "starter" ? <QuickActionBar
+                {commandTab === "starter" ? <QuickActionBar
       actions={QUICK_ACTIONS}
       disabled={status === "streaming" || requiresBranchDecision}
       onSelect={handleQuickAction}
@@ -1801,30 +1774,6 @@ function ChatPanelOptimized({
                 </div>
 
             </Card>
-            <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-                <DialogContent className="!max-w-[95vw] w-[95vw] h-[90vh] p-0 overflow-hidden">
-                    <DialogHeader className="px-6 pt-4 pb-2">
-                        <DialogTitle>全屏模板库</DialogTitle>
-                        <DialogDescription>
-                            大屏浏览全部模板，包含筛选、预览与快捷应用。
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="h-[calc(90vh-96px)]">
-                        <TemplateGallery
-    onSelectTemplate={(template) => {
-      if (status === "streaming") return;
-      if (!ensureBranchSelectionSettled()) return;
-      setInput(template.prompt);
-      if (files.length > 0) {
-        handleFileChange([]);
-      }
-      setIsTemplateDialogOpen(false);
-      closeToolSidebar();
-    }}
-  />
-                    </div>
-                </DialogContent>
-            </Dialog>
             <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
