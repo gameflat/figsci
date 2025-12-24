@@ -98,10 +98,29 @@ export function ModelSelector({
     const updateMenuPosition = useCallback(() => {
         if (!triggerRef.current) return;
         const rect = triggerRef.current.getBoundingClientRect();
+        const menuWidth = Math.max(rect.width, 280);
+        const viewportWidth = window.innerWidth;
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+        
+        // 计算菜单的右边界位置
+        const menuRight = rect.left + menuWidth;
+        
+        // 如果菜单会超出右边界，调整 left 位置使其右对齐到触发器
+        let left = rect.left + scrollX;
+        if (menuRight > viewportWidth) {
+            // 右对齐：菜单右边界对齐到触发器右边界
+            left = rect.right + scrollX - menuWidth;
+            // 确保不会超出左边界
+            if (left < scrollX) {
+                left = scrollX + 8; // 留出 8px 的边距
+            }
+        }
+        
         setMenuPosition({
-            top: rect.top + window.scrollY,
-            left: rect.left + window.scrollX,
-            width: rect.width,
+            top: rect.top + scrollY,
+            left: left,
+            width: menuWidth,
         });
     }, []);
 
