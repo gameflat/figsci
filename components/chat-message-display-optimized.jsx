@@ -86,7 +86,6 @@ const DiagramToolCard = memo(({
   onCopy,
   onStopAll,
   isGenerationBusy,
-  isComparisonRunning,
   diagramResult,
   onStreamingApply,
   onRetry,
@@ -133,11 +132,11 @@ const DiagramToolCard = memo(({
     return () => clearTimeout(timer);
   }, [localState]);
   useEffect(() => {
-    if (!isGenerationBusy && !isComparisonRunning && localState === "input-streaming" && displayDiagramXml && displayDiagramXml.length > 0) {
+    if (!isGenerationBusy && localState === "input-streaming" && displayDiagramXml && displayDiagramXml.length > 0) {
       setLocalState("output-available");
       setAutoCompletedByStreamEnd(true);
     }
-  }, [isGenerationBusy, isComparisonRunning, localState, displayDiagramXml]);
+  }, [isGenerationBusy, localState, displayDiagramXml]);
   useEffect(() => {
     if (diagramMode !== "svg" && localState === "input-streaming" && displayDiagramXml && displayDiagramXml !== previousXmlRef.current && onStreamingApply) {
       previousXmlRef.current = displayDiagramXml;
@@ -184,7 +183,7 @@ const DiagramToolCard = memo(({
     const baseState = localState || state;
     
     // 如果整体生成流程仍在进行中
-    if (isGenerationBusy || isComparisonRunning) {
+    if (isGenerationBusy) {
       // 除非是明确的错误或停止状态，否则显示为"生成中"
       // 这样可以避免在 LLM 还在输出时就显示"已完成"
       if (baseState !== "output-error" && baseState !== "stopped") {
@@ -396,14 +395,6 @@ function ChatMessageDisplay({
   setInput,
   setFiles,
   onDisplayDiagram,
-  onComparisonApply,
-  onComparisonCopyXml,
-  onComparisonDownload,
-  onComparisonPreview,
-  buildComparisonPreviewUrl,
-  onComparisonRetry,
-  comparisonHistory = [],
-  activePreview = null,
   onMessageRevert,
   activeBranchId,
   onOpenBriefPanel,
@@ -414,7 +405,6 @@ function ChatMessageDisplay({
   onStopAll,
   onRetryGeneration,
   isGenerationBusy = false,
-  isComparisonRunning = false,
   diagramResultVersion = 0,
   getDiagramResult,
   generationPhase = "idle",
@@ -619,7 +609,6 @@ function ChatMessageDisplay({
         onCopy={handleCopyDiagramXml}
         onStopAll={onStopAll}
         isGenerationBusy={isGenerationBusy}
-        isComparisonRunning={isComparisonRunning}
         diagramResult={diagramResult}
         onStreamingApply={handleStreamingApply}
         onRetry={onRetryGeneration}
@@ -704,339 +693,7 @@ function ChatMessageDisplay({
                 </div>
             </div>;
   };
-  const renderComparisonEntry = (entry, keyBase) => {
-    const formattedDate = entry.timestamp && !Number.isNaN(Date.parse(entry.timestamp)) ? new Date(entry.timestamp).toLocaleString() : void 0;
-    const isEntryLoading = entry.status === "loading";
-    const isCancelled = entry.status === "cancelled";
-    const hasSuccessfulResults = entry.results.some((result) => result.status === "ok");
-    const isWaitingForSelection = !isEntryLoading && !isCancelled && hasSuccessfulResults && !entry.adoptedResultId;
-    const successfulResults = entry.results.filter((result) => result.status === "ok" && result.branchId);
-    const currentResultIndex = successfulResults.findIndex((result) => result.id === entry.adoptedResultId);
-    const hasMultipleOptions = successfulResults.length > 1;
-    const showSwitcher = !isWaitingForSelection && hasMultipleOptions && currentResultIndex >= 0;
-    const canStopComparison = isEntryLoading && typeof onStopAll === "function";
-    return <div key={`${keyBase}-comparison`} className="mt-2 w-full">
-                <div className="w-full rounded-lg bg-white/80 border border-slate-200/60 px-4 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <div className="flex flex-col gap-0.5">
-                            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                                模型对比
-                            </div>
-                            {formattedDate && <div className="text-[10px] text-slate-400">
-                                    {formattedDate}
-                                </div>}
-                            {isEntryLoading && <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
-                                    <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-                                    正在生成…
-                                </div>}
-                            {isCancelled && <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-700">
-                                    <span className="h-2 w-2 rounded-full bg-amber-400" />
-                                    已暂停
-                                </div>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {showSwitcher && <div className="flex items-center gap-1.5 rounded-md bg-slate-50 border border-slate-200 px-2 py-1">
-                                    <button
-      type="button"
-      onClick={() => {
-        const prevIndex = (currentResultIndex - 1 + successfulResults.length) % successfulResults.length;
-        onComparisonApply?.(successfulResults[prevIndex]);
-      }}
-      className="flex h-5 w-5 items-center justify-center rounded hover:bg-slate-200 transition"
-      aria-label="切换到上一个结果"
-    >
-                                        <svg className="h-3.5 w-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                        </svg>
-                                    </button>
-                                    <span className="text-[11px] font-medium text-slate-600 min-w-[32px] text-center">
-                                        {currentResultIndex + 1}/{successfulResults.length}
-                                    </span>
-                                    <button
-      type="button"
-      onClick={() => {
-        const nextIndex = (currentResultIndex + 1) % successfulResults.length;
-        onComparisonApply?.(successfulResults[nextIndex]);
-      }}
-      className="flex h-5 w-5 items-center justify-center rounded hover:bg-slate-200 transition"
-      aria-label="切换到下一个结果"
-    >
-                                        <svg className="h-3.5 w-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </button>
-                                </div>}
-                            {canStopComparison && <button
-      type="button"
-      onClick={onStopAll}
-      className="inline-flex items-center rounded-full border border-slate-200 px-2.5 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
-    >
-                                    暂停生成
-                                </button>}
-                        </div>
-                    </div>
-
-                    {isWaitingForSelection && <div className="mb-3 rounded-md bg-amber-50/80 px-3 py-2 text-sm border border-amber-200/40">
-                            <div className="flex items-start gap-2">
-                                <svg className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                                <div className="flex-1">
-                                    <div className="font-medium text-amber-900 text-xs">
-                                        请选择一个结果继续
-                                    </div>
-                                    <div className="text-amber-700 text-[11px] mt-0.5">
-                                        点击卡片「设为画布」，选择后可用右上角切换器在结果间切换
-                                    </div>
-                                </div>
-                            </div>
-                        </div>}
-
-                    {
-      /* 横向滚动容器 */
-    }
-                    <div className="w-full overflow-x-auto">
-                        <div
-      className="flex gap-3 pb-2"
-      style={{
-        width: `${entry.results.length * 360 + (entry.results.length - 1) * 12}px`,
-        overflowX: "auto",
-        scrollBehavior: "smooth"
-      }}
-    >
-                            {entry.results.map((result, resultIndex) => {
-      const cardKey = `${keyBase}-${result.id ?? resultIndex}`;
-      const trimmedEncodedXml = result.encodedXml?.trim();
-      const trimmedXml = result.xml?.trim();
-      const rawXmlForPreview = trimmedEncodedXml && trimmedEncodedXml.length > 0 ? trimmedEncodedXml : trimmedXml && trimmedXml.length > 0 ? trimmedXml : "";
-      const previewUrl = result.status === "ok" && rawXmlForPreview && buildComparisonPreviewUrl ? buildComparisonPreviewUrl(rawXmlForPreview) : null;
-      const previewSvgSrc = svgToDataUrl(result.previewSvg);
-      const previewImageSrc = result.previewImage?.trim()?.length ? result.previewImage : null;
-      const hasPreview = result.status === "ok" && (Boolean(previewSvgSrc) || Boolean(previewImageSrc) || Boolean(previewUrl));
-      const isActive = activePreview?.requestId === entry.requestId && activePreview?.resultId === result.id;
-      const isActiveBranch = activeBranchId && result.branchId === activeBranchId;
-      const badgeLabel = isActiveBranch ? "使用中" : null;
-      return <div
-        key={cardKey}
-        className={cn(
-          "group relative flex flex-col rounded-lg overflow-hidden transition-all duration-200 border flex-shrink-0",
-          result.status === "ok" ? "bg-white border-slate-200/60" : result.status === "loading" ? "bg-slate-50 border-slate-200/40" : result.status === "cancelled" ? "bg-amber-50/50 border-amber-200/40" : "bg-red-50/50 border-red-200/40",
-          isActive && "ring-1 ring-blue-400"
-        )}
-        style={{ width: "360px", height: "260px" }}
-      >
-                                        {
-        /* 预览图区域 */
-      }
-                                        <div className="relative bg-slate-50/30" style={{ height: "220px" }}>
-                                            <div
-        role={result.status === "ok" ? "button" : void 0}
-        tabIndex={result.status === "ok" ? 0 : -1}
-        onClick={() => result.status === "ok" && onComparisonPreview?.(entry.requestId, result)}
-        className={cn(
-          "flex h-full w-full justify-center items-center overflow-hidden p-2",
-          result.status === "ok" && "cursor-pointer"
-        )}
-      >
-                                                {result.status === "ok" ? hasPreview ? <>
-                                                            {previewSvgSrc ? <div className="relative h-full w-full">
-                                                                    <Image
-        src={previewSvgSrc}
-        alt={`comparison-preview-svg-${cardKey}`}
-        fill
-        className="object-contain"
-        sizes="(max-width: 768px) 100vw, 360px"
-        unoptimized
-      />
-                                                                </div> : previewImageSrc ? <div className="relative h-full w-full">
-                                                                    <Image
-        src={previewImageSrc}
-        alt={`comparison-preview-${cardKey}`}
-        fill
-        className="object-contain"
-        sizes="(max-width: 768px) 100vw, 360px"
-        unoptimized
-      />
-                                                                </div> : previewUrl ? <iframe
-        src={previewUrl}
-        title={`diagram-preview-${cardKey}`}
-        className="h-full w-full border-0"
-        loading="lazy"
-        allowFullScreen
-      /> : <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
-                                                                    暂无预览
-                                                                </div>}
-                                                        </> : <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
-                                                            暂无预览
-                                                        </div> : <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
-                                                        {result.status === "loading" ? "正在生成…" : result.status === "cancelled" ? "已暂停" : "生成失败"}
-                                                    </div>}
-                                            </div>
-
-                                            {
-        /* 左上角标签 */
-      }
-                                            <div className="absolute left-2 top-2">
-                                                <span className="inline-flex items-center rounded-md bg-white/90 backdrop-blur-sm border border-slate-200/50 px-2 py-1 text-[11px] font-medium text-slate-700">
-                                                    {result.slot === "A" ? "模型 A" : "模型 B"}
-                                                </span>
-                                            </div>
-
-                                            {
-        /* 右上角使用中标签 */
-      }
-                                            {badgeLabel && <div className="absolute right-2 top-2">
-                                                    <span className="inline-flex items-center rounded-md bg-blue-500 px-2 py-1 text-[11px] font-medium text-white">
-                                                        ✓ {badgeLabel}
-                                                    </span>
-                                                </div>}
-
-                                            {
-        /* Hover 遮罩层和按钮 */
-      }
-                                            {result.status === "ok" && <div className="pointer-events-none absolute inset-0 hidden items-center justify-center bg-gradient-to-t from-slate-900/70 via-slate-900/30 to-transparent opacity-0 transition-opacity duration-200 sm:flex sm:group-hover:opacity-100">
-                                                    <div className="pointer-events-auto flex gap-2">
-                                                        <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        className="h-8 rounded-md px-3 text-xs font-medium bg-white/95 hover:bg-white"
-        onClick={(event) => {
-          event.stopPropagation();
-          onComparisonPreview?.(
-            entry.requestId,
-            result
-          );
-        }}
-      >
-                                                            预览
-                                                        </Button>
-                                                        <Button
-        type="button"
-        size="sm"
-        className="h-8 rounded-md bg-blue-500 px-3 text-xs font-medium text-white hover:bg-blue-600"
-        onClick={(event) => {
-          event.stopPropagation();
-          onComparisonApply?.(result);
-        }}
-        disabled={!result.xml && !result.svg}
-      >
-                                                            设为画布
-                                                        </Button>
-                                                    </div>
-                                                </div>}
-                                        </div>
-
-                                        {
-        /* 底部信息区 */
-      }
-                                        <div className="px-3 py-2 bg-white border-t border-slate-100">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="text-xs font-medium text-slate-900 truncate">
-                                                    {result.label || result.modelId}
-                                                </div>
-                                                {result.status === "ok" && <div className="flex gap-1.5 sm:hidden">
-                                                        <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="h-6 rounded-md px-2 text-[11px]"
-        onClick={(event) => {
-          event.stopPropagation();
-          onComparisonPreview?.(
-            entry.requestId,
-            result
-          );
-        }}
-      >
-                                                            预览
-                                                        </Button>
-                                                        <Button
-        type="button"
-        size="sm"
-        className="h-6 rounded-md bg-blue-500 px-2 text-[11px] text-white hover:bg-blue-600"
-        onClick={(event) => {
-          event.stopPropagation();
-          onComparisonApply?.(result);
-        }}
-        disabled={!result.xml && !result.svg}
-      >
-                                                            设为画布
-                                                        </Button>
-                                                    </div>}
-                                            </div>
-                                            {
-        /* Token 使用信息 */
-      }
-                                            {result.status === "ok" && (result.usage || result.durationMs !== void 0) && <TokenUsageDisplay
-        usage={result.usage}
-        durationMs={result.durationMs}
-        compact
-      />}
-                                        </div>
-
-                                        {
-        /* 错误状态 */
-      }
-                                        {result.status === "error" && <div className="px-3 py-2 bg-red-50 border-t border-red-100">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <div className="text-[11px] text-red-700 leading-relaxed">
-                                                        {result.error ?? "调用模型失败，请稍后重试或调整提示词。"}
-                                                    </div>
-                                                    {onComparisonRetry && <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-6 w-fit rounded-md px-2 text-[11px] font-medium border-red-200 text-red-700 hover:bg-red-100"
-        onClick={(event) => {
-          event.stopPropagation();
-          onComparisonRetry(entry, result);
-        }}
-      >
-                                                            重新生成
-                                                        </Button>}
-                                                </div>
-                                            </div>}
-
-                                        {
-        /* 加载状态 */
-      }
-                                        {result.status === "loading" && <div className="px-3 py-2 bg-slate-50 border-t border-slate-100">
-                                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                                                    <div className="h-2.5 w-2.5 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
-                                                    正在生成…
-                                                </div>
-                                            </div>}
-
-                                        {
-        /* 暂停状态 */
-      }
-                                        {result.status === "cancelled" && <div className="px-3 py-2 bg-amber-50 border-t border-amber-100">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <div className="text-[11px] text-amber-700 leading-relaxed">
-                                                        {result.error ?? "生成已暂停"}
-                                                    </div>
-                                                    {onComparisonRetry && <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-6 w-fit rounded-md px-2 text-[11px] font-medium border-amber-200 text-amber-700 hover:bg-amber-100"
-        onClick={(event) => {
-          event.stopPropagation();
-          onComparisonRetry(entry, result);
-        }}
-      >
-                                                            重新生成
-                                                        </Button>}
-                                                </div>
-                                            </div>}
-                                    </div>;
-    })}
-                        </div>
-                    </div>
-                </div>
-            </div>;
-  };
+  // 对比功能已移除，renderComparisonEntry 函数已删除
   const resolveMessageText = (message) => {
     if (typeof message.content === "string") {
       return message.content;
@@ -1065,22 +722,8 @@ function ChatMessageDisplay({
       [messageId]: !prev[messageId]
     }));
   };
-  const leadingComparisons = useMemo(
-    () => comparisonHistory.filter((entry) => !entry.anchorMessageId),
-    [comparisonHistory]
-  );
-  const anchoredComparisons = useMemo(() => {
-    const map = /* @__PURE__ */ new Map();
-    comparisonHistory.forEach((entry) => {
-      if (!entry.anchorMessageId) return;
-      const bucket = map.get(entry.anchorMessageId) ?? [];
-      bucket.push(entry);
-      map.set(entry.anchorMessageId, bucket);
-    });
-    return map;
-  }, [comparisonHistory]);
-  const renderedAnchors = /* @__PURE__ */ new Set();
-  const showExamplePanel = messages.length === 0 && leadingComparisons.length === 0 && comparisonHistory.length === 0;
+  // 对比功能已移除，leadingComparisons、anchoredComparisons、renderedAnchors 已删除
+  const showExamplePanel = messages.length === 0;
 
   // 计算最近一条 AI 消息的扣费结果，用于在进度指示器中展示“本次扣费”
   const latestAssistantChargeInfo = useMemo(() => {
@@ -1105,12 +748,6 @@ function ChatMessageDisplay({
     briefSummary={briefSummary}
   />
                 </div> : <>
-                    {leadingComparisons.map((entry, index) => <div
-    key={`comparison-leading-${index}`}
-    className="mb-5 text-left"
-  >
-                            {renderComparisonEntry(entry, `comparison-leading-${index}`)}
-                        </div>)}
                     {messages.map((message) => {
     const isUser = message.role === "user";
     const parts = Array.isArray(message.parts) ? message.parts : [];
@@ -1129,10 +766,6 @@ function ChatMessageDisplay({
     });
     const fallbackText = contentParts.length === 0 ? resolveMessageText(message) : "";
     const hasBubbleContent = displayableContentParts.length > 0 || fallbackText.length > 0;
-    const anchoredEntries = anchoredComparisons.get(message.id) ?? [];
-    if (anchoredEntries.length > 0) {
-      renderedAnchors.add(message.id);
-    }
     const fullMessageText = resolveMessageText(message);
     const messageLength = fullMessageText.length;
     // Bug 2 修复：降低折叠阈值，对长消息更积极地折叠
@@ -1349,25 +982,8 @@ function ChatMessageDisplay({
     >
                                         {renderToolPart(part, message.metadata)}
                                     </div>)}
-                                {anchoredEntries.length > 0 && <div className="mt-2 flex flex-col gap-3">
-                                        {anchoredEntries.map(
-      (entry, index) => renderComparisonEntry(
-        entry,
-        `comparison-anchored-${entry.requestId}-${index}`
-      )
-    )}
-                                    </div>}
                             </div>;
   })}
-                    {Array.from(anchoredComparisons.entries()).filter(([anchorId]) => !renderedAnchors.has(anchorId)).flatMap(([, entries]) => entries).map((entry, index) => <div
-    key={`comparison-orphan-${entry.requestId}-${index}`}
-    className="mb-5 text-left"
-  >
-                                {renderComparisonEntry(
-    entry,
-    `comparison-orphan-${entry.requestId}-${index}`
-  )}
-                            </div>)}
                 </>}
             {
     /* Bug 2 修复：使用 FloatingProgressIndicator 替代 StreamingThoughtDisplay */

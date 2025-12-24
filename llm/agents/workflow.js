@@ -1,74 +1,158 @@
 // -*- coding: utf-8 -*-
 /**
- * AI Agents 工作流
- * 编排模板匹配和提示词格式化流程
+ * AI Agents 工作流编排
+ * 协调提示词格式化、Mermaid生成、Architect和Renderer的完整流程
  */
 
-import { matchTemplate } from "./template-matcher";
-import { formatPromptWithTemplate } from "./prompt-formatter";
+import { formatPrompt } from "./prompt-formatter";
+import { generateMermaid } from "./mermaid-generator";
+import { generateVisualSchema } from "./architect";
+import { generateXml } from "./renderer";
 
 /**
- * 执行智能模板匹配工作流
+ * 执行完整的智能体工作流
  * 
  * 工作流步骤：
- * 1. 模板匹配：分析用户输入，智能匹配最合适的模板
- * 2. 提示词格式化：将用户输入按照模板格式生成规范的提示词
+ * 1. 提示词格式化：将用户输入格式化为规范的Markdown格式
+ * 2. Mermaid生成：根据用户输入生成Mermaid图表代码
+ * 3. 合并输入：将格式化提示词和Mermaid合并
+ * 4. The Architect：生成VISUAL SCHEMA
+ * 5. The Renderer：将VISUAL SCHEMA转换为Draw.io XML
  * 
  * @param {Object} params
  * @param {string} params.userInput - 用户输入的原始内容
- * @param {string} [params.currentXml] - 当前画布的 XML
- * @param {Object} [params.modelRuntime] - 模型运行时配置
- * @returns {Promise<{formattedPrompt: string, templateId: string, brief: Object, confidence: number, reason: string}>}
+ * @param {string} [params.currentXml] - 当前画布的 XML（可选）
+ * @param {Object} [params.modelRuntime] - 默认模型运行时配置（可选）
+ * @param {Object} [params.architectModel] - Architect模型配置（可选，覆盖默认配置）
+ * @param {Object} [params.rendererModel] - Renderer模型配置（可选，覆盖默认配置）
+ * @returns {Promise<{xml: string, formattedPrompt?: string, mermaid?: string, visualSchema?: string, metadata?: Object}>}
  */
-export async function executeTemplateMatchingWorkflow({ 
+export async function executeWorkflow({ 
   userInput, 
   currentXml, 
-  modelRuntime 
+  modelRuntime,
+  architectModel,
+  rendererModel
 }) {
+  const metadata = {
+    startTime: Date.now(),
+    steps: {},
+  };
+  
   try {
-    // 步骤 1: 模板匹配
-    const matchResult = await matchTemplate({
+    // 步骤 1: 提示词格式化
+    console.log("[工作流] 步骤 1/5: 提示词格式化...");
+    const formatStartTime = Date.now();
+    const formatResult = await formatPrompt({
       userInput,
       currentXml,
       modelRuntime,
     });
+    metadata.steps.formatPrompt = {
+      duration: Date.now() - formatStartTime,
+      success: true,
+    };
+    console.log("[工作流] ✅ 步骤 1/5 完成: 提示词格式化");
     
-    if (!matchResult.templateId) {
-      throw new Error("模板匹配失败，未找到合适的模板");
-    }
+    const formattedPrompt = formatResult.formattedPrompt;
     
-    const confidence = matchResult.confidence || 0.5;
-    const CONFIDENCE_THRESHOLD = 0.8; // 置信度阈值
-    
-    // 如果置信度低于阈值，不使用模板，直接返回原始输入
-    if (confidence < CONFIDENCE_THRESHOLD) {
-      return {
-        formattedPrompt: userInput, // 使用原始输入
-        templateId: null, // 不应用模板
-        brief: {}, // 不应用 Brief 配置
-        confidence: confidence,
-        reason: `置信度 ${(confidence * 100).toFixed(1)}% 低于阈值 ${(CONFIDENCE_THRESHOLD * 100).toFixed(0)}%，不使用模板`,
+    // 步骤 2: Mermaid生成
+    console.log("[工作流] 步骤 2/5: Mermaid生成...");
+    const mermaidStartTime = Date.now();
+    let mermaidResult;
+    try {
+      mermaidResult = await generateMermaid({
+        userInput: formattedPrompt,
+        modelRuntime,
+      });
+      metadata.steps.generateMermaid = {
+        duration: Date.now() - mermaidStartTime,
+        success: true,
+        hasMermaid: !!mermaidResult.mermaid,
+      };
+      console.log("[工作流] ✅ 步骤 2/5 完成: Mermaid生成", mermaidResult.mermaid ? "(已生成)" : "(跳过)");
+    } catch (error) {
+      console.warn("[工作流] ⚠️  步骤 2/5 Mermaid生成失败，继续执行:", error.message);
+      mermaidResult = { mermaid: "" };
+      metadata.steps.generateMermaid = {
+        duration: Date.now() - mermaidStartTime,
+        success: false,
+        error: error.message,
       };
     }
     
-    // 步骤 2: 提示词格式化（仅在置信度足够高时执行）
-    const formatResult = await formatPromptWithTemplate({
-      userInput,
-      templateId: matchResult.templateId,
-      currentXml,
-      modelRuntime,
-    });
+    const mermaid = mermaidResult.mermaid || "";
     
-    // 返回完整结果
+    // 步骤 3: The Architect - 生成VISUAL SCHEMA
+    console.log("[工作流] 步骤 3/5: The Architect生成VISUAL SCHEMA...");
+    const architectStartTime = Date.now();
+    let architectResult;
+    try {
+      architectResult = await generateVisualSchema({
+        formattedPrompt,
+        mermaid,
+        modelRuntime: architectModel || modelRuntime,
+      });
+      metadata.steps.generateVisualSchema = {
+        duration: Date.now() - architectStartTime,
+        success: true,
+      };
+      console.log("[工作流] ✅ 步骤 3/5 完成: VISUAL SCHEMA生成");
+    } catch (error) {
+      console.error("[工作流] ❌ 步骤 3/5 Architect失败:", error);
+      metadata.steps.generateVisualSchema = {
+        duration: Date.now() - architectStartTime,
+        success: false,
+        error: error.message,
+      };
+      throw error;
+    }
+    
+    const visualSchema = architectResult.visualSchema;
+    
+    // 步骤 4: The Renderer - 生成Draw.io XML
+    console.log("[工作流] 步骤 4/5: The Renderer生成XML...");
+    const rendererStartTime = Date.now();
+    let rendererResult;
+    try {
+      rendererResult = await generateXml({
+        visualSchema,
+        modelRuntime: rendererModel || modelRuntime,
+      });
+      metadata.steps.generateXml = {
+        duration: Date.now() - rendererStartTime,
+        success: true,
+      };
+      console.log("[工作流] ✅ 步骤 4/5 完成: XML生成");
+    } catch (error) {
+      console.error("[工作流] ❌ 步骤 4/5 Renderer失败:", error);
+      metadata.steps.generateXml = {
+        duration: Date.now() - rendererStartTime,
+        success: false,
+        error: error.message,
+      };
+      throw error;
+    }
+    
+    // 步骤 5: 完成
+    metadata.totalDuration = Date.now() - metadata.startTime;
+    metadata.success = true;
+    
+    console.log("[工作流] ✅ 所有步骤完成，总耗时:", metadata.totalDuration, "ms");
+    
     return {
-      formattedPrompt: formatResult.formattedPrompt || userInput,
-      templateId: matchResult.templateId,
-      brief: formatResult.appliedBrief || {},
-      confidence: confidence,
-      reason: matchResult.reason || "智能匹配",
+      xml: rendererResult.xml,
+      formattedPrompt,
+      mermaid: mermaid || undefined,
+      visualSchema,
+      metadata,
     };
   } catch (error) {
-    console.error("工作流执行失败:", error);
+    metadata.totalDuration = Date.now() - metadata.startTime;
+    metadata.success = false;
+    metadata.error = error.message;
+    
+    console.error("[工作流] ❌ 工作流执行失败:", error);
     throw error;
   }
 }

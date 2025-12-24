@@ -14,8 +14,7 @@ import {
   Sparkles, 
   Loader2,
   CheckCircle2,
-  Palette,
-  Search
+  Palette
 } from "lucide-react";
 
 /**
@@ -66,7 +65,7 @@ export function StreamingThoughtDisplay({
         };
       case "tool_calling":
         return {
-          icon: toolCall?.toolName === "search_template" ? Search : Sparkles,
+          icon: Sparkles,
           label: getToolLabel(toolCall?.toolName),
           description: getToolDescription(toolCall?.toolName),
           color: "text-blue-600",
@@ -224,7 +223,6 @@ export function InlineThinkingIndicator({ status = "idle", className }) {
  */
 function getToolLabel(toolName) {
   const labels = {
-    search_template: "搜索模板",
     display_diagram: "渲染图表",
     edit_diagram: "编辑图表",
     display_svg: "渲染 SVG",
@@ -240,7 +238,6 @@ function getToolLabel(toolName) {
  */
 function getToolDescription(toolName) {
   const descriptions = {
-    search_template: "正在搜索最适合的模板...",
     display_diagram: "正在将图表渲染到画布...",
     edit_diagram: "正在应用修改到图表...",
     display_svg: "正在渲染 SVG 图表...",

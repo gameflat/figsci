@@ -36,14 +36,10 @@ import { useDiagram } from "@/contexts/diagram-context";
  * @property {import("@/types/model-config").RuntimeModelOption[]} [modelOptions]
  * @property {(modelKey: string) => void} [onModelChange]
  * @property {() => void} [onManageModels]
- * @property {() => void} [onCompareRequest]
- * @property {() => void} [onOpenComparisonConfig]
- * @property {boolean} [isCompareLoading]
  * @property {boolean} [interactionLocked]
  * @property {(modelKey: string, isStreaming: boolean) => void} [onModelStreamingChange]
  * @property {"drawio" | "svg"} [renderMode]
  * @property {(mode: "drawio" | "svg") => void} [onRenderModeChange]
- * @property {boolean} [comparisonEnabled]
  * @property {() => void} [onStop]
  * @property {boolean} [isBusy]
  */
@@ -66,14 +62,10 @@ export function ChatInputOptimized({
     modelOptions = [],
     onModelChange = () => { },
     onManageModels,
-    onCompareRequest = () => { },
-    onOpenComparisonConfig = () => { },
-    isCompareLoading = false,
     interactionLocked = false,
     onModelStreamingChange,
     renderMode = "drawio",
     onRenderModeChange,
-    comparisonEnabled = true,
     onStop,
     isBusy = false,
 }) {
@@ -355,33 +347,19 @@ export function ChatInputOptimized({
                                 compact
                             />
                         )}
-                        {comparisonEnabled ? (
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                                {isBusy ? (
-                                    <Button
-                                        type="button"
-                                        onClick={onStop}
-                                        className="h-[30px] min-w-[30px] gap-2 rounded-full bg-red-500 text-white text-[11px] shadow-sm transition hover:bg-red-600 flex-shrink-0"
-                                        size="sm"
-                                        aria-label="暂停生成"
-                                    >
-                                        <Square className="h-3.5 w-3.5 fill-current" />
-                                    </Button>
-                                ) : (
-                                    <>
-                                        {/* 只保留设置按钮，删除对比按钮 */}
-                                        <ButtonWithTooltip
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-[30px] w-[30px] rounded-full flex-shrink-0"
-                                            onClick={onOpenComparisonConfig}
-                                            disabled={isBusy || interactionLocked}
-                                            tooltipContent="模型设置"
-                                        >
-                                            <Settings className="h-4 w-4" />
-                                        </ButtonWithTooltip>
-                                        <Button
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {isBusy ? (
+                                <Button
+                                    type="button"
+                                    onClick={onStop}
+                                    className="h-[30px] min-w-[30px] gap-2 rounded-full bg-red-500 text-white text-[11px] shadow-sm transition hover:bg-red-600 flex-shrink-0"
+                                    size="sm"
+                                    aria-label="暂停生成"
+                                >
+                                    <Square className="h-3.5 w-3.5 fill-current" />
+                                </Button>
+                            ) : (
+                                <Button
                                             type="submit"
                                             disabled={
                                                 isBusy ||
@@ -394,37 +372,8 @@ export function ChatInputOptimized({
                                         >
                                             <Send className="h-4 w-4" />
                                         </Button>
-                                    </>
-                                )}
-                            </div>
-                        ) : (
-                            isBusy ? (
-                                <Button
-                                    type="button"
-                                    onClick={onStop}
-                                    className="h-[30px] min-w-[30px] gap-2 rounded-full bg-red-500 text-white text-[11px] shadow-sm transition hover:bg-red-600"
-                                    size="sm"
-                                    aria-label="暂停生成"
-                                >
-                                    <Square className="h-3.5 w-3.5 fill-current" />
-                                </Button>
-                            ) : (
-                                <Button
-                                    type="submit"
-                                    disabled={
-                                        isBusy ||
-                                        !input.trim() ||
-                                        interactionLocked
-                                    }
-                                    className="h-[30px] min-w-[78px] gap-2 rounded-full bg-slate-900 text-white text-[11px] shadow-sm transition hover:bg-slate-900/90 disabled:opacity-60"
-                                    size="sm"
-                                    aria-label="发送消息"
-                                >
-                                    <Send className="h-4 w-4" />
-                                    发送
-                                </Button>
-                            )
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

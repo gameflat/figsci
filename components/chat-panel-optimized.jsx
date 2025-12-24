@@ -39,7 +39,6 @@ import { ReportBlueprintTray } from "./report-blueprint-tray";
 import { CalibrationConsole } from "./calibration-console";
 import { useChatState } from "@/hooks/use-chat-state";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates";
-import { ModelComparisonConfigDialog } from "@/components/model-comparison-config-dialog";
 // IntelligenceToolbar 已移除
 import { ToolPanelSidebar } from "@/features/chat-panel/components/tool-panel-sidebar";
 import {
@@ -47,7 +46,6 @@ import {
   FLOW_SHOWCASE_PRESETS,
   QUICK_ACTIONS
 } from "@/features/chat-panel/constants";
-import { useComparisonWorkbench } from "@/features/chat-panel/hooks/use-comparison-workbench";
 import { useDiagramOrchestrator } from "@/features/chat-panel/hooks/use-diagram-orchestrator";
 import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
 import { useModelRegistry } from "@/hooks/use-model-registry";
@@ -189,6 +187,32 @@ function ChatPanelOptimized({
     isSelectedSystemModel
   } = useModelRegistry();
   
+  const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
+  const hasPromptedModelSetup = useRef(false);
+  
+  // Architect Workflow 配置状态（使用 localStorage 持久化）
+  // 必须在 buildModelRequestBody 之前定义，因为 buildModelRequestBody 依赖它
+  const [architectWorkflowConfig, setArchitectWorkflowConfig] = useState(() => {
+    if (typeof window === "undefined") return { enabled: false, architectModel: null, rendererModel: null };
+    try {
+      const saved = localStorage.getItem("architectWorkflowConfig");
+      return saved ? JSON.parse(saved) : { enabled: false, architectModel: null, rendererModel: null };
+    } catch {
+      return { enabled: false, architectModel: null, rendererModel: null };
+    }
+  });
+  
+  // 保存 Architect Workflow 配置到 localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("architectWorkflowConfig", JSON.stringify(architectWorkflowConfig));
+      } catch (error) {
+        console.warn("保存 Architect Workflow 配置失败:", error);
+      }
+    }
+  }, [architectWorkflowConfig]);
+  
   // 生成请求体中的模型配置
   // 系统模型：发送 useSystemModel + systemModelId
   // 自定义模型：发送完整的 modelRuntime
@@ -199,51 +223,49 @@ function ChatPanelOptimized({
         return {};
       }
       
-      if (model.isSystemModel) {
-        // 系统模型：只发送模型标识，服务端从环境变量获取配置
+      const baseConfig = model.isSystemModel
+        ? {
+            // 系统模型：只发送模型标识，服务端从环境变量获取配置
+            useSystemModel: true,
+            systemModelId: model.modelId,
+          }
+        : {
+            // 自定义模型：发送完整配置
+            modelRuntime: model,
+          };
+      
+      // 如果启用了 Architect Workflow，添加相关配置
+      if (architectWorkflowConfig.enabled) {
         return {
-          useSystemModel: true,
-          systemModelId: model.modelId,
+          ...baseConfig,
+          enableArchitectWorkflow: true,
+          architectModel: architectWorkflowConfig.architectModel
+            ? (architectWorkflowConfig.architectModel.isSystemModel
+                ? {
+                    useSystemModel: true,
+                    systemModelId: architectWorkflowConfig.architectModel.modelId,
+                  }
+                : {
+                    modelRuntime: architectWorkflowConfig.architectModel,
+                  })
+            : baseConfig, // 如果未配置，使用默认模型
+          rendererModel: architectWorkflowConfig.rendererModel
+            ? (architectWorkflowConfig.rendererModel.isSystemModel
+                ? {
+                    useSystemModel: true,
+                    systemModelId: architectWorkflowConfig.rendererModel.modelId,
+                  }
+                : {
+                    modelRuntime: architectWorkflowConfig.rendererModel,
+                  })
+            : baseConfig, // 如果未配置，使用默认模型
         };
       }
       
-      // 自定义模型：发送完整配置
-      // 默认使用当前选中的模型配置（通过 modelRuntime）
-      const requestBody = {
-        modelRuntime: model,
-      };
-      
-      // 方式 1：使用环境变量配置的模板匹配专用 API（推荐）
-      // 在 .env.local 或 .env 文件中设置：
-      // NEXT_PUBLIC_TEMPLATE_MATCH_API_URL=https://api.your-custom-ai.com/v1/chat/completions
-      // NEXT_PUBLIC_TEMPLATE_MATCH_API_KEY=your-api-key-here
-      // NEXT_PUBLIC_TEMPLATE_MATCH_MODEL=your-model-name (可选，默认使用当前模型)
-      if (typeof window !== "undefined") {
-        const templateMatchApiUrl = process.env.NEXT_PUBLIC_TEMPLATE_MATCH_API_URL;
-        const templateMatchApiKey = process.env.NEXT_PUBLIC_TEMPLATE_MATCH_API_KEY;
-        
-        if (templateMatchApiUrl && templateMatchApiKey) {
-          requestBody.customApiUrl = templateMatchApiUrl;
-          requestBody.customApiKey = templateMatchApiKey;
-          requestBody.customModel = process.env.NEXT_PUBLIC_TEMPLATE_MATCH_MODEL || model.modelId || "gpt-4o-mini";
-        }
-      }
-      
-      // 方式 2：如果需要在代码中硬编码（不推荐，仅用于测试）
-      // 取消下面的注释并填入你的 API 配置
-      // 注意：这种方式会将 API Key 暴露在前端代码中，存在安全风险
-      // if (!requestBody.customApiUrl) {
-      //   requestBody.customApiUrl = "https://api.your-custom-ai.com/v1/chat/completions";
-      //   requestBody.customApiKey = "your-api-key-here";
-      //   requestBody.customModel = "your-model-name";
-      // }
-      
-      return requestBody;
+      return baseConfig;
     },
-    []
+    [architectWorkflowConfig]
   );
-  const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
-  const hasPromptedModelSetup = useRef(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const historyItems = useMemo(
     () => isSvgMode ? svgHistory.map((item) => ({
@@ -539,8 +561,6 @@ function ChatPanelOptimized({
           });
         }
       }
-      // 注意：search_template 工具现在在后端执行（使用 maxSteps 自动处理）
-      // 前端不需要处理 search_template，后端会自动执行并将结果返回给 LLM 继续生成
     },
     onError: (error2) => {
       console.error("Chat error:", error2);
@@ -548,8 +568,6 @@ function ChatPanelOptimized({
       // 因为 rollbackToSnapshot 在 useChat 之后定义
     }
   });
-  
-  // 注意：formatTemplateGuidance 函数已移到后端，search_template 工具现在在后端执行
   
   // ========== Mixed 模式：保存状态快照 ==========
   // 在发送消息前调用，用于预扣费后任务失败时回滚
@@ -590,48 +608,11 @@ function ChatPanelOptimized({
     }
   }, [isSvgMode]);
 
-  // 对比工作台相关能力，提前解构以避免依赖回调中的暂时性死区
-  const {
-    comparisonConfig,
-    setComparisonConfig,
-    isComparisonConfigOpen,
-    setIsComparisonConfigOpen,
-    comparisonHistory,
-    comparisonNotice,
-    isComparisonRunning,
-    activeComparisonPreview,
-    requiresBranchDecision,
-    handleCompareRequest,
-    handleRetryComparisonResult,
-    handleApplyComparisonResult,
-    handlePreviewComparisonResult,
-    handleDownloadXml,
-    buildComparisonPreviewUrl,
-    ensureBranchSelectionSettled,
-    resetWorkbench,
-    releaseBranchRequirement,
-    notifyComparison,
-    cancelComparisonJobs,
-    dismissComparisonNotice,
-    pruneHistoryByMessageIds
-  } = useComparisonWorkbench({
-    activeBranch,
-    activeBranchId,
-    createBranch,
-    switchBranch,
-    onFetchChart,
-    files,
-    input,
-    status,
-    tryApplyRoot: tryApplyCanvasRoot,
-    handleDiagramXml: handleCanvasUpdate,
-    getLatestDiagramXml: getLatestCanvasMarkup,
-    messages,
-    modelOptions,
-    selectedModelKey,
-    renderMode
-  });
-  const isComparisonAllowed = Boolean(selectedModel);
+  // 辅助函数：用于通知用户
+  const notifyUser = useCallback((type, message) => {
+    // 简单的通知实现，可以后续扩展
+    console.log(`[${type}] ${message}`);
+  }, []);
 
   // ========== Mixed 模式：回滚到快照状态 ==========
   // 当任务失败或 token 扣费失败时调用
@@ -787,7 +768,6 @@ function ChatPanelOptimized({
 
       // 清理历史记录（移除失败的对话）
       console.log("🧹 清理历史记录");
-      pruneHistoryByMessageIds(new Set());
 
       // 清空快照
       stateSnapshotRef.current = null;
@@ -812,7 +792,7 @@ function ChatPanelOptimized({
       });
 
       // 提示用户回滚失败，避免静默错误
-      notifyComparison("error", "回滚失败，页面状态可能不一致，请刷新重试。");
+      notifyUser("error", "回滚失败，页面状态可能不一致，请刷新重试。");
       setGenerationPhase("idle");
       setIsSubmitting(false);
       if (typeof setChatStatus === "function") {
@@ -838,12 +818,11 @@ function ChatPanelOptimized({
     clearDiagram,
     createBranch,
     activeBranchId,
-    pruneHistoryByMessageIds,
     normalizeDiagramXml,
     setGenerationPhase,
     setIsSubmitting,
     setChatStatus,
-    notifyComparison
+    notifyUser
   ]);
   
   // ========== Mixed 模式：清空快照 ==========
@@ -862,10 +841,10 @@ function ChatPanelOptimized({
       console.log("检测到任务错误，执行状态回滚", { error });
       const rolled = rollbackToSnapshot();
       if (rolled) {
-        notifyComparison("error", "任务失败，已恢复到发送前的状态：" + (error.message || String(error)));
+        notifyUser("error", "任务失败，已恢复到发送前的状态：" + (error.message || String(error)));
       }
     }
-  }, [error, rollbackToSnapshot, notifyComparison]);
+  }, [error, rollbackToSnapshot]);
   
   // ========== Mixed 模式：任务完成状态处理 Effect ==========
   // 监听 status 变化，任务成功完成时清空快照
@@ -903,10 +882,10 @@ function ChatPanelOptimized({
         const rolled = rollbackToSnapshot();
         if (rolled) {
           console.log("✅ 回滚操作成功完成");
-          notifyComparison("error", "Token 扣费失败，已恢复到发送前的状态：" + (chargeResult.message || "余额不足"));
+          notifyUser("error", "Token 扣费失败，已恢复到发送前的状态：" + (chargeResult.message || "余额不足"));
         } else {
           console.error("❌ 回滚操作失败");
-          notifyComparison("error", "Token 扣费失败，但回滚操作失败，请手动刷新页面：" + (chargeResult.message || "余额不足"));
+          notifyUser("error", "Token 扣费失败，但回滚操作失败，请手动刷新页面：" + (chargeResult.message || "余额不足"));
         }
         return true;
       }
@@ -925,7 +904,7 @@ function ChatPanelOptimized({
       console.log("检测到任务失败标记，执行回滚");
       const rolled = rollbackToSnapshot();
       if (rolled) {
-        notifyComparison("error", "任务未完成，已恢复到发送前的状态");
+        notifyUser("error", "任务未完成，已恢复到发送前的状态");
       }
       return;
     }
@@ -953,23 +932,23 @@ function ChatPanelOptimized({
       clearStateSnapshot();
     }
     
-  }, [status, messages, rollbackToSnapshot, clearStateSnapshot, notifyComparison]);
+  }, [status, messages, rollbackToSnapshot, clearStateSnapshot, notifyUser]);
   
   const handleCopyXml = useCallback(
     async (xml) => {
       if (!xml || xml.trim().length === 0) {
-        notifyComparison("error", "当前结果缺少 XML 内容，无法复制。");
+        notifyUser("error", "当前结果缺少 XML 内容，无法复制。");
         return;
       }
       try {
         await navigator.clipboard.writeText(xml);
-        notifyComparison("success", "XML 已复制到剪贴板。");
+        notifyUser("success", "XML 已复制到剪贴板。");
       } catch (copyError) {
         console.error("Copy XML failed:", copyError);
-        notifyComparison("error", "复制 XML 失败，请检查浏览器权限。");
+        notifyUser("error", "复制 XML 失败，请检查浏览器权限。");
       }
     },
-    [notifyComparison]
+    [notifyUser]
   );
   const handleStopAll = useCallback(
     async (notice) => {
@@ -988,12 +967,11 @@ function ChatPanelOptimized({
       } catch (stopError) {
         console.error("停止生成失败：", stopError);
       }
-      cancelComparisonJobs();
       if (notice) {
-        notifyComparison(notice.type, notice.message);
+        notifyUser(notice.type, notice.message);
       }
     },
-    [isSubmitting, status, stop, cancelComparisonJobs, notifyComparison]
+    [isSubmitting, status, stop, notifyUser]
   );
   const handleRetryGeneration = useCallback(async () => {
     try {
@@ -1068,26 +1046,6 @@ function ChatPanelOptimized({
         });
       });
       
-      // 检查是否只有 search_template 工具调用（没有 display_diagram）
-      const hasOnlySearchTemplate = messages.some((msg) => {
-        if (msg.role !== "assistant" || !Array.isArray(msg.parts)) return false;
-        return msg.parts.some((part) => {
-          if (!part.type?.startsWith("tool-")) return false;
-          const toolName = part.type.replace("tool-", "");
-          return toolName === "search_template" && part.state === "output-available";
-        });
-      });
-      
-      // 如果只有 search_template 但没有 display_diagram，说明 LLM 还在继续生成
-      // 添加延迟再设置为 idle，给 maxSteps 触发继续生成的机会
-      if (hasOnlySearchTemplate && !hasDiagramTool && status === "ready") {
-        // 延迟 500ms 检查，如果 status 仍然是 ready，才设置为 idle
-        const timer = setTimeout(() => {
-          setGenerationPhase("idle");
-        }, 500);
-        return () => clearTimeout(timer);
-      }
-      
       // 正常完成或出错，重置进度状态
       setGenerationPhase("idle");
     }
@@ -1118,13 +1076,13 @@ function ChatPanelOptimized({
     updateActiveBranchMessages(messages);
   }, [messages, activeBranch, updateActiveBranchMessages]);
   useEffect(() => {
-    if (showHistory && (status === "streaming" || status === "submitted" || isComparisonRunning)) {
+    if (showHistory && (status === "streaming" || status === "submitted")) {
       void handleStopAll({
         type: "error",
         message: "查看历史时已暂停当前生成。"
       });
     }
-  }, [showHistory, status, isComparisonRunning, handleStopAll]);
+  }, [showHistory, status, handleStopAll]);
 
   // 检查是否接近底部（距离底部 100px 以内）
   const checkIsNearBottom = useCallback(() => {
@@ -1215,9 +1173,6 @@ function ChatPanelOptimized({
       if (!input.trim()) {
         return;
       }
-      if (!ensureBranchSelectionSettled()) {
-        return;
-      }
       if (!selectedModel) {
         setIsModelConfigOpen(true);
         return;
@@ -1249,7 +1204,7 @@ function ChatPanelOptimized({
             const errorMessage = preChargeResult.isInsufficientBalance
               ? "您的光子不足"
               : (preChargeResult.message || "预扣费失败，请稍后重试");
-            notifyComparison("error", errorMessage);
+            notifyUser("error", errorMessage);
             return;
           }
           
@@ -1260,7 +1215,7 @@ function ChatPanelOptimized({
           setGenerationPhase("idle");
           // 清空快照
           clearStateSnapshot();
-          notifyComparison("error", "预扣费请求失败：" + (preChargeError instanceof Error ? preChargeError.message : String(preChargeError)));
+          notifyUser("error", "预扣费请求失败：" + (preChargeError instanceof Error ? preChargeError.message : String(preChargeError)));
           return;
         }
       }
@@ -1278,8 +1233,7 @@ function ChatPanelOptimized({
         }
         const streamingFlag = renderMode === "svg" ? false : selectedModel?.isStreaming ?? false;
         
-        // 直接使用用户输入，不再进行强制模板匹配
-        // LLM 会自主决定是否需要调用 search_template 工具
+        // 直接使用用户输入
         const finalInput = input;
         
         // 设置进度阶段为"发送请求"
@@ -1334,7 +1288,6 @@ function ChatPanelOptimized({
       isSubmitting,
       status,
       input,
-      ensureBranchSelectionSettled,
       onFetchChart,
       files,
       sendMessage,
@@ -1344,7 +1297,7 @@ function ChatPanelOptimized({
       buildModelRequestBody,
       saveStateSnapshot,
       clearStateSnapshot,
-      notifyComparison
+      notifyUser
     ]
   );
   const handleInputChange = (e) => {
@@ -1354,9 +1307,6 @@ function ChatPanelOptimized({
     setFiles(newFiles);
   };
   const handleAICalibrationRequest = async () => {
-    if (!ensureBranchSelectionSettled()) {
-      throw new Error("请先处理对比结果，再执行校准。");
-    }
     if (status === "streaming") {
       throw new Error("AI 正在回答其他请求，请稍后再试。");
     }
@@ -1456,7 +1406,6 @@ function ChatPanelOptimized({
       clearDiagram();
     }
     clearConversation();
-    resetWorkbench();
   };
   const exchanges = messages.filter(
     (message) => message.role === "user" || message.role === "assistant"
@@ -1494,7 +1443,7 @@ function ChatPanelOptimized({
       setMessages(activeBranch.messages);
     }
     if (branchChanged) {
-      if (status === "streaming" || status === "submitted" || isComparisonRunning) {
+      if (status === "streaming" || status === "submitted") {
         void handleStopAll({
           type: "error",
           message: "已切换分支，自动暂停生成。"
@@ -1507,7 +1456,6 @@ function ChatPanelOptimized({
     activeBranchId,
     handleStopAll,
     handleDiagramXml,
-    isComparisonRunning,
     messages,
     setMessages,
     status
@@ -1612,8 +1560,6 @@ function ChatPanelOptimized({
         updateActiveBranchDiagram(diagramXmlToRestore);
       }
       
-      pruneHistoryByMessageIds(new Set(truncated.map((msg) => msg.id)));
-      releaseBranchRequirement();
     },
     [
       activeBranch,
@@ -1624,8 +1570,6 @@ function ChatPanelOptimized({
       setInput,
       updateActiveBranchMessages,
       updateActiveBranchDiagram,
-      releaseBranchRequirement,
-      pruneHistoryByMessageIds,
       historyItems,
       handleRestoreHistory,
       isSvgMode,
@@ -1721,7 +1665,7 @@ function ChatPanelOptimized({
   };
   const showSessionStatus = !isCompactMode || !isConversationStarted;
   // 包含 isSubmitting 状态，确保在用户点击发送后立即显示忙碌状态
-  const isGenerationBusy = isSubmitting || status === "streaming" || status === "submitted" || isComparisonRunning;
+  const isGenerationBusy = isSubmitting || status === "streaming" || status === "submitted";
   const shouldShowSidebar = Boolean(activeToolPanel && isToolSidebarOpen);
   return <>
             <Card className="relative flex h-full max-h-full min-h-0 w-full max-w-full flex-col gap-0 rounded-none py-0 overflow-hidden">
@@ -1777,24 +1721,6 @@ function ChatPanelOptimized({
                             </div>}
                         {/* 智能工具栏已移除 */}
                         <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
-                            {comparisonNotice && <div
-    className={cn(
-      "relative mb-3 flex shrink-0 items-start gap-2 rounded-xl border px-3 py-2 text-xs shadow-sm",
-      comparisonNotice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-600"
-    )}
-  >
-                                    {comparisonNotice.type === "success" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5" />}
-                                    <span className="leading-snug">
-                                        {comparisonNotice.message}
-                                    </span>
-                                    <button
-      type="button"
-      onClick={dismissComparisonNotice}
-      className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/40 bg-white/30 text-current transition hover:bg-white/60"
-    >
-                                        <X className="h-3.5 w-3.5" />
-                                    </button>
-                                </div>}
                             <div
     ref={messagesScrollRef}
     className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl bg-white px-2.5 py-2 pb-28"
@@ -1816,18 +1742,6 @@ function ChatPanelOptimized({
       origin: "display",
       modelRuntime: selectedModel ?? void 0
     })}
-    onComparisonApply={(result) => {
-      void handleApplyComparisonResult(result);
-    }}
-    onComparisonCopyXml={handleCopyXml}
-    onComparisonDownload={handleDownloadXml}
-    onComparisonPreview={(requestId, result) => {
-      void handlePreviewComparisonResult(requestId, result);
-    }}
-    onComparisonRetry={handleRetryComparisonResult}
-    buildComparisonPreviewUrl={buildComparisonPreviewUrl}
-    comparisonHistory={comparisonHistory}
-    activePreview={activeComparisonPreview}
     onMessageRevert={handleMessageRevert}
     runtimeDiagramError={runtimeError?.message ?? null}
     onConsumeRuntimeError={() => setRuntimeError(null)}
@@ -1837,7 +1751,6 @@ function ChatPanelOptimized({
     })}
     onRetryGeneration={handleRetryGeneration}
     isGenerationBusy={isGenerationBusy}
-    isComparisonRunning={isComparisonRunning}
     diagramResultVersion={diagramResultVersion}
     getDiagramResult={getDiagramResult}
     generationPhase={generationPhase}
@@ -1874,40 +1787,7 @@ function ChatPanelOptimized({
     onModelChange={selectModel}
     onManageModels={() => setIsModelConfigOpen(true)}
     onModelStreamingChange={handleModelStreamingChange}
-    comparisonEnabled={isComparisonAllowed}
-    onCompareRequest={async () => {
-      if (!input.trim()) {
-        return;
-      }
-      const parts = [{ type: "text", text: input }];
-      if (files.length > 0) {
-        const attachments = await serializeAttachments(files);
-        attachments.forEach(({ url, mediaType }) => {
-          parts.push({
-            type: "file",
-            url,
-            mediaType
-          });
-        });
-      }
-      const userMessageId = `user-compare-${Date.now()}`;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: userMessageId,
-          role: "user",
-          parts
-        }
-      ]);
-      void handleCompareRequest(userMessageId);
-      setInput("");
-      setFiles([]);
-    }}
-    onOpenComparisonConfig={() => {
-      setIsComparisonConfigOpen(true);
-    }}
-    isCompareLoading={isComparisonRunning}
-    interactionLocked={requiresBranchDecision || !selectedModel}
+    interactionLocked={!selectedModel}
     renderMode={renderMode}
     onRenderModeChange={handleRenderModeChange}
     onStop={() => handleStopAll({
@@ -1985,20 +1865,14 @@ function ChatPanelOptimized({
                     </div>
                 </DialogContent>
             </Dialog>
-            <ModelComparisonConfigDialog
-    open={isComparisonConfigOpen}
-    onOpenChange={setIsComparisonConfigOpen}
-    config={comparisonConfig}
-    onConfigChange={setComparisonConfig}
-    defaultPrimaryKey={selectedModelKey}
-    models={modelOptions}
-    onManageModels={() => setIsModelConfigOpen(true)}
-  />
             <ModelConfigDialog
     open={isModelConfigOpen}
     onOpenChange={setIsModelConfigOpen}
     endpoints={modelEndpoints}
     onSave={saveEndpoints}
+    models={modelOptions}
+    architectWorkflowConfig={architectWorkflowConfig}
+    onArchitectWorkflowConfigChange={setArchitectWorkflowConfig}
   />
         </>;
 }

@@ -11,8 +11,6 @@ import { getChargeConfig, calculateTokenCharge } from "@/lib/charge-utils";
 import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/system-models";
 // 系统提示词：从统一的 prompts 模块导入
 import { getSystemMessage } from "@/lib/prompts";
-// 模板数据：用于 search_template 工具的后端执行
-import { DIAGRAM_TEMPLATES } from "@/data/templates";
 // Next.js Route Handler 的最长执行时间（秒），避免 Vercel 上接口超时
 // 设置为 300 秒（5 分钟）以支持复杂图表生成，需要配合 nginx 的 proxy_read_timeout 配置
 export const maxDuration = 300;
@@ -57,7 +55,7 @@ function parseTextResponseToAction(text) {
     }
     
     // 验证 action 是有效的操作类型
-    const validActions = ['display_diagram', 'edit_diagram', 'display_svg', 'search_template'];
+    const validActions = ['display_diagram', 'edit_diagram', 'display_svg'];
     if (!validActions.includes(parsed.action)) {
       console.warn("无效的 action 类型:", parsed.action);
       return null;
@@ -92,14 +90,6 @@ function parseTextResponseToAction(text) {
       } else if (action === 'edit_diagram') {
         // 编辑操作比较复杂，需要完整的 JSON 解析
         return null;
-      } else if (action === 'search_template') {
-        const queryMatch = text.match(/"query"\s*:\s*"([^"]*)"/);
-        if (queryMatch) {
-          return {
-            action,
-            params: { query: queryMatch[1] }
-          };
-        }
       }
     } catch (e) {
       console.error("备用解析也失败:", e.message);
@@ -656,7 +646,7 @@ async function POST(req) {
     // 从请求体中解析所有参数
     // useSystemModel: 是否使用系统内置模型
     // systemModelId: 系统模型 ID（当 useSystemModel 为 true 时使用）
-    const { messages, xml, modelRuntime, enableStreaming, renderMode, isContinuation, useSystemModel, systemModelId } = await req.json();
+    const { messages, xml, modelRuntime, enableStreaming, renderMode, isContinuation, useSystemModel, systemModelId, enableArchitectWorkflow, architectModel, rendererModel } = await req.json();
 
     
     // 从请求头获取访问密码（用于服务器端配置模式）
@@ -1061,112 +1051,6 @@ ${safeUserText}
             replace: z.string().describe("替换内容")
           })).describe("按顺序应用的搜索/替换对数组")
         })
-      }),
-      // 模板搜索工具：让 LLM 自主决定是否需要使用模板
-      // 使用 tool() 函数定义工具，包含 execute 函数以支持 maxSteps 多轮调用
-      search_template: tool({
-        description: `搜索并获取适合当前需求的图表模板，获取专业的绘图指导和配色方案。
-
-**仅在以下情况使用此工具：**
-1. 用户明确要求"使用模板"或"参考模板"
-2. 需要创建全新的复杂图表且当前画布为空
-3. 用户描述的图表类型有明确的最佳实践（如：技术路线图、实验流程图、架构图等）
-
-**不要在以下情况使用：**
-- 用户要求修改现有图表的内容、颜色、布局等
-- 简单的图表调整请求
-- 当前画布已有内容，且用户要求在此基础上继续完善
-- 用户只是询问问题而非要求绘图
-
-**工具返回内容：**
-- 模板的详细绘图指导
-- 推荐的配色方案
-- 布局和结构建议
-- 示例节点样式
-
-调用此工具后，请根据返回的模板指导生成图表。`,
-        parameters: z.object({
-          query: z.string().describe("用户的绘图需求描述，用于匹配最合适的模板"),
-          templateType: z.string().optional().describe("期望的模板类型，可选值：process（流程图）、structure（架构图）、schematic（示意图）、comparison（对比图）、timeline（时间线）")
-        }),
-        // execute 函数：在后端执行模板搜索，返回结果后 LLM 会继续生成
-        execute: async ({ query, templateType }) => {
-          try {
-            // 搜索匹配的模板
-            const matchedTemplates = searchTemplatesInternal(query, templateType);
-            
-            if (matchedTemplates.length === 0) {
-              return "未找到匹配的模板。请根据用户需求直接绘制图表，使用 display_diagram 工具输出 XML。";
-            }
-            
-            // 返回最匹配的模板及其绘图指导
-            const bestMatch = matchedTemplates[0];
-            const guidance = buildDrawingGuidanceInternal(bestMatch);
-            
-            // 格式化返回给 LLM 的模板指导信息
-            let output = `## 找到匹配模板: ${bestMatch.title}\n\n`;
-            output += `**描述**: ${bestMatch.description}\n\n`;
-            
-            // 绘图提示词
-            if (guidance.prompt) {
-              output += `### 绘图指导\n${guidance.prompt}\n\n`;
-            }
-            
-            // 布局建议
-            if (guidance.layout) {
-              output += `### 布局建议\n`;
-              output += `- 方向: ${guidance.layout.direction}\n`;
-              output += `- 说明: ${guidance.layout.description}\n`;
-              output += `- 起始位置: (${guidance.layout.startPosition.x}, ${guidance.layout.startPosition.y})\n\n`;
-            }
-            
-            // 配色方案
-            if (guidance.colorScheme) {
-              output += `### 配色方案\n`;
-              output += `- 主色: fillColor=${guidance.colorScheme.primary.fill};strokeColor=${guidance.colorScheme.primary.stroke};\n`;
-              if (guidance.colorScheme.secondary) {
-                output += `- 次色: fillColor=${guidance.colorScheme.secondary.fill};strokeColor=${guidance.colorScheme.secondary.stroke};\n`;
-              }
-              if (guidance.colorScheme.accent) {
-                output += `- 强调色: fillColor=${guidance.colorScheme.accent.fill};strokeColor=${guidance.colorScheme.accent.stroke};\n`;
-              }
-              output += `\n`;
-            }
-            
-            // 间距规范
-            if (guidance.spacing) {
-              output += `### 间距规范\n`;
-              output += `- 节点间距: ${guidance.spacing.nodeGap}px\n`;
-              output += `- 分组间距: ${guidance.spacing.groupGap}px\n`;
-              output += `- 内边距: ${guidance.spacing.padding}px\n\n`;
-            }
-            
-            // 字体规范
-            if (guidance.typography) {
-              output += `### 字体规范\n`;
-              output += `- 字体: ${guidance.typography.fontFamily}\n`;
-              output += `- 标题字号: ${guidance.typography.titleSize}pt\n`;
-              output += `- 标签字号: ${guidance.typography.labelSize}pt\n\n`;
-            }
-            
-            // 特性说明
-            if (guidance.features && guidance.features.length > 0) {
-              output += `### 核心特性\n`;
-              guidance.features.forEach(f => {
-                output += `- ${f}\n`;
-              });
-              output += `\n`;
-            }
-            
-            output += `**请根据以上指导，使用 display_diagram 工具生成符合学术标准的图表 XML。**`;
-            
-            console.log("[search_template] 找到模板:", bestMatch.title);
-            return output;
-          } catch (error) {
-            console.error("[search_template] 执行失败:", error);
-            return `模板搜索失败: ${error.message}。请直接根据用户需求绘制图表，使用 display_diagram 工具输出 XML。`;
-          }
-        }
       })
     }) : undefined; // 不支持工具调用时不传递 tools
     
@@ -1195,11 +1079,168 @@ ${safeUserText}
       // 当不支持工具调用时，tools 为 undefined，不会传递给模型
       ...(toolsConfig && { tools: toolsConfig }),
       temperature: 0,
-      // 允许多轮工具调用：LLM 可以先调用 search_template 获取模板信息，
-      // 然后继续调用 display_diagram 生成实际图表
-      // 设置为 5 以支持复杂的多步工作流（如：搜索模板 -> 生成图表 -> 编辑图表）
+      // 允许多轮工具调用：LLM 可以调用 display_diagram 生成图表，然后调用 edit_diagram 进行编辑
+      // 设置为 5 以支持复杂的多步工作流（如：生成图表 -> 编辑图表）
       maxSteps: 5
     };
+    // ========== 检查是否启用新工作流 ==========
+    // 优先使用请求参数，其次使用环境变量
+    const shouldUseArchitectWorkflow = enableArchitectWorkflow ?? (process.env.ENABLE_ARCHITECT_WORKFLOW === 'true');
+    
+    // 新工作流仅支持 drawio 模式，不支持 svg 模式和续写
+    if (shouldUseArchitectWorkflow && outputMode === "drawio" && !isContinuation) {
+      try {
+        console.log("[工作流] 🔄 启用 Architect 工作流...");
+        
+        // 导入工作流
+        const { executeWorkflow } = await import("@/llm/agents/workflow");
+        
+        // 准备模型配置
+        // 如果使用系统模型，传递系统模型配置；否则传递完整的 modelRuntime
+        const workflowModelRuntime = isUsingSystemModel && resolvedModel ? {
+          useSystemModel: true,
+          systemModelId: resolvedModel.id,
+        } : finalModelRuntime;
+        
+        console.log("[工作流] 🔍 模型配置准备:", {
+          isUsingSystemModel,
+          hasResolvedModel: !!resolvedModel,
+          workflowModelRuntimeType: isUsingSystemModel ? "system" : "custom",
+          hasBaseUrl: !!workflowModelRuntime?.baseUrl,
+          hasApiKey: !!workflowModelRuntime?.apiKey,
+          modelId: workflowModelRuntime?.modelId || workflowModelRuntime?.systemModelId,
+          workflowModelRuntime: workflowModelRuntime
+        });
+        
+        // 解析 architectModel 和 rendererModel 配置
+        // 如果前端传递的是 { useSystemModel: false, systemModelId: ... }，需要转换为正确的格式
+        const normalizeModelConfig = (config) => {
+          if (!config) return workflowModelRuntime;
+          
+          // 如果配置格式正确，直接返回
+          if (config.useSystemModel && config.systemModelId) {
+            return config;
+          }
+          if (config.modelRuntime) {
+            return config;
+          }
+          if (config.baseUrl && config.apiKey && config.modelId) {
+            return config;
+          }
+          
+          // 如果只有 systemModelId 但 useSystemModel 为 false，尝试解析为系统模型
+          if (config.systemModelId && !config.useSystemModel) {
+            console.log("[工作流] 🔄 检测到 systemModelId 但 useSystemModel 为 false，尝试解析为系统模型:", config.systemModelId);
+            const systemModel = resolveSystemModel(config.systemModelId);
+            if (systemModel) {
+              return {
+                useSystemModel: true,
+                systemModelId: systemModel.id,
+              };
+            }
+          }
+          
+          // 如果配置格式不正确，回退到默认配置
+          console.warn("[工作流] ⚠️  模型配置格式不正确，使用默认配置:", config);
+          return workflowModelRuntime;
+        };
+        
+        // 执行工作流
+        const workflowResult = await executeWorkflow({
+          userInput: safeUserText,
+          currentXml: xml,
+          modelRuntime: workflowModelRuntime,
+          architectModel: normalizeModelConfig(architectModel),
+          rendererModel: normalizeModelConfig(rendererModel),
+        });
+        
+        console.log("[工作流] ✅ 工作流执行成功");
+        
+        // 验证和规范化生成的 XML
+        const { normalizeGeneratedXml, validateDiagramXml } = await import("@/lib/diagram-validation");
+        const normalizedXml = normalizeGeneratedXml(workflowResult.xml);
+        const validation = validateDiagramXml(normalizedXml);
+        
+        if (!validation.isValid) {
+          console.error("[工作流] ❌ XML 验证失败:", validation.errors);
+          throw new Error(`生成的 XML 格式无效: ${validation.errors.map(e => e.message).join("; ")}`);
+        }
+        
+        console.log("[工作流] ✅ XML 验证通过");
+        
+        // 将XML包装为工具调用格式返回
+        // 使用流式响应格式，但直接返回完整结果
+        const toolCallId = `call_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        const messageId = `msg-${Date.now()}`;
+        
+        // 构建 SSE 事件流
+        const chunks = [
+          {
+            type: "start",
+            messageId,
+            messageMetadata: {
+              usage: {
+                inputTokens: 0,
+                outputTokens: 0,
+                totalTokens: 0
+              },
+              durationMs: Date.now() - startTime,
+              finishReason: "tool-calls",
+              isTaskCompleted: true,
+              taskFailed: false
+            }
+          },
+          {
+            type: "tool-input-available",
+            toolCallId: toolCallId,
+            toolName: "display_diagram",
+            input: {
+              xml: validation.normalizedXml
+            }
+          },
+          {
+            type: "finish",
+            finishReason: "tool-calls",
+            messageMetadata: {
+              usage: {
+                inputTokens: 0,
+                outputTokens: 0,
+                totalTokens: 0
+              },
+              durationMs: Date.now() - startTime,
+              finishReason: "tool-calls",
+              isTaskCompleted: true,
+              taskFailed: false
+            }
+          }
+        ];
+        
+        // 创建 ReadableStream
+        const stream = new ReadableStream({
+          start(controller) {
+            for (const chunk of chunks) {
+              controller.enqueue(chunk);
+            }
+            controller.close();
+          }
+        });
+        
+        // 返回流式响应格式
+        return createUIMessageStreamResponse({
+          stream,
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+          }
+        });
+      } catch (error) {
+        console.error("[工作流] ❌ 工作流执行失败，回退到原有逻辑:", error);
+        // 如果工作流失败，回退到原有逻辑
+        // 继续执行下面的代码
+      }
+    }
+    
     // ========== 不支持工具调用的特殊处理 ==========
     // 当模型不支持工具调用时，强制使用非流式响应，因为我们需要解析完整的文本响应
     const actualUseStreaming = supportsToolCalls ? (enableStreaming ?? true) : false;
@@ -1516,7 +1557,7 @@ ${safeUserText}
               });
             }
           } else {
-            // 对于其他工具（如 search_template、edit_diagram），只验证 toolInput 是否存在
+            // 对于其他工具（如 edit_diagram），只验证 toolInput 是否存在
             if (!toolInput) {
               console.error("[非流式] 错误：工具调用参数为空", {
                 toolCallId: toolCall.toolCallId,
@@ -1610,194 +1651,3 @@ ${safeUserText}
 }
 export { POST };
 
-// ========== search_template 工具的辅助函数 ==========
-
-/**
- * 搜索匹配的模板（内部函数）
- * 
- * @param {string} query - 用户查询
- * @param {string} [templateType] - 期望的模板类型
- * @returns {Array} 匹配的模板列表（按相关性排序）
- */
-function searchTemplatesInternal(query, templateType) {
-  const queryLower = query.toLowerCase();
-  
-  // 计算每个模板的匹配分数
-  const scoredTemplates = DIAGRAM_TEMPLATES.map(template => {
-    let score = 0;
-    
-    // 类型匹配（高权重）
-    if (templateType && template.category === templateType) {
-      score += 50;
-    }
-    
-    // 标题匹配
-    if (template.title.toLowerCase().includes(queryLower)) {
-      score += 30;
-    }
-    
-    // 描述匹配
-    if (template.description.toLowerCase().includes(queryLower)) {
-      score += 20;
-    }
-    
-    // 标签匹配
-    const matchedTags = template.tags.filter(tag => 
-      queryLower.includes(tag.toLowerCase()) || tag.toLowerCase().includes(queryLower)
-    );
-    score += matchedTags.length * 15;
-    
-    // 使用场景匹配
-    if (template.useCases) {
-      const matchedUseCases = template.useCases.filter(uc => 
-        queryLower.includes(uc.toLowerCase()) || uc.toLowerCase().includes(queryLower)
-      );
-      score += matchedUseCases.length * 10;
-    }
-    
-    // 关键词匹配
-    const keywords = extractKeywordsInternal(queryLower);
-    keywords.forEach(keyword => {
-      if (template.title.toLowerCase().includes(keyword)) score += 5;
-      if (template.description.toLowerCase().includes(keyword)) score += 3;
-      template.tags.forEach(tag => {
-        if (tag.toLowerCase().includes(keyword)) score += 4;
-      });
-    });
-    
-    // 热门模板加分
-    if (template.isPopular) {
-      score += 5;
-    }
-    
-    return { ...template, score };
-  });
-  
-  // 按分数排序，过滤掉分数为 0 的模板
-  return scoredTemplates
-    .filter(t => t.score > 0)
-    .sort((a, b) => b.score - a.score);
-}
-
-/**
- * 提取查询中的关键词
- * 
- * @param {string} query - 查询字符串
- * @returns {string[]} 关键词列表
- */
-function extractKeywordsInternal(query) {
-  // 常见的绘图相关关键词
-  const keywordPatterns = [
-    "流程", "架构", "路线", "时序", "思维导图", "神经网络", "实验",
-    "系统", "分层", "对比", "比较", "时间线", "甘特", "进度",
-    "数据", "pipeline", "workflow", "process", "architecture",
-    "roadmap", "timeline", "network", "diagram", "chart"
-  ];
-  
-  return keywordPatterns.filter(kw => query.includes(kw));
-}
-
-/**
- * 构建绘图指导信息
- * 
- * @param {Object} template - 模板对象
- * @returns {Object} 绘图指导
- */
-function buildDrawingGuidanceInternal(template) {
-  // 基础绘图指导
-  const guidance = {
-    // 原始提示词
-    prompt: template.prompt,
-    
-    // 布局建议
-    layout: getLayoutSuggestionInternal(template),
-    
-    // 配色方案
-    colorScheme: getColorSchemeInternal(template),
-    
-    // 字体规范
-    typography: {
-      fontFamily: "Arial",
-      titleSize: "14",
-      labelSize: "11",
-      noteSize: "10"
-    },
-    
-    // 间距规范
-    spacing: {
-      nodeGap: "80-100",
-      groupGap: "60",
-      padding: "24"
-    }
-  };
-  
-  // 添加特性说明
-  if (template.features) {
-    guidance.features = template.features;
-  }
-  
-  return guidance;
-}
-
-/**
- * 获取布局建议
- */
-function getLayoutSuggestionInternal(template) {
-  const categoryLayouts = {
-    process: {
-      direction: "vertical",
-      description: "自上而下的流程布局，节点垂直排列",
-      startPosition: { x: 320, y: 60 }
-    },
-    structure: {
-      direction: "layered",
-      description: "分层结构布局，使用容器分组相关元素",
-      startPosition: { x: 40, y: 40 }
-    },
-    schematic: {
-      direction: "horizontal",
-      description: "横向三段式布局（左：问题，中：方法，右：结果）",
-      startPosition: { x: 40, y: 100 }
-    },
-    comparison: {
-      direction: "parallel",
-      description: "并列对比布局，左右或上下对称排列",
-      startPosition: { x: 100, y: 100 }
-    },
-    timeline: {
-      direction: "horizontal",
-      description: "时间轴布局，从左到右按时间顺序排列",
-      startPosition: { x: 40, y: 250 }
-    }
-  };
-  
-  return categoryLayouts[template.category] || categoryLayouts.process;
-}
-
-/**
- * 获取配色方案
- */
-function getColorSchemeInternal(template) {
-  // 学术风格配色方案
-  const academicSchemes = {
-    // 蓝色系（默认，适合大多数图表）
-    blue: {
-      primary: { fill: "#dae8fc", stroke: "#6c8ebf", font: "#333333" },
-      secondary: { fill: "#f5f5f5", stroke: "#666666", font: "#333333" },
-      accent: { fill: "#fff2cc", stroke: "#d6b656", font: "#333333" }
-    },
-    // 灰度（适合黑白打印）
-    grayscale: {
-      primary: { fill: "#F7F9FC", stroke: "#2C3E50", font: "#2C3E50" },
-      secondary: { fill: "#ECEFF1", stroke: "#607D8B", font: "#37474F" },
-      accent: { fill: "#CFD8DC", stroke: "#455A64", font: "#263238" }
-    }
-  };
-  
-  // 根据模板类型选择配色
-  if (template.category === "schematic" || template.brief?.tone === "academic") {
-    return academicSchemes.grayscale;
-  }
-  
-  return academicSchemes.blue;
-}
