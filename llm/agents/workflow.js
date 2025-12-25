@@ -7,7 +7,7 @@
 import { formatPrompt } from "./prompt-formatter";
 import { generateMermaid } from "./mermaid-generator";
 import { generateVisualSchema } from "./architect";
-import { generateXml } from "./renderer";
+import { generateXml, generateSvg } from "./renderer";
 import { getStaticSystemModelList, isSystemModelsEnabled } from "@/lib/system-models";
 
 /**
@@ -69,14 +69,16 @@ function getDefaultSystemModelRuntime() {
  * @param {Object} [params.modelRuntime] - 默认模型运行时配置（可选）
  * @param {Object} [params.architectModel] - Architect模型配置（可选，覆盖默认配置）
  * @param {Object} [params.rendererModel] - Renderer模型配置（可选，覆盖默认配置）
- * @returns {Promise<{xml: string, formattedPrompt?: string, mermaid?: string, visualSchema?: string, metadata?: Object}>}
+ * @param {"drawio" | "svg"} [params.renderMode="drawio"] - 渲染模式，决定输出XML还是SVG
+ * @returns {Promise<{xml?: string, svg?: string, formattedPrompt?: string, mermaid?: string, visualSchema?: string, metadata?: Object}>}
  */
 export async function executeWorkflow({ 
   userInput, 
   currentXml, 
   modelRuntime,
   architectModel,
-  rendererModel
+  rendererModel,
+  renderMode = "drawio"
 }) {
   const metadata = {
     startTime: Date.now(),
@@ -172,27 +174,50 @@ export async function executeWorkflow({
     
     const visualSchema = architectResult.visualSchema;
     
-    // 步骤 4: The Renderer - 生成Draw.io XML
-    console.log("[工作流] 步骤 4/5: The Renderer生成XML...");
+    // 步骤 4: The Renderer - 根据renderMode生成XML或SVG
+    const isSvgMode = renderMode === "svg";
+    console.log(`[工作流] 步骤 4/5: The Renderer生成${isSvgMode ? "SVG" : "XML"}...`);
     const rendererStartTime = Date.now();
     let rendererResult;
     try {
-      rendererResult = await generateXml({
-        visualSchema,
-        modelRuntime: rendererModel || effectiveModelRuntime,
-      });
-      metadata.steps.generateXml = {
-        duration: Date.now() - rendererStartTime,
-        success: true,
-      };
-      console.log("[工作流] ✅ 步骤 4/5 完成: XML生成");
+      if (isSvgMode) {
+        // SVG模式：生成SVG
+        rendererResult = await generateSvg({
+          visualSchema,
+          modelRuntime: rendererModel || effectiveModelRuntime,
+        });
+        metadata.steps.generateSvg = {
+          duration: Date.now() - rendererStartTime,
+          success: true,
+        };
+        console.log("[工作流] ✅ 步骤 4/5 完成: SVG生成");
+      } else {
+        // Draw.io模式：生成XML
+        rendererResult = await generateXml({
+          visualSchema,
+          modelRuntime: rendererModel || effectiveModelRuntime,
+        });
+        metadata.steps.generateXml = {
+          duration: Date.now() - rendererStartTime,
+          success: true,
+        };
+        console.log("[工作流] ✅ 步骤 4/5 完成: XML生成");
+      }
     } catch (error) {
-      console.error("[工作流] ❌ 步骤 4/5 Renderer失败:", error);
-      metadata.steps.generateXml = {
-        duration: Date.now() - rendererStartTime,
-        success: false,
-        error: error.message,
-      };
+      console.error(`[工作流] ❌ 步骤 4/5 Renderer失败:`, error);
+      if (isSvgMode) {
+        metadata.steps.generateSvg = {
+          duration: Date.now() - rendererStartTime,
+          success: false,
+          error: error.message,
+        };
+      } else {
+        metadata.steps.generateXml = {
+          duration: Date.now() - rendererStartTime,
+          success: false,
+          error: error.message,
+        };
+      }
       throw error;
     }
     
@@ -202,14 +227,22 @@ export async function executeWorkflow({
     
     console.log("[工作流] ✅ 所有步骤完成，总耗时:", metadata.totalDuration, "ms");
     
-    return {
-      xml: rendererResult.xml,
+    // 根据renderMode返回相应的结果
+    const result = {
       formattedPrompt,
       // 只有当 Mermaid 有效时才返回
       mermaid: (mermaid && mermaidResult?.isValid !== false) ? mermaid : undefined,
       visualSchema,
       metadata,
     };
+    
+    if (isSvgMode) {
+      result.svg = rendererResult.svg;
+    } else {
+      result.xml = rendererResult.xml;
+    }
+    
+    return result;
   } catch (error) {
     metadata.totalDuration = Date.now() - metadata.startTime;
     metadata.success = false;

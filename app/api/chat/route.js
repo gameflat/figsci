@@ -1091,8 +1091,8 @@ ${safeUserText}
     // 优先使用请求参数，其次使用环境变量
     const shouldUseArchitectWorkflow = enableArchitectWorkflow ?? (process.env.ENABLE_ARCHITECT_WORKFLOW === 'true');
     
-    // 新工作流仅支持 drawio 模式，不支持 svg 模式和续写
-    if (shouldUseArchitectWorkflow && outputMode === "drawio" && !isContinuation) {
+    // 新工作流支持 drawio 和 svg 模式，但不支持续写
+    if (shouldUseArchitectWorkflow && !isContinuation) {
       try {
         console.log("[工作流] 🔄 启用 Architect 工作流...");
         
@@ -1156,23 +1156,43 @@ ${safeUserText}
           modelRuntime: workflowModelRuntime,
           architectModel: normalizeModelConfig(architectModel),
           rendererModel: normalizeModelConfig(rendererModel),
+          renderMode: outputMode,
         });
         
         console.log("[工作流] ✅ 工作流执行成功");
         
-        // 验证和规范化生成的 XML
-        const { normalizeGeneratedXml, validateDiagramXml } = await import("@/lib/diagram-validation");
-        const normalizedXml = normalizeGeneratedXml(workflowResult.xml);
-        const validation = validateDiagramXml(normalizedXml);
+        const isSvgMode = outputMode === "svg";
+        let normalizedContent;
+        let validation;
         
-        if (!validation.isValid) {
-          console.error("[工作流] ❌ XML 验证失败:", validation.errors);
-          throw new Error(`生成的 XML 格式无效: ${validation.errors.map(e => e.message).join("; ")}`);
+        if (isSvgMode) {
+          // SVG模式：验证SVG格式
+          const svg = workflowResult.svg;
+          if (!svg || typeof svg !== "string" || !svg.trim()) {
+            throw new Error("工作流生成的 SVG 为空");
+          }
+          // 基本SVG验证：必须包含 <svg> 标签
+          if (!svg.includes('<svg')) {
+            throw new Error("生成的 SVG 格式无效：必须包含 <svg> 标签");
+          }
+          normalizedContent = svg.trim();
+          console.log("[工作流] ✅ SVG 验证通过");
+        } else {
+          // Draw.io模式：验证和规范化生成的 XML
+          const { normalizeGeneratedXml, validateDiagramXml } = await import("@/lib/diagram-validation");
+          normalizedContent = normalizeGeneratedXml(workflowResult.xml);
+          validation = validateDiagramXml(normalizedContent);
+          
+          if (!validation.isValid) {
+            console.error("[工作流] ❌ XML 验证失败:", validation.errors);
+            throw new Error(`生成的 XML 格式无效: ${validation.errors.map(e => e.message).join("; ")}`);
+          }
+          
+          normalizedContent = validation.normalizedXml;
+          console.log("[工作流] ✅ XML 验证通过");
         }
         
-        console.log("[工作流] ✅ XML 验证通过");
-        
-        // 将XML包装为工具调用格式返回
+        // 将结果包装为工具调用格式返回
         // 使用流式响应格式，但直接返回完整结果
         const toolCallId = `call_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         const messageId = `msg-${Date.now()}`;
@@ -1197,9 +1217,11 @@ ${safeUserText}
           {
             type: "tool-input-available",
             toolCallId: toolCallId,
-            toolName: "display_diagram",
-            input: {
-              xml: validation.normalizedXml
+            toolName: isSvgMode ? "display_svg" : "display_diagram",
+            input: isSvgMode ? {
+              svg: normalizedContent
+            } : {
+              xml: normalizedContent
             }
           },
           {

@@ -489,6 +489,8 @@ export function SvgEditorProvider({ children }) {
     const [past, setPast] = useState([]);
     const [future, setFuture] = useState([]);
     const [defsMarkup, setDefsMarkup] = useState(null);
+    // 保存原始SVG字符串，用于精确渲染
+    const [originalSvgMarkup, setOriginalSvgMarkup] = useState(null);
 
     /**
      * @param {SvgElement[]} [customElements]
@@ -871,6 +873,8 @@ export function SvgEditorProvider({ children }) {
                     console.warn("忽略非 SVG 内容载入：", content.slice(0, 120));
                     return;
                 }
+                // 保存原始SVG字符串，用于精确渲染
+                setOriginalSvgMarkup(content);
                 const parsed = parseSvgMarkup(svg);
                 if (!parsed.valid) {
                     return;
@@ -896,6 +900,7 @@ export function SvgEditorProvider({ children }) {
         setDoc(DEFAULT_DOC);
         setElements([]);
         setDefsMarkup(null);
+        setOriginalSvgMarkup(null);
         setSelectedId(null);
         setHistory([]);
         setActiveHistoryIndex(-1);
@@ -978,6 +983,7 @@ export function SvgEditorProvider({ children }) {
             redo,
             commitSnapshot: () => pushHistorySnapshot(),
             defsMarkup,
+            originalSvgMarkup,
         }),
         [
             doc,
@@ -1003,6 +1009,7 @@ export function SvgEditorProvider({ children }) {
             redo,
             pushHistorySnapshot,
             defsMarkup,
+            originalSvgMarkup,
         ]
     );
 

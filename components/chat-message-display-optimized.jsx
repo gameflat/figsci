@@ -18,6 +18,7 @@ import ExamplePanel from "./chat-example-panel";
 import { TokenUsageDisplay } from "./token-usage-display";
 import { FloatingProgressIndicator } from "./generation-progress-indicator";
 import { useDiagram } from "@/contexts/diagram-context";
+import { useSvgEditor } from "@/contexts/svg-editor-context";
 // StreamingThoughtDisplay 已弃用，改用 FloatingProgressIndicator 以支持完成状态保持显示
 // import { StreamingThoughtDisplay } from "./streaming-thought-display";
 const LARGE_TOOL_INPUT_CHAR_THRESHOLD = 3e3;
@@ -92,6 +93,7 @@ const DiagramToolCard = memo(({
   messageMetadata
 }) => {
   const { loadDiagram } = useDiagram();
+  const { loadSvgMarkup } = useSvgEditor();
   const callId = part.toolCallId;
   const { state, input, output } = part;
   const toolName = part.type?.replace("tool-", "") || "display_diagram";
@@ -262,7 +264,12 @@ const DiagramToolCard = memo(({
                     <div 
                         className="relative w-full h-32 bg-white border border-slate-200 rounded-lg overflow-hidden cursor-pointer hover:border-slate-300 transition-colors"
                         onClick={() => {
-                            if (diagramResult.xml) {
+                            // 根据模式选择恢复方法
+                            if (diagramResult.mode === "svg" && diagramResult.svg) {
+                                // SVG模式：使用 loadSvgMarkup
+                                loadSvgMarkup(diagramResult.svg);
+                            } else if (diagramResult.xml) {
+                                // Draw.io模式：使用 loadDiagram
                                 // 跳过验证，因为这是可信的图表数据
                                 loadDiagram(diagramResult.xml, true);
                             }
