@@ -42,6 +42,7 @@ import { useDiagram } from "@/contexts/diagram-context";
  * @property {(mode: "drawio" | "svg") => void} [onRenderModeChange]
  * @property {() => void} [onStop]
  * @property {boolean} [isBusy]
+ * @property {Array<{svg?: string, xml?: string}>} [historyItems] - 历史记录项数组
  */
 
 /**
@@ -68,8 +69,11 @@ export function ChatInputOptimized({
     onRenderModeChange,
     onStop,
     isBusy = false,
+    historyItems,
 }) {
-    const { diagramHistory } = useDiagram();
+    const { diagramHistory: defaultDiagramHistory } = useDiagram();
+    // 如果提供了historyItems，使用它；否则使用默认的diagramHistory
+    const diagramHistory = historyItems || defaultDiagramHistory;
     const textareaRef = useRef(null);
     const fileInputRef = useRef(null);
     const controlBarRef = useRef(null);
@@ -397,6 +401,8 @@ export function ChatInputOptimized({
             <HistoryDialog
                 showHistory={showHistory}
                 onToggleHistory={onToggleHistory}
+                renderMode={renderMode}
+                historyItems={historyItems}
             />
         </form>
     );

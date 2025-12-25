@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
     Dialog,
     DialogContent,
@@ -12,11 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useDiagram } from "@/contexts/diagram-context";
+import { extractSvgFromDrawioXml, svgToDataUrl } from "@/lib/svg";
 
 /**
  * @typedef {Object} HistoryDialogProps
  * @property {boolean} showHistory - 是否显示历史对话框
  * @property {(show: boolean) => void} onToggleHistory - 切换历史对话框显示状态
+ * @property {"drawio" | "svg"} [renderMode] - 当前渲染模式
+ * @property {Array<{svg?: string, xml?: string}>} [historyItems] - 历史记录项数组（如果提供，将使用此数据而不是从useDiagram获取）
  */
 
 /**
@@ -29,9 +32,35 @@ import { useDiagram } from "@/contexts/diagram-context";
 export function HistoryDialog({
     showHistory,
     onToggleHistory,
+    renderMode = "drawio",
+    historyItems,
 }) {
-    const { loadDiagram: onDisplayChart, diagramHistory } = useDiagram();
+    const { loadDiagram: onDisplayChart, diagramHistory: defaultDiagramHistory } = useDiagram();
+    // 如果提供了historyItems，使用它；否则使用默认的diagramHistory
+    const diagramHistory = historyItems || defaultDiagramHistory;
     const [selectedIndex, setSelectedIndex] = useState(/** @type {number | null} */(null));
+    
+    // 为每个历史项计算缩略图URL
+    const thumbnailUrls = useMemo(() => {
+        return diagramHistory.map((item) => {
+            // 如果item.svg存在，直接使用
+            if (item.svg) {
+                return item.svg;
+            }
+            // SVG模式下，从Draw.io XML中提取SVG
+            if (renderMode === "svg" && item.xml) {
+                const extracted = extractSvgFromDrawioXml(item.xml);
+                if (extracted.dataUrl) {
+                    return extracted.dataUrl;
+                }
+                if (extracted.svg) {
+                    return svgToDataUrl(extracted.svg);
+                }
+            }
+            // Draw.io模式下，item.svg应该已经存在（通过exportDiagram生成）
+            return item.svg || null;
+        });
+    }, [diagramHistory, renderMode]);
 
     const handleClose = () => {
         setSelectedIndex(null);
@@ -75,14 +104,18 @@ export function HistoryDialog({
                                 onClick={() => setSelectedIndex(index)}
                             >
                                 <div className="aspect-video bg-white rounded overflow-hidden flex items-center justify-center">
-                                    <Image
-                                        src={item.svg}
-                                        alt={`图表版本 ${index + 1}`}
-                                        width={200}
-                                        height={100}
-                                        className="object-contain w-full h-full p-1"
-                                        unoptimized
-                                    />
+                                    {thumbnailUrls[index] ? (
+                                        <Image
+                                            src={thumbnailUrls[index]}
+                                            alt={`图表版本 ${index + 1}`}
+                                            width={200}
+                                            height={100}
+                                            className="object-contain w-full h-full p-1"
+                                            unoptimized
+                                        />
+                                    ) : (
+                                        <div className="text-xs text-gray-400">无预览</div>
+                                    )}
                                 </div>
                                 <div className="text-xs text-center mt-1 text-gray-500">
                                     版本 {index + 1}

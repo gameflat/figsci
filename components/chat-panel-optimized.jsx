@@ -30,7 +30,7 @@ import { ChatInputOptimized } from "@/components/chat-input-optimized";
 import { ChatMessageDisplay } from "./chat-message-display-optimized";
 import { useDiagram } from "@/contexts/diagram-context";
 import { useConversationManager } from "@/contexts/conversation-context";
-import { useSvgEditor } from "@/contexts/svg-editor-context";
+// useSvgEditor 已移除：SVG 模式现在统一使用 Draw.io 画布
 import { cn, formatXML, replaceXMLParts } from "@/lib/utils";
 import { buildSvgRootXml } from "@/lib/svg";
 import { QuickActionBar } from "@/components/quick-action-bar";
@@ -70,13 +70,7 @@ function ChatPanelOptimized({
     runtimeError,
     setRuntimeError
   } = useDiagram();
-  const {
-    loadSvgMarkup,
-    exportSvgMarkup,
-    clearSvg,
-    history: svgHistory,
-    restoreHistoryAt: restoreSvgHistoryAt
-  } = useSvgEditor();
+  // useSvgEditor 已移除：SVG 模式现在统一使用 Draw.io 画布
   const [internalRenderMode, setInternalRenderMode] = useState("drawio");
   const renderMode = controlledRenderMode ?? internalRenderMode;
   const isSvgMode = renderMode === "svg";
@@ -134,58 +128,44 @@ function ChatPanelOptimized({
     onDisplayChart,
     updateActiveBranchDiagram
   });
+  // 统一使用 handleDiagramXml 处理画布更新
+  // SVG 模式下，SVG 会在调用此函数前通过 buildSvgRootXml 转换为 Draw.io XML
   const handleCanvasUpdate = useCallback(
     async (payload, meta) => {
-      if (isSvgMode) {
-        loadSvgMarkup(payload);
-        updateActiveBranchDiagram(payload);
-        return;
-      }
       await handleDiagramXml(payload, meta);
     },
-    [isSvgMode, loadSvgMarkup, updateActiveBranchDiagram, handleDiagramXml]
+    [handleDiagramXml]
   );
+  // 统一使用 tryApplyRoot 处理根 XML
+  // SVG 模式下，SVG 会在调用此函数前通过 buildSvgRootXml 转换为 Draw.io XML
   const tryApplyCanvasRoot = useCallback(
     async (xml) => {
-      if (isSvgMode) {
-        loadSvgMarkup(xml);
-        updateActiveBranchDiagram(xml);
-        return;
-      }
       await tryApplyRoot(xml);
     },
-    [isSvgMode, loadSvgMarkup, updateActiveBranchDiagram, tryApplyRoot]
+    [tryApplyRoot]
   );
   const getLatestCanvasMarkup = useCallback(
-    () => isSvgMode ? exportSvgMarkup() : getLatestDiagramXml(),
-    [isSvgMode, exportSvgMarkup, getLatestDiagramXml]
+    // 统一使用 getLatestDiagramXml，因为两种模式都使用 Draw.io 画布
+    () => getLatestDiagramXml(),
+    [getLatestDiagramXml]
   );
   const lastBranchIdRef = useRef(activeBranchId);
   const initialHydratedRef = useRef(false);
   const lastRenderModeRef = useRef(renderMode);
 
-  // 监听 renderMode 变化，自动切换到对应模式的根分支
-  useEffect(() => {
-    if (lastRenderModeRef.current !== renderMode) {
-      console.log(`[ChatPanel] 渲染模式切换: ${lastRenderModeRef.current} -> ${renderMode}`);
-      const targetBranch = switchRenderMode(renderMode);
-      if (targetBranch) {
-        console.log(`[ChatPanel] 已切换到 ${renderMode} 模式的根分支: ${targetBranch.id}`);
-      }
-      lastRenderModeRef.current = renderMode;
-    }
-  }, [renderMode, switchRenderMode]);
+  // 监听 renderMode 变化的逻辑将在 useChat 之后定义，避免 TDZ 错误
   const fetchAndFormatDiagram = useCallback(
     async (options) => {
       if (isSvgMode) {
-        return exportSvgMarkup();
+        // 统一使用 fetchDiagramXml，因为两种模式都使用 Draw.io 画布
+        return fetchDiagramXml();
       }
       const rawXml = await fetchDiagramXml(options);
       const formatted = formatXML(rawXml);
       updateLatestDiagramXml(formatted);
       return formatted;
     },
-    [isSvgMode, exportSvgMarkup, fetchDiagramXml, updateLatestDiagramXml]
+    [fetchDiagramXml, updateLatestDiagramXml]
   );
   const onFetchChart = useCallback(async () => {
     return fetchAndFormatDiagram();
@@ -282,21 +262,17 @@ function ChatPanelOptimized({
     [architectWorkflowConfig]
   );
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  // 统一使用 mxDiagramHistory，因为 SVG 模式下历史记录也是 Draw.io XML 格式
   const historyItems = useMemo(
-    () => isSvgMode ? svgHistory.map((item) => ({
-      svg: item.dataUrl || item.svg
-    })) : mxDiagramHistory,
-    [isSvgMode, svgHistory, mxDiagramHistory]
+    () => mxDiagramHistory,
+    [mxDiagramHistory]
   );
+  // 统一使用 restoreDiagramAt，因为 SVG 模式下历史记录也是 Draw.io XML 格式
   const handleRestoreHistory = useCallback(
     (index) => {
-      if (isSvgMode) {
-        restoreSvgHistoryAt(index);
-      } else {
-        restoreDiagramAt(index);
-      }
+      restoreDiagramAt(index);
     },
-    [isSvgMode, restoreDiagramAt, restoreSvgHistoryAt]
+    [restoreDiagramAt]
   );
   
   const handleModelStreamingChange = useCallback((modelKey, isStreaming) => {
@@ -376,10 +352,19 @@ function ChatPanelOptimized({
     if (!lastWithSvg) return;
     const [resultId, value] = lastWithSvg;
     if (lastLoadedSvgResultIdRef.current === resultId) return;
-    loadSvgMarkup(value.svg);
-    updateActiveBranchDiagram(value.svg);
+    // SVG模式下，value.xml 是 Draw.io XML 格式（通过 buildSvgRootXml 转换）
+    // 使用 handleDiagramXml 加载到画布
+    if (value.xml) {
+      handleDiagramXml(value.xml, {
+        origin: "display",
+        modelRuntime: value.runtime
+      }).catch((error) => {
+        console.error("恢复 SVG 结果到画布失败:", error);
+      });
+      updateActiveBranchDiagram(value.xml);
+    }
     lastLoadedSvgResultIdRef.current = resultId;
-  }, [isSvgMode, diagramResultVersion, loadSvgMarkup, updateActiveBranchDiagram]);
+  }, [diagramResultVersion, handleDiagramXml, updateActiveBranchDiagram]);
   const {
     messages,
     sendMessage,
@@ -492,47 +477,36 @@ function ChatPanelOptimized({
           if (!svg || typeof svg !== "string" || !svg.trim()) {
             throw new Error("大模型返回的 SVG 为空，无法渲染。");
           }
-          if (isSvgMode) {
-            loadSvgMarkup(svg);
-            updateActiveBranchDiagram(svg);
-            diagramResultsRef.current.set(toolCall.toolCallId, {
-              xml: svg,
-              svg,
-              mode: "svg",
-              runtime: selectedModel ?? void 0
-            });
-            setDiagramResultVersion((prev) => prev + 1);
-            addToolResult({
-              tool: "display_svg",
-              toolCallId: toolCall.toolCallId,
-              output: "图表生成完成，已实时渲染到画布。"
-            });
-            return;
-          }
-          const { rootXml } = buildSvgRootXml(svg);
+          // SVG 模式下，统一使用 buildSvgRootXml 转换为 Draw.io XML
+          const { rootXml, dataUrl } = buildSvgRootXml(svg);
+          console.log("[display_svg] 转换 SVG 为 Draw.io XML", { 
+            rootXmlLength: rootXml?.length, 
+            rootXmlPreview: rootXml?.substring(0, 200),
+            dataUrlPreview: dataUrl?.substring(0, 100)
+          });
           await handleCanvasUpdate(rootXml, {
             origin: "display",
             modelRuntime: selectedModel ?? void 0,
             toolCallId: toolCall.toolCallId
           });
+          // 等待画布更新完成后再获取最新的 XML
+          await new Promise((resolve) => setTimeout(resolve, 100));
           const mergedXml = getLatestDiagramXml();
-          console.log("[display_svg] 存储合并后的 XML", { mergedXmlLength: mergedXml?.length });
+          console.log("[display_svg] 存储合并后的 XML", { 
+            mergedXmlLength: mergedXml?.length,
+            mergedXmlPreview: mergedXml?.substring(0, 200)
+          });
+          // 保存原始 SVG 和转换后的 Draw.io XML，用于预览和历史记录
           diagramResultsRef.current.set(toolCall.toolCallId, {
-            xml: mergedXml, // 这里已经使用了完整的格式
-            svg,
+            xml: mergedXml, // Draw.io XML 格式（用于恢复画布）
+            svg, // 原始 SVG（用于预览）
+            svgDataUrl: dataUrl, // SVG data URL（用于缩略图显示）
             mode: "svg",
             runtime: selectedModel ?? void 0
           });
+          updateActiveBranchDiagram(mergedXml);
           setDiagramResultVersion((prev) => prev + 1);
           
-          // 不在AI生成后保存历史，历史记录已在用户发送消息前保存
-          // 注意：不要直接修改 toolCall.input，因为这会影响到后续的工具调用
-          // 暂时移除这个内存优化逻辑
-          // if (toolCall.input && typeof toolCall.input === "object") {
-          //   toolCall.input.svgRef = toolCall.toolCallId;
-          //   toolCall.input.svgLength = svg.length;
-          //   toolCall.input.svg = void 0;
-          // }
           addToolResult({
             tool: "display_svg",
             toolCallId: toolCall.toolCallId,
@@ -704,11 +678,8 @@ function ChatPanelOptimized({
           diagramXmlToRestore = isSvgMode ? null : EMPTY_MXFILE;
 
           try {
-            if (isSvgMode) {
-              clearSvg();
-            } else {
-              clearDiagram();
-            }
+            // 统一使用 clearDiagram，因为两种模式都使用 Draw.io 画布
+            clearDiagram();
             console.log("✅ 画布清空成功");
           } catch (clearError) {
             console.warn("⚠️ 画布清空失败", clearError);
@@ -764,20 +735,13 @@ function ChatPanelOptimized({
         updateActiveBranchDiagram(safeDiagramXml);
 
         // 同步画布展示，防止损坏的 XML 弹窗
-        if (isSvgMode) {
-          if (safeDiagramXml) {
-            loadSvgMarkup(safeDiagramXml);
-          } else {
-            clearSvg();
-          }
-        } else {
-          try {
-            onDisplayChart(safeDiagramXml);
-          } catch (displayError) {
-            console.warn("回滚画布加载失败，使用空画布兜底", displayError);
-            onDisplayChart(EMPTY_MXFILE);
-            updateActiveBranchDiagram(EMPTY_MXFILE);
-          }
+        // 统一使用 onDisplayChart，因为 SVG 模式下 diagramXml 存储的是 Draw.io XML
+        try {
+          onDisplayChart(safeDiagramXml || EMPTY_MXFILE);
+        } catch (displayError) {
+          console.warn("回滚画布加载失败，使用空画布兜底", displayError);
+          onDisplayChart(EMPTY_MXFILE);
+          updateActiveBranchDiagram(EMPTY_MXFILE);
         }
       }
 
@@ -825,11 +789,9 @@ function ChatPanelOptimized({
     updateActiveBranchMessages,
     updateActiveBranchDiagram,
     isSvgMode,
-    loadSvgMarkup,
     onDisplayChart,
     historyItems,
     handleRestoreHistory,
-    clearSvg,
     clearDiagram,
     createBranch,
     activeBranchId,
@@ -1000,6 +962,65 @@ function ChatPanelOptimized({
     },
     [isSubmitting, status, stop, notifyUser]
   );
+  
+  // 监听 renderMode 变化，自动切换到对应模式的根分支
+  // 注意：必须在 useChat 和 handleStopAll 之后定义，因为依赖了 status 和 handleStopAll
+  useEffect(() => {
+    if (lastRenderModeRef.current !== renderMode) {
+      console.log(`[ChatPanel] 渲染模式切换: ${lastRenderModeRef.current} -> ${renderMode}`);
+      
+      // 1. 停止正在进行的生成
+      if (status === "streaming" || status === "submitted") {
+        console.log(`[ChatPanel] 模式切换，停止正在进行的生成`);
+        void handleStopAll({
+          type: "info",
+          message: "已切换渲染模式，自动暂停当前生成。"
+        });
+      }
+      
+      // 2. 切换到对应模式的根分支
+      const targetBranch = switchRenderMode(renderMode);
+      if (targetBranch) {
+        console.log(`[ChatPanel] 已切换到 ${renderMode} 模式的根分支: ${targetBranch.id}`);
+        
+        // 3. 立即恢复对应分支的画布和消息
+        // 恢复画布
+        if (targetBranch.diagramXml) {
+          (async () => {
+            try {
+              console.log(`[ChatPanel] 恢复 ${renderMode} 模式的画布`);
+              await handleDiagramXml(targetBranch.diagramXml, {
+                origin: "display",
+                modelRuntime: void 0
+              });
+            } catch (error) {
+              console.error(`[ChatPanel] 恢复 ${renderMode} 模式画布失败:`, error);
+            }
+          })();
+        } else {
+          // 如果分支没有 diagramXml，清空画布
+          console.log(`[ChatPanel] ${renderMode} 模式分支无画布内容，清空画布`);
+          clearDiagram();
+        }
+        
+        // 恢复消息列表（立即同步，不等待异步操作）
+        const targetMessages = targetBranch.messages || [];
+        if (targetMessages.length > 0) {
+          console.log(`[ChatPanel] 恢复 ${renderMode} 模式的对话历史，共 ${targetMessages.length} 条消息`);
+        } else {
+          console.log(`[ChatPanel] ${renderMode} 模式分支无对话历史，清空消息列表`);
+        }
+        // 立即更新消息列表，确保对话窗口显示正确的历史
+        setMessages(targetMessages);
+        
+        // 清空输入框，避免残留内容
+        setInput("");
+      }
+      
+      lastRenderModeRef.current = renderMode;
+    }
+  }, [renderMode, switchRenderMode, status, handleStopAll, handleDiagramXml, clearDiagram, setMessages, setInput]);
+  
   const handleRetryGeneration = useCallback(async () => {
     try {
       if (status === "streaming") {
@@ -1426,12 +1447,9 @@ function ChatPanelOptimized({
     });
     setMessages([]);
     resetActiveBranch();
-    updateActiveBranchDiagram(isSvgMode ? null : EMPTY_MXFILE);
-    if (isSvgMode) {
-      clearSvg();
-    } else {
-      clearDiagram();
-    }
+    // 统一使用 EMPTY_MXFILE 和 clearDiagram，因为两种模式都使用 Draw.io 画布
+    updateActiveBranchDiagram(EMPTY_MXFILE);
+    clearDiagram();
     clearConversation();
   };
   const exchanges = messages.filter(
@@ -1459,29 +1477,31 @@ function ChatPanelOptimized({
     const branchRenderMode = activeBranch.meta?.renderMode || contextRenderMode || "drawio";
     const isBranchSvgMode = branchRenderMode === "svg";
     
-    if (branchChanged && activeBranch.diagramXml) {
-      (async () => {
-        try {
-          // 根据分支的渲染模式选择正确的恢复方法
-          if (isBranchSvgMode) {
-            // SVG模式：使用 loadSvgMarkup
-            loadSvgMarkup(activeBranch.diagramXml, { saveHistory: false });
-          } else {
-            // Draw.io模式：使用 handleDiagramXml
+    // 只在非模式切换导致的分支变化时恢复画布和消息
+    // 模式切换时的恢复逻辑已在 renderMode useEffect 中处理
+    if (branchChanged && lastRenderModeRef.current === renderMode) {
+      // 这是普通的分支切换（不是模式切换）
+      if (activeBranch.diagramXml) {
+        (async () => {
+          try {
+            // 统一使用 handleDiagramXml，因为 SVG 模式下 diagramXml 存储的是 Draw.io XML
             await handleDiagramXml(activeBranch.diagramXml, {
               origin: "display",
               modelRuntime: void 0
             });
+          } catch (error2) {
+            console.error("切换分支应用画布失败：", error2);
           }
-        } catch (error2) {
-          console.error("切换分支应用画布失败：", error2);
-        }
-      })();
-    }
-    if (branchChanged && messagesMismatch) {
-      setMessages(activeBranch.messages);
-    }
-    if (branchChanged) {
+        })();
+      } else {
+        // 如果分支没有 diagramXml，清空画布
+        clearDiagram();
+      }
+      
+      if (messagesMismatch) {
+        setMessages(activeBranch.messages || []);
+      }
+      
       if (status === "streaming" || status === "submitted") {
         void handleStopAll({
           type: "error",
@@ -1496,7 +1516,6 @@ function ChatPanelOptimized({
     contextRenderMode,
     handleStopAll,
     handleDiagramXml,
-    loadSvgMarkup,
     messages,
     setMessages,
     status
@@ -1515,17 +1534,11 @@ function ChatPanelOptimized({
     if (activeBranch.diagramXml) {
       (async () => {
         try {
-          // 根据分支的渲染模式选择正确的恢复方法
-          if (isBranchSvgMode) {
-            // SVG模式：使用 loadSvgMarkup
-            loadSvgMarkup(activeBranch.diagramXml, { saveHistory: false });
-          } else {
-            // Draw.io模式：使用 handleDiagramXml
-            await handleDiagramXml(activeBranch.diagramXml, {
-              origin: "display",
-              modelRuntime: void 0
-            });
-          }
+          // 统一使用 handleDiagramXml，因为 SVG 模式下 diagramXml 存储的是 Draw.io XML
+          await handleDiagramXml(activeBranch.diagramXml, {
+            origin: "display",
+            modelRuntime: void 0
+          });
         } catch (error2) {
           console.error("初始化应用画布失败:", error2);
         }
@@ -1539,7 +1552,7 @@ function ChatPanelOptimized({
     ) {
       setMessages(activeBranch.messages);
     }
-  }, [activeBranch, contextRenderMode, handleDiagramXml, loadSvgMarkup, messages, setMessages]);
+  }, [activeBranch, contextRenderMode, handleDiagramXml, messages, setMessages]);
   // Bug 3 修复：重构 handleMessageRevert 为编辑模式
   // 现在会回溯画布到对应的历史位置
   const handleMessageRevert = useCallback(
@@ -1580,12 +1593,9 @@ function ChatPanelOptimized({
         } else if (userMessagesBeforeTarget === 0) {
           // 如果目标位置之前没有用户消息，说明是回到最初状态
           // 清空画布
-          diagramXmlToRestore = isSvgMode ? null : EMPTY_MXFILE;
-          if (isSvgMode) {
-            clearSvg();
-          } else {
-            clearDiagram();
-          }
+          // 统一使用 EMPTY_MXFILE 和 clearDiagram，因为两种模式都使用 Draw.io 画布
+          diagramXmlToRestore = EMPTY_MXFILE;
+          clearDiagram();
         }
       }
       
@@ -1624,8 +1634,6 @@ function ChatPanelOptimized({
       updateActiveBranchDiagram,
       historyItems,
       handleRestoreHistory,
-      isSvgMode,
-      clearSvg,
       clearDiagram
     ]
   );
@@ -1847,6 +1855,7 @@ function ChatPanelOptimized({
       message: "已手动暂停当前生成任务。"
     })}
     isBusy={isGenerationBusy}
+    historyItems={historyItems}
   />
                         </div>
                     </div>
