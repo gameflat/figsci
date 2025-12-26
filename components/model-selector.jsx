@@ -8,7 +8,7 @@ import React, {
     useCallback,
 } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Check, Database, Zap, FileText, Shield, User } from "lucide-react";
+import { ChevronDown, Check, Database, Zap, FileText, Shield, User, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -63,14 +63,22 @@ function Switch({
  */
 
 /**
+ * @typedef {Object} ArchitectWorkflowConfig
+ * @property {boolean} enabled
+ * @property {import("@/types/model-config").RuntimeModelOption | null} architectModel
+ * @property {import("@/types/model-config").RuntimeModelOption | null} rendererModel
+ */
+
+/**
  * @typedef {Object} ModelSelectorProps
  * @property {string} [selectedModelKey]
  * @property {(modelKey: string) => void} onModelChange
  * @property {import("@/types/model-config").RuntimeModelOption[]} models
- * @property {() => void} [onManage]
  * @property {boolean} [disabled]
  * @property {(modelKey: string, isStreaming: boolean) => void} [onModelStreamingChange]
  * @property {boolean} [compact]
+ * @property {ArchitectWorkflowConfig} [architectWorkflowConfig]
+ * @property {(config: ArchitectWorkflowConfig) => void} [onArchitectWorkflowConfigChange]
  */
 
 /**
@@ -80,10 +88,11 @@ export function ModelSelector({
     selectedModelKey,
     onModelChange,
     models,
-    onManage,
     disabled = false,
     onModelStreamingChange,
     compact = false,
+    architectWorkflowConfig,
+    onArchitectWorkflowConfigChange,
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -277,18 +286,9 @@ export function ModelSelector({
                             {models.length === 0 ? (
                                 <div className="p-4 text-sm text-slate-500">
                                     暂无可用模型，请先完成接口配置。
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="mt-3 w-full rounded-full border-dashed"
-                                        onClick={() => {
-                                            setIsOpen(false);
-                                            onManage?.();
-                                        }}
-                                    >
-                                        去配置模型
-                                    </Button>
+                                    <div className="mt-3 text-xs text-slate-400">
+                                        暂无可用模型
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="max-h-80 overflow-y-auto py-2">
@@ -396,26 +396,35 @@ export function ModelSelector({
                                     ))}
                                 </div>
                             )}
-                            <div className="border-t border-slate-100 p-2">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    className="w-full rounded-full text-xs font-semibold text-slate-500 hover:text-slate-900"
-                                    onClick={(e) => {
-                                        console.log('[ModelSelector] Manage button clicked');
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setIsOpen(false);
-                                        console.log('[ModelSelector] Calling onManage');
-                                        onManage?.();
-                                    }}
-                                    onMouseDown={(e) => {
-                                        e.stopPropagation();
-                                    }}
-                                >
-                                    管理模型
-                                </Button>
-                            </div>
+                            {architectWorkflowConfig && onArchitectWorkflowConfigChange && (
+                                <div className="border-t border-slate-100 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <Sparkles className="h-4 w-4 text-blue-600 shrink-0" />
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-semibold text-slate-900">
+                                                    智能体模式
+                                                </div>
+                                                <div className="text-[11px] text-slate-500 truncate">
+                                                    启用两阶段智能体工作流（The Architect + The Renderer）
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={architectWorkflowConfig.enabled}
+                                            onCheckedChange={(checked) => {
+                                                onArchitectWorkflowConfigChange({
+                                                    ...architectWorkflowConfig,
+                                                    enabled: checked,
+                                                });
+                                            }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>,
                     document.body

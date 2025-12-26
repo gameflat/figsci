@@ -24,9 +24,7 @@ import {
     ShieldCheck,
     Download,
     Loader2,
-    Sparkles,
 } from "lucide-react";
-import { ModelSelector } from "@/components/model-selector";
 
 // Simple Switch component
 /**
@@ -61,21 +59,12 @@ function Switch({ checked, onCheckedChange, disabled }) {
 }
 
 /**
- * @typedef {Object} ArchitectWorkflowConfig
- * @property {boolean} enabled
- * @property {import("@/types/model-config").RuntimeModelOption | null} architectModel
- * @property {import("@/types/model-config").RuntimeModelOption | null} rendererModel
- */
-
-/**
  * @typedef {Object} ModelConfigDialogProps
  * @property {boolean} open
  * @property {(open: boolean) => void} onOpenChange
  * @property {import("@/types/model-config").ModelEndpointConfig[]} endpoints
  * @property {(drafts: import("@/types/model-config").ModelEndpointDraft[]) => void} onSave
  * @property {import("@/types/model-config").RuntimeModelOption[]} [models]
- * @property {ArchitectWorkflowConfig} [architectWorkflowConfig]
- * @property {(config: ArchitectWorkflowConfig) => void} [onArchitectWorkflowConfigChange]
  */
 
 /**
@@ -156,8 +145,6 @@ export function ModelConfigDialog({
     endpoints,
     onSave,
     models = [],
-    architectWorkflowConfig,
-    onArchitectWorkflowConfigChange,
 }) {
     const [drafts, setDrafts] = useState([]);
     const [revealedKeys, setRevealedKeys] = useState({});
@@ -705,90 +692,6 @@ export function ModelConfigDialog({
                         新增接口
                     </Button>
 
-                    {/* Architect Workflow 配置区域 */}
-                    {architectWorkflowConfig && onArchitectWorkflowConfigChange && (
-                        <div className="mt-4 space-y-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-6">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Sparkles className="h-5 w-5 text-blue-600" />
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-slate-900">
-                                            Architect 工作流
-                                        </h3>
-                                        <p className="mt-0.5 text-xs text-slate-500">
-                                            启用两阶段智能体工作流（The Architect + The Renderer）
-                                        </p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={architectWorkflowConfig.enabled}
-                                    onCheckedChange={(checked) => {
-                                        onArchitectWorkflowConfigChange({
-                                            ...architectWorkflowConfig,
-                                            enabled: checked,
-                                        });
-                                    }}
-                                />
-                            </div>
-
-                            {architectWorkflowConfig.enabled && (
-                                <div className="mt-4 space-y-4 rounded-xl border border-blue-100 bg-white/80 p-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                            Architect 模型（逻辑推理）
-                                        </label>
-                                        <p className="text-xs text-slate-500">
-                                            推荐使用推理能力强的模型（如 GPT-5, Claude 4.5, Gemini 3 Pro）
-                                        </p>
-                                        <ModelSelector
-                                            selectedModelKey={
-                                                architectWorkflowConfig.architectModel?.key || null
-                                            }
-                                            onModelChange={(key) => {
-                                                const model = models.find((m) => m.key === key);
-                                                onArchitectWorkflowConfigChange({
-                                                    ...architectWorkflowConfig,
-                                                    architectModel: model || null,
-                                                });
-                                            }}
-                                            models={models}
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                            Renderer 模型（代码生成）
-                                        </label>
-                                        <p className="text-xs text-slate-500">
-                                            推荐使用代码生成能力强的模型（如 GPT-4o, Claude Sonnet）
-                                        </p>
-                                        <ModelSelector
-                                            selectedModelKey={
-                                                architectWorkflowConfig.rendererModel?.key || null
-                                            }
-                                            onModelChange={(key) => {
-                                                const model = models.find((m) => m.key === key);
-                                                onArchitectWorkflowConfigChange({
-                                                    ...architectWorkflowConfig,
-                                                    rendererModel: model || null,
-                                                });
-                                            }}
-                                            models={models}
-                                        />
-                                    </div>
-
-                                    <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800">
-                                        <p className="font-semibold">提示：</p>
-                                        <ul className="mt-1 list-disc list-inside space-y-0.5">
-                                            <li>如果未配置特定模型，将使用当前对话的默认模型</li>
-                                            <li>Architect 负责生成 VISUAL SCHEMA，Renderer 负责转换为 XML</li>
-                                            <li>此工作流仅支持 drawio 模式，不支持 svg 模式和续写</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
 
                 <DialogFooter className="flex-shrink-0 flex flex-col gap-2 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">

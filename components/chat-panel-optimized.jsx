@@ -49,7 +49,6 @@ import {
 import { useDiagramOrchestrator } from "@/features/chat-panel/hooks/use-diagram-orchestrator";
 import { serializeAttachments } from "@/features/chat-panel/utils/attachments";
 import { useModelRegistry } from "@/hooks/use-model-registry";
-import { ModelConfigDialog } from "@/components/model-config-dialog";
 import { TemplateGallery } from "@/components/template-gallery";
 import Link from "next/link";
 // 光子扣费客户端：用于 mixed 模式预扣费
@@ -182,7 +181,6 @@ function ChatPanelOptimized({
     isSelectedSystemModel
   } = useModelRegistry();
   
-  const [isModelConfigOpen, setIsModelConfigOpen] = useState(false);
   const hasPromptedModelSetup = useRef(false);
   
   // Architect Workflow 配置状态（使用 localStorage 持久化）
@@ -207,6 +205,48 @@ function ChatPanelOptimized({
       }
     }
   }, [architectWorkflowConfig]);
+  
+  // 当系统模型存在时，设置 ArchitectWorkflow 默认使用最后一个系统模型
+  useEffect(() => {
+    if (!isModelRegistryReady || !modelOptions || modelOptions.length === 0) {
+      return;
+    }
+    
+    // 筛选出所有系统模型
+    const systemModels = modelOptions.filter((model) => model.isSystemModel);
+    
+    if (systemModels.length === 0) {
+      return;
+    }
+    
+    // 获取最后一个系统模型
+    const lastSystemModel = systemModels[systemModels.length - 1];
+    
+    // 只在配置为 null 时设置默认值，避免覆盖用户已配置的值
+    setArchitectWorkflowConfig((prev) => {
+      const needsUpdate = 
+        (prev.architectModel === null || prev.architectModel === undefined) ||
+        (prev.rendererModel === null || prev.rendererModel === undefined);
+      
+      if (!needsUpdate) {
+        return prev;
+      }
+      
+      const updated = { ...prev };
+      
+      if (updated.architectModel === null || updated.architectModel === undefined) {
+        updated.architectModel = lastSystemModel;
+        console.log("[ArchitectWorkflow] 设置默认 Architect 模型:", lastSystemModel.label || lastSystemModel.modelId);
+      }
+      
+      if (updated.rendererModel === null || updated.rendererModel === undefined) {
+        updated.rendererModel = lastSystemModel;
+        console.log("[ArchitectWorkflow] 设置默认 Renderer 模型:", lastSystemModel.label || lastSystemModel.modelId);
+      }
+      
+      return updated;
+    });
+  }, [isModelRegistryReady, modelOptions]);
   
   // 生成请求体中的模型配置
   // 系统模型：发送 useSystemModel + systemModelId
@@ -335,7 +375,7 @@ function ChatPanelOptimized({
   );
   useEffect(() => {
     if (isModelRegistryReady && !hasConfiguredModels && !hasPromptedModelSetup.current) {
-      setIsModelConfigOpen(true);
+      // 模型配置弹窗已移除，不再自动打开
       hasPromptedModelSetup.current = true;
     }
   }, [hasConfiguredModels, isModelRegistryReady]);
@@ -1222,7 +1262,7 @@ function ChatPanelOptimized({
         return;
       }
       if (!selectedModel) {
-        setIsModelConfigOpen(true);
+        // 模型配置弹窗已移除
         return;
       }
       // 立即设置提交状态，禁用发送按钮，防止用户重复点击
@@ -1340,7 +1380,6 @@ function ChatPanelOptimized({
       files,
       sendMessage,
       selectedModel,
-      setIsModelConfigOpen,
       renderMode,
       buildModelRequestBody,
       saveStateSnapshot,
@@ -1359,7 +1398,6 @@ function ChatPanelOptimized({
       throw new Error("AI 正在回答其他请求，请稍后再试。");
     }
     if (!selectedModel) {
-      setIsModelConfigOpen(true);
       throw new Error("请先配置可用模型后再执行校准。");
     }
     if (renderMode === "svg") {
@@ -1770,14 +1808,9 @@ function ChatPanelOptimized({
                                 <div>
                                     Figsci 需要至少配置一个模型接口才能开始生成，请先填写 Base URL、API Key 与模型 ID。
                                 </div>
-                                <Button
-    type="button"
-    size="sm"
-    className="rounded-full bg-amber-900 text-white hover:bg-amber-900/90"
-    onClick={() => setIsModelConfigOpen(true)}
-  >
-                                    立即配置
-                                </Button>
+                                <div className="text-xs text-amber-700">
+                                    请使用系统内置模型或配置自定义模型接口
+                                </div>
                             </div>}
                         {/* 智能工具栏已移除 */}
                         <div className="relative flex flex-1 min-h-0 flex-col overflow-hidden">
@@ -1845,8 +1878,9 @@ function ChatPanelOptimized({
     selectedModelKey={selectedModelKey}
     modelOptions={modelOptions}
     onModelChange={selectModel}
-    onManageModels={() => setIsModelConfigOpen(true)}
     onModelStreamingChange={handleModelStreamingChange}
+    architectWorkflowConfig={architectWorkflowConfig}
+    onArchitectWorkflowConfigChange={setArchitectWorkflowConfig}
     interactionLocked={!selectedModel}
     renderMode={renderMode}
     onRenderModeChange={handleRenderModeChange}
@@ -1926,15 +1960,6 @@ function ChatPanelOptimized({
                     </div>
                 </DialogContent>
             </Dialog>
-            <ModelConfigDialog
-    open={isModelConfigOpen}
-    onOpenChange={setIsModelConfigOpen}
-    endpoints={modelEndpoints}
-    onSave={saveEndpoints}
-    models={modelOptions}
-    architectWorkflowConfig={architectWorkflowConfig}
-    onArchitectWorkflowConfigChange={setArchitectWorkflowConfig}
-  />
         </>;
 }
 export {

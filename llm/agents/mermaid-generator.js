@@ -6,7 +6,7 @@
 
 import { generateText } from "ai";
 import { resolveChatModel } from "@/lib/server-models";
-import { resolveSystemModel, isSystemModelsEnabled } from "@/lib/system-models";
+import { resolveSystemModel, isSystemModelsEnabled, getStaticSystemModelList } from "@/lib/system-models";
 import { MERMAID_GENERATOR_SYSTEM_MESSAGE } from "@/lib/prompts";
 
 /**
@@ -140,11 +140,17 @@ export async function generateMermaid({
       }
     }
     
-    // 如果没有配置，尝试使用系统模型
+    // 如果没有配置，尝试使用系统模型列表中的最后一个
     if (!model && !useCustomApi && isSystemModelsEnabled()) {
-      const systemModel = resolveSystemModel("gpt-4o-mini");
-      if (systemModel) {
-        model = systemModel.model;
+      const systemModels = getStaticSystemModelList();
+      if (systemModels && systemModels.length > 0) {
+        // 获取最后一个系统模型
+        const lastSystemModel = systemModels[systemModels.length - 1];
+        const systemModel = resolveSystemModel(lastSystemModel.id);
+        if (systemModel) {
+          model = systemModel.model;
+          console.log("[Mermaid生成] ✅ 使用默认系统模型（列表中的最后一个）:", lastSystemModel.id);
+        }
       }
     }
     

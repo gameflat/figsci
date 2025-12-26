@@ -35,9 +35,10 @@ import { useDiagram } from "@/contexts/diagram-context";
  * @property {string} [selectedModelKey]
  * @property {import("@/types/model-config").RuntimeModelOption[]} [modelOptions]
  * @property {(modelKey: string) => void} [onModelChange]
- * @property {() => void} [onManageModels]
  * @property {boolean} [interactionLocked]
  * @property {(modelKey: string, isStreaming: boolean) => void} [onModelStreamingChange]
+ * @property {Object} [architectWorkflowConfig]
+ * @property {(config: Object) => void} [onArchitectWorkflowConfigChange]
  * @property {"drawio" | "svg"} [renderMode]
  * @property {(mode: "drawio" | "svg") => void} [onRenderModeChange]
  * @property {() => void} [onStop]
@@ -62,9 +63,10 @@ export function ChatInputOptimized({
     selectedModelKey,
     modelOptions = [],
     onModelChange = () => { },
-    onManageModels,
     interactionLocked = false,
     onModelStreamingChange,
+    architectWorkflowConfig,
+    onArchitectWorkflowConfigChange,
     renderMode = "drawio",
     onRenderModeChange,
     onStop,
@@ -345,10 +347,11 @@ export function ChatInputOptimized({
                                 selectedModelKey={selectedModelKey}
                                 onModelChange={onModelChange}
                                 models={modelOptions}
-                                onManage={onManageModels}
                                 disabled={isBusy || interactionLocked}
                                 onModelStreamingChange={onModelStreamingChange}
                                 compact
+                                architectWorkflowConfig={architectWorkflowConfig}
+                                onArchitectWorkflowConfigChange={onArchitectWorkflowConfigChange}
                             />
                         )}
                         <div className="flex items-center gap-2 flex-shrink-0">
