@@ -683,6 +683,44 @@ function ChatMessageDisplay({
         messageMetadata={messageMetadata}
       />;
     }
+    // 对于 run_python_code 工具，只显示代码，不显示工具调用详细信息和执行结果
+    if (toolName === "run_python_code" && input?.code) {
+      const storedExpansion = expandedTools[callId];
+      const isExpanded = storedExpansion !== void 0 ? storedExpansion : true;
+      const toggleExpanded = () => {
+        setExpandedTools((prev) => ({
+          ...prev,
+          [callId]: !isExpanded
+        }));
+      };
+      return <div
+        key={callId}
+        className="my-2 w-full max-w-[min(720px,90%)]"
+      >
+        <div className="max-h-80 overflow-auto">
+          <div className="rounded-lg border border-slate-200 bg-slate-900 text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-700 px-3 py-1.5">
+              <span className="text-[10px] font-medium text-slate-400">Python 代码</span>
+              <button
+                onClick={toggleExpanded}
+                className="text-[10px] text-slate-400 transition hover:text-slate-200"
+              >
+                {isExpanded ? "收起" : "展开"}
+              </button>
+            </div>
+            {isExpanded && (
+              <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-slate-100">
+                {input.code}
+              </pre>
+            )}
+          </div>
+        </div>
+      </div>;
+    }
+    // 对于 end_task 工具，完全隐藏，不显示任何信息
+    if (toolName === "end_task") {
+      return null;
+    }
     const storedExpansion = expandedTools[callId];
     const isExpanded = storedExpansion !== void 0 ? storedExpansion : true;
     const toggleExpanded = () => {
