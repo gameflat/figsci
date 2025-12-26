@@ -18,9 +18,10 @@ import { RENDERER_SYSTEM_MESSAGE, RENDERER_SVG_SYSTEM_MESSAGE } from "@/lib/prom
  * @param {string} config.model - 模型名称
  * @param {string} config.systemPrompt - 系统提示词
  * @param {string} config.userPrompt - 用户提示词
+ * @param {AbortSignal} [config.abortSignal] - 取消信号，用于取消请求
  * @returns {Promise<string>} API 返回的文本
  */
-async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt }) {
+async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt, abortSignal }) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -41,6 +42,7 @@ async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt }) {
       ],
       temperature: 0.1,
     }),
+    signal: abortSignal,
   });
   
   if (!response.ok) {
@@ -175,11 +177,13 @@ function getRendererModelConfig(defaultModelRuntime) {
  * @param {Object} params
  * @param {string} params.visualSchema - VISUAL SCHEMA内容
  * @param {Object} [params.modelRuntime] - 模型运行时配置（可选）
+ * @param {AbortSignal} [params.abortSignal] - 取消信号，用于取消请求
  * @returns {Promise<{svg: string}>}
  */
 export async function generateSvg({ 
   visualSchema, 
-  modelRuntime 
+  modelRuntime,
+  abortSignal
 }) {
   try {
     // 获取模型配置
@@ -202,9 +206,13 @@ export async function generateSvg({
           model: modelRuntime.customModel || "gpt-4o-mini",
           systemPrompt: RENDERER_SVG_SYSTEM_MESSAGE,
           userPrompt: visualSchema,
+          abortSignal,
         });
         console.log("[Renderer] ✅ 自定义 AI API 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Renderer] ❌ 自定义 API 调用失败:", error);
         throw error;
       }
@@ -221,10 +229,14 @@ export async function generateSvg({
             },
           ],
           temperature: 0.1, // 使用较低温度确保结果稳定
+          abortSignal,
         });
         responseText = response.text;
         console.log("[Renderer] ✅ AI SDK 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Renderer] ❌ AI SDK 调用失败:", error);
         throw error;
       }
@@ -286,11 +298,13 @@ export async function generateSvg({
  * @param {Object} params
  * @param {string} params.visualSchema - VISUAL SCHEMA内容
  * @param {Object} [params.modelRuntime] - 模型运行时配置（可选）
+ * @param {AbortSignal} [params.abortSignal] - 取消信号，用于取消请求
  * @returns {Promise<{xml: string}>}
  */
 export async function generateXml({ 
   visualSchema, 
-  modelRuntime 
+  modelRuntime,
+  abortSignal
 }) {
   try {
     // 获取模型配置
@@ -313,9 +327,13 @@ export async function generateXml({
           model: modelRuntime.customModel || "gpt-4o-mini",
           systemPrompt: RENDERER_SYSTEM_MESSAGE,
           userPrompt: visualSchema,
+          abortSignal,
         });
         console.log("[Renderer] ✅ 自定义 AI API 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Renderer] ❌ 自定义 API 调用失败:", error);
         throw error;
       }
@@ -332,10 +350,14 @@ export async function generateXml({
             },
           ],
           temperature: 0.1, // 使用较低温度确保结果稳定
+          abortSignal,
         });
         responseText = response.text;
         console.log("[Renderer] ✅ AI SDK 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Renderer] ❌ AI SDK 调用失败:", error);
         throw error;
       }

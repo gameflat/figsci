@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { EMPTY_MXFILE } from "@/lib/diagram-templates";
 import { ensureRootXml, mergeRootXml, replaceRootXml } from "@/lib/utils";
+import { normalizeGeneratedXml } from "@/lib/diagram-validation";
 function useDiagramOrchestrator({
   chartXML,
   onDisplayChart,
@@ -40,7 +41,10 @@ function useDiagramOrchestrator({
   );
   const tryApplyRoot = useCallback(
     async (xml, shouldReplace = false) => {
-      const normalized = ensureRootXml(xml);
+      // 先使用 normalizeGeneratedXml 修复 XML 中的 mxPoint 位置错误和其他格式问题
+      // 然后再使用 ensureRootXml 确保有 root 标签
+      const fixedXml = normalizeGeneratedXml(xml);
+      const normalized = ensureRootXml(fixedXml);
       applyRootToCanvas(normalized, shouldReplace);
     },
     [applyRootToCanvas]

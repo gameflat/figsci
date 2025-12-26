@@ -18,9 +18,10 @@ import { ARCHITECT_SYSTEM_MESSAGE } from "@/lib/prompts";
  * @param {string} config.model - 模型名称
  * @param {string} config.systemPrompt - 系统提示词
  * @param {string} config.userPrompt - 用户提示词
+ * @param {AbortSignal} [config.abortSignal] - 取消信号，用于取消请求
  * @returns {Promise<string>} API 返回的文本
  */
-async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt }) {
+async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt, abortSignal }) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -41,6 +42,7 @@ async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt }) {
       ],
       temperature: 0.1, // 使用较低温度确保结果稳定
     }),
+    signal: abortSignal,
   });
   
   if (!response.ok) {
@@ -146,12 +148,14 @@ function getArchitectModelConfig(defaultModelRuntime) {
  * @param {string} params.formattedPrompt - 格式化后的用户提示词
  * @param {string} [params.mermaid] - Mermaid图表代码（可选）
  * @param {Object} [params.modelRuntime] - 模型运行时配置（可选）
+ * @param {AbortSignal} [params.abortSignal] - 取消信号，用于取消请求
  * @returns {Promise<{visualSchema: string, rawOutput: string}>}
  */
 export async function generateVisualSchema({ 
   formattedPrompt, 
   mermaid, 
-  modelRuntime 
+  modelRuntime,
+  abortSignal
 }) {
   try {
     // 构建用户提示词
@@ -189,9 +193,13 @@ ${mermaid}
           model: modelRuntime.customModel || "gpt-4o-mini",
           systemPrompt: ARCHITECT_SYSTEM_MESSAGE,
           userPrompt: userPrompt,
+          abortSignal,
         });
         console.log("[Architect] ✅ 自定义 AI API 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Architect] ❌ 自定义 API 调用失败:", error);
         throw error;
       }
@@ -208,10 +216,14 @@ ${mermaid}
             },
           ],
           temperature: 0.1, // 使用较低温度确保结果稳定
+          abortSignal,
         });
         responseText = response.text;
         console.log("[Architect] ✅ AI SDK 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Architect] ❌ AI SDK 调用失败:", error);
         throw error;
       }
