@@ -1255,11 +1255,12 @@ function ChatPanelOptimized({
         const parts = [{ type: "text", text: finalInput }];
         if (files.length > 0) {
           const attachments = await serializeAttachments(files);
-          attachments.forEach(({ url, mediaType }) => {
+          attachments.forEach(({ url, mediaType, fileName }) => {
             parts.push({
               type: "file",
               url,
-              mediaType
+              mediaType,
+              fileName // 添加文件名，确保消息中能正确显示
             });
           });
         }

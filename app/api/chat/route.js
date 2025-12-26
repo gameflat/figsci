@@ -11,6 +11,8 @@ import { getChargeConfig, calculateTokenCharge } from "@/lib/charge-utils";
 import { resolveSystemModel, isSystemModelsEnabled, isSystemModel } from "@/lib/system-models";
 // 系统提示词：从统一的 prompts 模块导入
 import { getSystemMessage } from "@/lib/prompts";
+// 数据文件解析工具
+import { parseDataFile } from "@/lib/data-parser";
 // Next.js Route Handler 的最长执行时间（秒），避免 Vercel 上接口超时
 // 设置为 300 秒（5 分钟）以支持复杂图表生成，需要配合 nginx 的 proxy_read_timeout 配置
 export const maxDuration = 300;
@@ -830,9 +832,65 @@ async function POST(req) {
     const safeUserText = typeof lastMessageText === "string" && lastMessageText.trim().length > 0 ? lastMessageText : "（用户未提供文字内容，可能仅上传了附件）";
     const fileParts = lastMessage.parts?.filter((part) => part.type === "file") || [];
     
+    // ========== 数据文件处理 ==========
+    // 识别并解析 Excel/CSV 数据文件
+    const dataFileContexts = [];
+    const imageFileParts = [];
+    
+    for (const filePart of fileParts) {
+      const url = filePart.url || "";
+      const mediaType = filePart.mediaType || "";
+      const fileName = filePart.fileName || ""; // 从 filePart 获取文件名
+      
+      // 判断是否为数据文件（Excel/CSV）
+      const isDataFile = 
+        mediaType.includes("excel") ||
+        mediaType.includes("spreadsheet") ||
+        mediaType.includes("csv") ||
+        fileName.toLowerCase().match(/\.(xlsx|xls|csv)$/) ||
+        url.match(/\.(xlsx|xls|csv)$/i);
+      
+      if (isDataFile) {
+        try {
+          // 使用提供的文件名，或从 mediaType 推断
+          const finalFileName = fileName || 
+            (mediaType.includes("excel") || mediaType.includes("spreadsheet") 
+              ? (mediaType.includes("xls") ? "data.xls" : "data.xlsx")
+              : "data.csv");
+          
+          console.log("[数据文件] 开始解析数据文件:", { fileName: finalFileName, mediaType });
+          
+          // 解析数据文件
+          const parseResult = await parseDataFile(url, finalFileName);
+          
+          // 构建数据上下文
+          const dataContext = `数据文件: ${parseResult.fileName}${parseResult.sheetName ? ` (工作表: ${parseResult.sheetName})` : ''}
+总行数: ${parseResult.totalRows}
+
+${parseResult.markdown}`;
+          
+          dataFileContexts.push(dataContext);
+          
+          console.log("[数据文件] 解析成功:", {
+            fileName: parseResult.fileName,
+            totalRows: parseResult.totalRows,
+            markdownLength: parseResult.markdown.length
+          });
+        } catch (error) {
+          console.error("[数据文件] 解析失败:", error);
+          // 数据文件解析失败不影响其他流程，只记录错误
+          // 可以选择跳过该文件或返回错误（这里选择跳过）
+          console.warn(`[数据文件] 跳过无法解析的文件: ${error.message}`);
+        }
+      } else {
+        // 非数据文件（如图片）保留在 imageFileParts 中
+        imageFileParts.push(filePart);
+      }
+    }
+    
     // ========== 多模态输入验证 ==========
     // 如果用户提供了图片附件，检查模型是否支持视觉能力（vision）
-    if (fileParts.length > 0) {
+    if (imageFileParts.length > 0) {
       const modelId = finalModelRuntime.modelId?.toLowerCase() || "";
       // 检查模型是否支持 vision
       // 支持 vision 的模型包括：
@@ -866,10 +924,12 @@ async function POST(req) {
       console.log("[DEBUG] Vision support check:", {
         modelId: finalModelRuntime.modelId,
         supportsVision: supportsVision,
-        imageCount: fileParts.length
+        imageCount: imageFileParts.length
       });
     }
-    const formattedTextContent = `
+    
+    // 构建格式化文本内容，包含数据上下文
+    let formattedTextContent = `
 当前图表 XML:
 """xml
 ${xml || ""}
@@ -877,7 +937,19 @@ ${xml || ""}
 用户输入:
 """md
 ${safeUserText}
-"""
+"""`;
+
+    // 如果有数据文件上下文，添加到提示中
+    if (dataFileContexts.length > 0) {
+      formattedTextContent += `
+
+数据上下文:
+"""markdown
+${dataFileContexts.join('\n\n---\n\n')}
+"""`;
+    }
+
+    formattedTextContent += `
 渲染模式: ${outputMode === "svg" ? "svg" : "drawio-xml"}`;
     // 转换为 AI SDK 统一消息格式，便于后续直接传给模型
     const modelMessages = convertToModelMessages(messages);
@@ -921,15 +993,17 @@ ${safeUserText}
     if (enhancedMessages.length >= 1) {
       const lastModelMessage = enhancedMessages[enhancedMessages.length - 1];
       if (lastModelMessage.role === "user") {
-        // 将 “当前 XML + 用户输入 + 附件” 合并成结构化内容供模型理解
+        // 将 "当前 XML + 用户输入 + 附件" 合并成结构化内容供模型理解
         const contentParts = [
           { type: "text", text: formattedTextContent }
         ];
-        for (const filePart of fileParts) {
+        // 只添加图片文件（数据文件已经转换为文本上下文）
+        for (const filePart of imageFileParts) {
           contentParts.push({
             type: "image",
             image: filePart.url,
-            mimeType: filePart.mediaType
+            mimeType: filePart.mediaType,
+            fileName: filePart.fileName // 添加文件名，用于消息显示
           });
         }
         enhancedMessages = [
@@ -1149,9 +1223,29 @@ ${safeUserText}
           return workflowModelRuntime;
         };
         
+        // 构建包含数据上下文的用户输入
+        let workflowUserInput = safeUserText;
+        
+        // 如果有数据文件上下文，将其添加到用户输入中
+        if (dataFileContexts.length > 0) {
+          const dataContextSection = `
+
+## 数据上下文
+以下数据文件已上传并解析，请根据这些数据生成相应的图表：
+
+${dataFileContexts.join('\n\n---\n\n')}`;
+          
+          workflowUserInput = safeUserText + dataContextSection;
+          
+          console.log("[工作流] 📊 数据上下文已添加到用户输入:", {
+            dataFileCount: dataFileContexts.length,
+            totalContextLength: dataContextSection.length
+          });
+        }
+        
         // 执行工作流
         const workflowResult = await executeWorkflow({
-          userInput: safeUserText,
+          userInput: workflowUserInput,
           currentXml: xml,
           modelRuntime: workflowModelRuntime,
           architectModel: normalizeModelConfig(architectModel),

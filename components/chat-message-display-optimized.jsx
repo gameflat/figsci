@@ -810,14 +810,82 @@ function ChatMessageDisplay({
                                                                     {textToShow}
                                                                 </div>;
         case "file":
+        case "image":
+          // 从 part 对象中提取文件名
+          // 优先使用 fileName，其次从 url 中提取，最后使用默认名称
+          // 调试：检查 part 对象的内容
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[文件显示] part 对象:', { 
+              type: part.type, 
+              hasFileName: !!part.fileName, 
+              fileName: part.fileName,
+              hasUrl: !!part.url,
+              hasImage: !!part.image,
+              partKeys: Object.keys(part)
+            });
+          }
+          let fileName = part.fileName;
+          
+          // 如果 fileName 不存在，尝试从其他字段提取
+          if (!fileName) {
+            // 尝试从 url 中提取（DataURL 可能包含文件名）
+            // 支持两种格式：filename=encodedName 或 ;filename=encodedName;
+            if (part.url && part.url.includes('filename=')) {
+              const match = part.url.match(/filename=([^;]+)/i);
+              if (match && match[1]) {
+                try {
+                  fileName = decodeURIComponent(match[1]);
+                } catch (e) {
+                  // 如果解码失败，直接使用原始值
+                  fileName = match[1];
+                }
+              }
+            }
+            // 尝试从 image 字段中提取
+            if (!fileName && part.image && part.image.includes('filename=')) {
+              const match = part.image.match(/filename=([^;]+)/i);
+              if (match && match[1]) {
+                try {
+                  fileName = decodeURIComponent(match[1]);
+                } catch (e) {
+                  fileName = match[1];
+                }
+              }
+            }
+            // 如果仍然没有，尝试从 DataURL 的 MIME 类型推断
+            if (!fileName) {
+              const dataUrl = part.url || part.image || '';
+              if (dataUrl.startsWith('data:')) {
+                const mimeMatch = dataUrl.match(/^data:([^;]+)/);
+                if (mimeMatch) {
+                  const mimeType = mimeMatch[1];
+                  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+                    fileName = mimeType.includes('xls') ? 'data.xls' : 'data.xlsx';
+                  } else if (mimeType.includes('csv')) {
+                    fileName = 'data.csv';
+                  } else if (mimeType.startsWith('image/')) {
+                    const ext = mimeType.split('/')[1] || 'png';
+                    fileName = `image.${ext}`;
+                  }
+                }
+              }
+            }
+            // 最后使用默认名称
+            if (!fileName) {
+              fileName = `文件 ${index + 1}`;
+            }
+          }
+          // 提取文件扩展名
+          const fileExtension = fileName.includes('.') 
+            ? fileName.split('.').pop()?.toUpperCase() || 'FILE'
+            : 'FILE';
           return <div key={index} className="mt-3">
-                                                                    <Image
-            src={part.url}
-            width={240}
-            height={240}
-            alt={`file-${index}`}
-            className="rounded-xl border object-contain"
-          />
+                                                                    <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-900 text-[10px] font-semibold uppercase text-white">
+              {fileExtension.slice(0, 3)}
+            </span>
+            <span className="max-w-[200px] truncate">{fileName}</span>
+          </div>
                                                                 </div>;
         default:
           return null;

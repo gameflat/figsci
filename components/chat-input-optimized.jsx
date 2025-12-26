@@ -81,6 +81,49 @@ export function ChatInputOptimized({
     const MAX_VISIBLE_LINES = 5;
     const RENDER_MODE_ICON_BREAKPOINT = 460;
     const MODEL_SELECTOR_HIDE_BREAKPOINT = 400;
+    
+    // 文件类型和大小限制
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const SUPPORTED_DATA_TYPES = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.ms-excel', // .xls
+        'text/csv', // .csv
+        'application/csv', // .csv (alternative)
+    ];
+    const SUPPORTED_DATA_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+    
+    /**
+     * 验证文件类型和大小
+     * @param {File} file - 文件对象
+     * @returns {{ valid: boolean, error?: string }}
+     */
+    const validateFile = (file) => {
+        // 检查文件大小
+        if (file.size > MAX_FILE_SIZE) {
+            return {
+                valid: false,
+                error: `文件 "${file.name}" 大小超过限制（${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB）`
+            };
+        }
+        
+        // 检查文件类型
+        const isImage = SUPPORTED_IMAGE_TYPES.includes(file.type) || 
+                       file.type.startsWith('image/');
+        const isDataFile = SUPPORTED_DATA_TYPES.includes(file.type) ||
+                          SUPPORTED_DATA_EXTENSIONS.some(ext => 
+                              file.name.toLowerCase().endsWith(ext)
+                          );
+        
+        if (!isImage && !isDataFile) {
+            return {
+                valid: false,
+                error: `不支持的文件类型 "${file.name}"。支持的类型：图片（JPG, PNG, GIF, WebP）或数据文件（Excel, CSV）`
+            };
+        }
+        
+        return { valid: true };
+    };
 
     // Auto-resize textarea based on content
     const adjustTextareaHeight = useCallback(() => {
@@ -151,7 +194,30 @@ export function ChatInputOptimized({
     // Handle file changes
     const handleFileChange = (e) => {
         const newFiles = Array.from(e.target.files || []);
-        onFileChange([...files, ...newFiles]);
+        
+        // 验证每个文件
+        const validFiles = [];
+        const errors = [];
+        
+        for (const file of newFiles) {
+            const validation = validateFile(file);
+            if (validation.valid) {
+                validFiles.push(file);
+            } else {
+                errors.push(validation.error);
+            }
+        }
+        
+        // 如果有错误，显示第一个错误（可以通过 toast 或其他方式显示）
+        if (errors.length > 0) {
+            console.warn('文件验证失败:', errors);
+            // 可以在这里添加用户提示，例如使用 toast 通知
+            alert(errors[0]); // 临时使用 alert，后续可以替换为更好的 UI 组件
+        }
+        
+        if (validFiles.length > 0) {
+            onFileChange([...files, ...validFiles]);
+        }
     };
 
     // Remove individual file
@@ -196,15 +262,29 @@ export function ChatInputOptimized({
         // 在提交或生成过程中禁止拖放文件
         if (isBusy) return;
 
-        const droppedFiles = e.dataTransfer.files;
-
-        // Only process image files
-        const imageFiles = Array.from(droppedFiles).filter((file) =>
-            file.type.startsWith("image/")
-        );
-
-        if (imageFiles.length > 0) {
-            onFileChange([...files, ...imageFiles]);
+        const droppedFiles = Array.from(e.dataTransfer.files);
+        
+        // 验证每个文件
+        const validFiles = [];
+        const errors = [];
+        
+        for (const file of droppedFiles) {
+            const validation = validateFile(file);
+            if (validation.valid) {
+                validFiles.push(file);
+            } else {
+                errors.push(validation.error);
+            }
+        }
+        
+        // 如果有错误，显示第一个错误
+        if (errors.length > 0) {
+            console.warn('文件验证失败:', errors);
+            alert(errors[0]); // 临时使用 alert，后续可以替换为更好的 UI 组件
+        }
+        
+        if (validFiles.length > 0) {
+            onFileChange([...files, ...validFiles]);
         }
     };
 
@@ -286,7 +366,7 @@ export function ChatInputOptimized({
                         onChange={onChange}
                         onKeyDown={handleKeyDown}
                         onPaste={handlePaste}
-                        placeholder="描述你想让流程图如何调整，支持拖拽或粘贴图片作为参考素材"
+                        placeholder="描述你想让流程图如何调整，支持拖拽或粘贴图片、Excel、CSV 文件作为参考素材"
                         disabled={isBusy}
                         aria-label="聊天输入框"
                         className="h-auto min-h-[48px] resize-none border-0 !border-none bg-transparent p-0 text-sm leading-5 text-slate-900 outline-none shadow-none focus-visible:border-0 focus-visible:ring-0 focus-visible:outline-none focus-visible:!border-none focus-visible:!outline-none focus-visible:shadow-none"
@@ -383,7 +463,7 @@ export function ChatInputOptimized({
                 ref={fileInputRef}
                 className="hidden"
                 onChange={handleFileChange}
-                accept="image/*"
+                accept="image/*,.xlsx,.xls,.csv"
                 multiple
                 disabled={isBusy || interactionLocked}
             />
