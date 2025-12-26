@@ -137,7 +137,8 @@ function SvgStudio() {
     commitSnapshot,
     duplicateMany,
     removeMany,
-    defsMarkup
+    defsMarkup,
+    originalSvgMarkup
   } = useSvgEditor();
   const svgRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -272,6 +273,7 @@ function SvgStudio() {
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
+  // 初始视图设置：只在组件挂载时运行一次
   useEffect(() => {
     const vh = window.innerHeight;
     const targetHeight = vh * 0.7;
@@ -285,6 +287,56 @@ function SvgStudio() {
       y: (vh - contentHeight * initialZoom) / 2
     });
   }, []);
+
+  // 当 SVG 内容加载后，自动调整视图以显示所有内容
+  useEffect(() => {
+    if (elements.length === 0) return;
+    
+    // 计算所有元素的边界框
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let hasElements = false;
+    
+    elements.forEach((el) => {
+      if (el.visible === false) return;
+      const bounds = getElementBoundsWithRef(el);
+      if (bounds) {
+        hasElements = true;
+        minX = Math.min(minX, bounds.x);
+        minY = Math.min(minY, bounds.y);
+        maxX = Math.max(maxX, bounds.x + bounds.width);
+        maxY = Math.max(maxY, bounds.y + bounds.height);
+      }
+    });
+    
+    if (!hasElements) return;
+    
+    // 添加一些边距
+    const padding = 40;
+    const contentWidth = maxX - minX + padding * 2;
+    const contentHeight = maxY - minY + padding * 2;
+    
+    // 获取画布容器尺寸
+    const svg = svgRef.current;
+    if (!svg) return;
+    const containerRect = svg.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    // 计算适合的缩放比例
+    const zoomX = containerWidth / contentWidth;
+    const zoomY = containerHeight / contentHeight;
+    const fitZoom = Math.min(zoomX, zoomY, 1); // 不超过 100%
+    
+    // 计算居中位置
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const panX = containerWidth / 2 - centerX * fitZoom;
+    const panY = containerHeight / 2 - centerY * fitZoom;
+    
+    // 更新视图
+    setZoom(fitZoom);
+    setPan({ x: panX, y: panY });
+  }, [doc, elements]); // 当文档或元素变化时重新计算视图
   const findSnapAnchor = (point) => {
     let best = null;
     let bestDist = Infinity;
@@ -1373,8 +1425,30 @@ function SvgStudio() {
                             <rect width="100%" height="100%" fill="url(#grid)" />
 
                             <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-                                {defsMarkup && <defs dangerouslySetInnerHTML={{ __html: defsMarkup }} />}
-                                {elements.map((element) => {
+                                {/* 如果有原始SVG，直接渲染原始内容以确保与预览完全一致 */}
+                                {originalSvgMarkup ? (() => {
+                                    // 提取原始SVG的内容（去掉<svg>标签）
+                                    const parser = new DOMParser();
+                                    const svgDoc = parser.parseFromString(originalSvgMarkup, 'image/svg+xml');
+                                    const svgElement = svgDoc.querySelector('svg');
+                                    if (svgElement) {
+                                        const innerHTML = Array.from(svgElement.childNodes)
+                                            .map(node => {
+                                                if (node.nodeType === Node.ELEMENT_NODE) {
+                                                    return node.outerHTML;
+                                                } else if (node.nodeType === Node.TEXT_NODE) {
+                                                    return node.textContent;
+                                                }
+                                                return '';
+                                            })
+                                            .join('');
+                                        return <g dangerouslySetInnerHTML={{ __html: innerHTML }} />;
+                                    }
+                                    return null;
+                                })() : (
+                                    <>
+                                        {defsMarkup && <defs dangerouslySetInnerHTML={{ __html: defsMarkup }} />}
+                                        {elements.map((element) => {
     if (element.visible === false) return null;
     const transform = transformStyle(element);
     const commonProps = {
@@ -1486,6 +1560,8 @@ function SvgStudio() {
         return null;
     }
   })}
+                                    </>
+                                )}
 
                                 {draftShape}
 

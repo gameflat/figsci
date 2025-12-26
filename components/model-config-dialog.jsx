@@ -24,9 +24,7 @@ import {
     ShieldCheck,
     Download,
     Loader2,
-    Sparkles,
 } from "lucide-react";
-import { ModelSelector } from "@/components/model-selector";
 
 // Simple Switch component
 /**
@@ -61,21 +59,12 @@ function Switch({ checked, onCheckedChange, disabled }) {
 }
 
 /**
- * @typedef {Object} ArchitectWorkflowConfig
- * @property {boolean} enabled
- * @property {import("@/types/model-config").RuntimeModelOption | null} architectModel
- * @property {import("@/types/model-config").RuntimeModelOption | null} rendererModel
- */
-
-/**
  * @typedef {Object} ModelConfigDialogProps
  * @property {boolean} open
  * @property {(open: boolean) => void} onOpenChange
  * @property {import("@/types/model-config").ModelEndpointConfig[]} endpoints
  * @property {(drafts: import("@/types/model-config").ModelEndpointDraft[]) => void} onSave
  * @property {import("@/types/model-config").RuntimeModelOption[]} [models]
- * @property {ArchitectWorkflowConfig} [architectWorkflowConfig]
- * @property {(config: ArchitectWorkflowConfig) => void} [onArchitectWorkflowConfigChange]
  */
 
 /**
@@ -156,8 +145,6 @@ export function ModelConfigDialog({
     endpoints,
     onSave,
     models = [],
-    architectWorkflowConfig,
-    onArchitectWorkflowConfigChange,
 }) {
     const [drafts, setDrafts] = useState([]);
     const [revealedKeys, setRevealedKeys] = useState({});
@@ -368,22 +355,46 @@ export function ModelConfigDialog({
     };
 
     const handleSave = () => {
-        const nextErrors = {};
-        const validDrafts = drafts.filter((endpoint) => {
-            const issues = validateEndpoint(endpoint);
-            if (issues.length > 0) {
-                nextErrors[endpoint.id] = issues;
-                return false;
+        // 如果只配置了 Architect 工作流，允许保存空接口列表
+        // 只有当存在接口配置时才进行验证
+        if (drafts.length > 0) {
+            const nextErrors = {};
+            // 只验证那些至少填写了部分内容的接口
+            // 如果接口完全是空的（name、baseUrl、apiKey 都为空，且没有有效模型），就忽略它
+            const validDrafts = drafts.filter((endpoint) => {
+                // 检查接口是否为空（所有字段都为空）
+                const isEmpty = 
+                    !endpoint.name?.trim() && 
+                    !endpoint.baseUrl?.trim() && 
+                    !endpoint.apiKey?.trim() &&
+                    endpoint.models.every(model => !model.modelId?.trim());
+                
+                // 如果接口为空，直接忽略，不进行验证
+                if (isEmpty) {
+                    return false;
+                }
+                
+                // 如果接口有内容，进行验证
+                const issues = validateEndpoint(endpoint);
+                if (issues.length > 0) {
+                    nextErrors[endpoint.id] = issues;
+                    return false;
+                }
+                return true;
+            });
+
+            if (Object.keys(nextErrors).length > 0) {
+                setErrors(nextErrors);
+                return;
             }
-            return true;
-        });
 
-        if (Object.keys(nextErrors).length > 0) {
-            setErrors(nextErrors);
-            return;
+            // 保存有效的接口配置（可能为空数组）
+            onSave(validDrafts);
+        } else {
+            // 如果没有接口配置，保存空数组（允许仅配置 Architect 工作流）
+            onSave([]);
         }
-
-        onSave(validDrafts);
+        
         onOpenChange(false);
     };
 
@@ -490,11 +501,13 @@ export function ModelConfigDialog({
                 </DialogHeader>
 
                 <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
-                    <div className="rounded-2xl border border-dashed border-slate-200/70 bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
+                    {/* 隐藏接口配置提示 */}
+                    {/* <div className="rounded-2xl border border-dashed border-slate-200/70 bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
                         提示：OpenRouter、OpenAI 自建代理都可以通过自定义 Base URL 接入；确保该接口支持 OpenAI 兼容协议。
-                    </div>
+                    </div> */}
 
-                    {drafts.map((endpoint, index) => {
+                    {/* 隐藏接口配置部分 */}
+                    {false && drafts.map((endpoint, index) => {
                         const endpointErrors = errors[endpoint.id] ?? [];
                         return (
                             <div
@@ -667,6 +680,7 @@ export function ModelConfigDialog({
                         );
                     })}
 
+                    {/* 保留"新增接口"按钮，但隐藏接口配置 */}
                     <Button
                         type="button"
                         variant="outline"
@@ -678,90 +692,6 @@ export function ModelConfigDialog({
                         新增接口
                     </Button>
 
-                    {/* Architect Workflow 配置区域 */}
-                    {architectWorkflowConfig && onArchitectWorkflowConfigChange && (
-                        <div className="mt-4 space-y-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-6">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Sparkles className="h-5 w-5 text-blue-600" />
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-slate-900">
-                                            Architect 工作流
-                                        </h3>
-                                        <p className="mt-0.5 text-xs text-slate-500">
-                                            启用两阶段智能体工作流（The Architect + The Renderer）
-                                        </p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={architectWorkflowConfig.enabled}
-                                    onCheckedChange={(checked) => {
-                                        onArchitectWorkflowConfigChange({
-                                            ...architectWorkflowConfig,
-                                            enabled: checked,
-                                        });
-                                    }}
-                                />
-                            </div>
-
-                            {architectWorkflowConfig.enabled && (
-                                <div className="mt-4 space-y-4 rounded-xl border border-blue-100 bg-white/80 p-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                            Architect 模型（逻辑推理）
-                                        </label>
-                                        <p className="text-xs text-slate-500">
-                                            推荐使用推理能力强的模型（如 GPT-5, Claude 4.5, Gemini 3 Pro）
-                                        </p>
-                                        <ModelSelector
-                                            selectedModelKey={
-                                                architectWorkflowConfig.architectModel?.key || null
-                                            }
-                                            onModelChange={(key) => {
-                                                const model = models.find((m) => m.key === key);
-                                                onArchitectWorkflowConfigChange({
-                                                    ...architectWorkflowConfig,
-                                                    architectModel: model || null,
-                                                });
-                                            }}
-                                            models={models}
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                            Renderer 模型（代码生成）
-                                        </label>
-                                        <p className="text-xs text-slate-500">
-                                            推荐使用代码生成能力强的模型（如 GPT-4o, Claude Sonnet）
-                                        </p>
-                                        <ModelSelector
-                                            selectedModelKey={
-                                                architectWorkflowConfig.rendererModel?.key || null
-                                            }
-                                            onModelChange={(key) => {
-                                                const model = models.find((m) => m.key === key);
-                                                onArchitectWorkflowConfigChange({
-                                                    ...architectWorkflowConfig,
-                                                    rendererModel: model || null,
-                                                });
-                                            }}
-                                            models={models}
-                                        />
-                                    </div>
-
-                                    <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800">
-                                        <p className="font-semibold">提示：</p>
-                                        <ul className="mt-1 list-disc list-inside space-y-0.5">
-                                            <li>如果未配置特定模型，将使用当前对话的默认模型</li>
-                                            <li>Architect 负责生成 VISUAL SCHEMA，Renderer 负责转换为 XML</li>
-                                            <li>此工作流仅支持 drawio 模式，不支持 svg 模式和续写</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
 
                 <DialogFooter className="flex-shrink-0 flex flex-col gap-2 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -781,7 +711,6 @@ export function ModelConfigDialog({
                             type="button"
                             className="rounded-full bg-slate-900 px-4 text-white hover:bg-slate-900/90"
                             onClick={handleSave}
-                            disabled={drafts.length === 0}
                         >
                             保存配置
                         </Button>

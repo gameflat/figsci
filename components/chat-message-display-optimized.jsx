@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn, convertToLegalXml } from "@/lib/utils";
-import { svgToDataUrl } from "@/lib/svg";
+import { svgToDataUrl, extractSvgFromDrawioXml } from "@/lib/svg";
 import ExamplePanel from "./chat-example-panel";
 import { TokenUsageDisplay } from "./token-usage-display";
 import { FloatingProgressIndicator } from "./generation-progress-indicator";
@@ -103,8 +103,76 @@ const DiagramToolCard = memo(({
   const [showTimeoutHint, setShowTimeoutHint] = useState(false);
   const streamingStartTimeRef = useRef(null);
   const diagramMode = diagramResult?.mode ?? (toolName === "display_svg" ? "svg" : "drawio");
-  const displaySvg = diagramResult?.svg || (typeof input?.svg === "string" ? input.svg : null);
   const displayDiagramXml = diagramResult?.xml || (typeof input?.xml === "string" ? input.xml : null);
+  
+  // SVG模式下，优先从diagramResult.svg获取，如果没有则从Draw.io XML中提取
+  const displaySvg = useMemo(() => {
+    if (diagramResult?.svg) {
+      return diagramResult.svg;
+    }
+    if (diagramResult?.svgDataUrl) {
+      // 如果有svgDataUrl，尝试解码获取SVG
+      try {
+        const match = diagramResult.svgDataUrl.match(/data:image\/svg\+xml[^,]*,(.+)/);
+        if (match) {
+          return decodeURIComponent(match[1]);
+        }
+      } catch (e) {
+        console.warn("解码svgDataUrl失败:", e);
+      }
+    }
+    // 如果diagramResult.xml存在且mode为svg，从XML中提取SVG
+    if (diagramMode === "svg" && displayDiagramXml) {
+      const extracted = extractSvgFromDrawioXml(displayDiagramXml);
+      if (extracted.svg) {
+        return extracted.svg;
+      }
+    }
+    // 最后尝试从input中获取
+    return typeof input?.svg === "string" ? input.svg : null;
+  }, [diagramResult, diagramMode, displayDiagramXml, input]);
+  
+  // 获取用于缩略图显示的SVG data URL
+  const thumbnailSvgUrl = useMemo(() => {
+    // 优先使用 diagramResult.svgDataUrl（直接从 buildSvgRootXml 获取）
+    if (diagramResult?.svgDataUrl) {
+      console.log("[thumbnailSvgUrl] 使用 diagramResult.svgDataUrl", { 
+        svgDataUrlPreview: diagramResult.svgDataUrl?.substring(0, 100) 
+      });
+      return diagramResult.svgDataUrl;
+    }
+    // 如果有原始 SVG，转换为 data URL
+    if (displaySvg) {
+      const dataUrl = svgToDataUrl(displaySvg);
+      console.log("[thumbnailSvgUrl] 从 displaySvg 生成 dataUrl", { 
+        hasDataUrl: !!dataUrl,
+        dataUrlPreview: dataUrl?.substring(0, 100)
+      });
+      return dataUrl;
+    }
+    // 如果diagramResult.xml存在且mode为svg，从XML中提取SVG data URL
+    if (diagramMode === "svg" && displayDiagramXml) {
+      const extracted = extractSvgFromDrawioXml(displayDiagramXml);
+      console.log("[thumbnailSvgUrl] 从 XML 提取", { 
+        hasSvg: !!extracted.svg,
+        hasDataUrl: !!extracted.dataUrl,
+        dataUrlPreview: extracted.dataUrl?.substring(0, 100)
+      });
+      if (extracted.dataUrl) {
+        return extracted.dataUrl;
+      }
+      if (extracted.svg) {
+        return svgToDataUrl(extracted.svg);
+      }
+    }
+    console.warn("[thumbnailSvgUrl] 无法获取缩略图 URL", { 
+      diagramResult, 
+      displaySvg: !!displaySvg, 
+      diagramMode, 
+      displayDiagramXml: !!displayDiagramXml 
+    });
+    return null;
+  }, [diagramResult, displaySvg, diagramMode, displayDiagramXml]);
   useEffect(() => {
     if (state) {
       setLocalState(state);
@@ -262,27 +330,27 @@ const DiagramToolCard = memo(({
                     <div 
                         className="relative w-full h-32 bg-white border border-slate-200 rounded-lg overflow-hidden cursor-pointer hover:border-slate-300 transition-colors"
                         onClick={() => {
+                            // 统一使用 loadDiagram，因为 SVG 模式下 diagramResult.xml 存储的是 Draw.io XML
                             if (diagramResult.xml) {
                                 // 跳过验证，因为这是可信的图表数据
                                 loadDiagram(diagramResult.xml, true);
                             }
                         }}
                     >
-                        {diagramResult.svg && (
+                        {thumbnailSvgUrl ? (
                             <Image
-                                src={diagramResult.svg}
+                                src={thumbnailSvgUrl}
                                 alt="图表缩略图"
                                 fill
                                 className="object-contain p-2"
                                 sizes="(max-width: 768px) 100vw, 400px"
                                 unoptimized
                             />
-                        )}
-                        {!diagramResult.svg && diagramResult.xml && (
+                        ) : diagramResult?.xml ? (
                             <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
                                 点击恢复图表
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             )}
@@ -725,7 +793,12 @@ function ChatMessageDisplay({
   // 对比功能已移除，leadingComparisons、anchoredComparisons、renderedAnchors 已删除
   const showExamplePanel = messages.length === 0;
 
-  // 计算最近一条 AI 消息的扣费结果，用于在进度指示器中展示“本次扣费”
+  // 计算是否有用户消息，用于判断是否显示流程组件
+  const hasUserMessages = useMemo(() => {
+    return messages.some(msg => msg.role === "user");
+  }, [messages]);
+
+  // 计算最近一条 AI 消息的扣费结果，用于在进度指示器中展示"本次扣费"
   const latestAssistantChargeInfo = useMemo(() => {
     // 从后往前查找，找到最近一条带有 chargeResult 的 AI 消息
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -1063,6 +1136,7 @@ function ChatMessageDisplay({
               isVisible={isGenerationBusy || generationPhase !== "idle"}
               onReset={onProgressReset}
               chargeInfo={latestAssistantChargeInfo}
+              hasUserMessages={hasUserMessages}
             />
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}

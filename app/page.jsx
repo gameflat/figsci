@@ -43,8 +43,7 @@ import { useDrawioDiagnostics } from "@/hooks/use-drawio-diagnostics";
 // 工作区导航组件：顶部导航栏
 import { WorkspaceNav } from "@/components/workspace-nav";
 
-// SVG 工作室组件：SVG 模式的编辑器界面
-import { SvgStudio } from "@/components/svg-studio";
+// SVG 工作室组件已移除：SVG 模式现在统一使用 DrawIoEmbed 画布
 
 /**
  * 主页面组件
@@ -106,6 +105,7 @@ const hydrateDiagramFromContext = useCallback(() => {
   const [isResizingChat, setIsResizingChat] = useState(false);
   
   // 渲染模式：当前使用的编辑器模式（"drawio" 或 "svg"）
+  // 注意：两种模式现在都使用 DrawIoEmbed 画布，SVG 模式下通过 buildSvgRootXml 转换
   const [renderMode, setRenderMode] = useState("drawio");
   
   // ========== Refs ==========
@@ -353,7 +353,7 @@ useEffect(() => {
   
   // ========== 计算值 ==========
   // 判断是否显示 Draw.io 编辑器（根据渲染模式）
-  const showDrawio = renderMode === "drawio";
+  // showDrawio 变量已移除：两种模式现在都使用 DrawIoEmbed 画布
   
   // ========== 移动端提前返回 ==========
   // 如果是移动设备，显示提示信息而不是完整的工作区
@@ -484,16 +484,17 @@ useEffect(() => {
               </button>
             </div>
             {/* 
-              编辑器区域：根据渲染模式显示不同的编辑器
+              编辑器区域：统一使用 DrawIoEmbed 画布
+              两种模式（drawio 和 svg）都使用同一个画布
+              - Draw.io 模式：AI 输出 XML，直接渲染
+              - SVG 模式：AI 输出 SVG，通过 buildSvgRootXml 转换为 Draw.io XML 后渲染
             */}
-            {showDrawio ? (
-              // ========== Draw.io 模式 ==========
-              <div
-                onMouseEnter={() => (mouseOverDrawioRef.current = true)}
-                onMouseLeave={() => (mouseOverDrawioRef.current = false)}
-                className="h-full w-full m-0 p-0"
-                style={{ margin: 0, padding: 0 }}
-              >
+            <div
+              onMouseEnter={() => (mouseOverDrawioRef.current = true)}
+              onMouseLeave={() => (mouseOverDrawioRef.current = false)}
+              className="h-full w-full m-0 p-0"
+              style={{ margin: 0, padding: 0 }}
+            >
               {drawioError ? (
                 /* 
                   Draw.io 加载错误提示
@@ -565,17 +566,7 @@ useEffect(() => {
                   />
                 </>
               )}
-              </div>
-            ) : (
-              // ========== SVG 模式 ==========
-              /* 
-                SVG 工作室组件
-                当渲染模式为 "svg" 时显示 SVG 编辑器
-              */
-              <div className="flex h-full w-full rounded-xl border border-slate-200 bg-white/90">
-                <SvgStudio />
-              </div>
-            )}
+            </div>
           </div>
           {/* 
             调整条（Resizer）

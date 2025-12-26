@@ -7,7 +7,7 @@
 import { generateText } from "ai";
 import { resolveChatModel } from "@/lib/server-models";
 import { resolveSystemModel, isSystemModelsEnabled } from "@/lib/system-models";
-import { RENDERER_SYSTEM_MESSAGE } from "@/lib/prompts";
+import { RENDERER_SYSTEM_MESSAGE, RENDERER_SVG_SYSTEM_MESSAGE } from "@/lib/prompts";
 
 /**
  * 调用自定义 AI API
@@ -92,6 +92,29 @@ function extractXml(rendererOutput) {
 }
 
 /**
+ * 从Renderer输出中提取SVG代码
+ * 
+ * @param {string} rendererOutput - Renderer的原始输出
+ * @returns {string} SVG代码
+ */
+function extractSvg(rendererOutput) {
+  // 尝试从代码块中提取SVG
+  const svgBlockMatch = rendererOutput.match(/```svg\s*([\s\S]*?)\s*```/i);
+  if (svgBlockMatch) {
+    return svgBlockMatch[1].trim();
+  }
+  
+  // 尝试提取 <svg>...</svg> 块
+  const svgMatch = rendererOutput.match(/<svg[\s\S]*?<\/svg>/i);
+  if (svgMatch) {
+    return svgMatch[0];
+  }
+  
+  // 如果都找不到，返回原始输出
+  return rendererOutput.trim();
+}
+
+/**
  * 获取Renderer模型配置
  * 优先使用环境变量配置，否则使用传入的模型配置
  * 
@@ -144,6 +167,117 @@ function getRendererModelConfig(defaultModelRuntime) {
   }
   
   return null;
+}
+
+/**
+ * The Renderer Agent - 生成SVG
+ * 
+ * @param {Object} params
+ * @param {string} params.visualSchema - VISUAL SCHEMA内容
+ * @param {Object} [params.modelRuntime] - 模型运行时配置（可选）
+ * @returns {Promise<{svg: string}>}
+ */
+export async function generateSvg({ 
+  visualSchema, 
+  modelRuntime 
+}) {
+  try {
+    // 获取模型配置
+    const resolvedModel = getRendererModelConfig(modelRuntime);
+    
+    if (!resolvedModel) {
+      throw new Error("无法获取Renderer模型配置");
+    }
+    
+    // VISUAL SCHEMA 作为 user message 传递，使用SVG系统提示词
+    let responseText;
+    
+    // 检查是否使用自定义API（通过模型配置）
+    if (modelRuntime?.customApiUrl && modelRuntime?.customApiKey) {
+      try {
+        console.log("[Renderer] 🔄 使用自定义 AI API 生成SVG...");
+        responseText = await callCustomApi({
+          url: modelRuntime.customApiUrl,
+          apiKey: modelRuntime.customApiKey,
+          model: modelRuntime.customModel || "gpt-4o-mini",
+          systemPrompt: RENDERER_SVG_SYSTEM_MESSAGE,
+          userPrompt: visualSchema,
+        });
+        console.log("[Renderer] ✅ 自定义 AI API 调用成功");
+      } catch (error) {
+        console.error("[Renderer] ❌ 自定义 API 调用失败:", error);
+        throw error;
+      }
+    } else {
+      try {
+        console.log("[Renderer] 🔄 使用 AI SDK 生成SVG...");
+        const response = await generateText({
+          model: resolvedModel.model,
+          system: RENDERER_SVG_SYSTEM_MESSAGE,
+          messages: [
+            {
+              role: "user",
+              content: visualSchema,
+            },
+          ],
+          temperature: 0.1, // 使用较低温度确保结果稳定
+        });
+        responseText = response.text;
+        console.log("[Renderer] ✅ AI SDK 调用成功");
+      } catch (error) {
+        console.error("[Renderer] ❌ AI SDK 调用失败:", error);
+        throw error;
+      }
+    }
+    
+    // 提取SVG
+    let svg = extractSvg(responseText);
+    
+    // 验证SVG格式：必须包含 <svg>
+    if (!svg || !svg.includes('<svg')) {
+      console.error("[Renderer] ❌ SVG格式验证失败", {
+        svgLength: svg?.length,
+        hasSvg: svg?.includes('<svg'),
+        svgPreview: svg?.substring(0, 200)
+      });
+      throw new Error("生成的SVG格式无效：必须包含 <svg> 标签");
+    }
+    
+    // 确保 SVG 包含必需的属性
+    if (!svg.includes('xmlns=')) {
+      console.warn("[Renderer] ⚠️  SVG 缺少 xmlns 属性，尝试修复...");
+      svg = svg.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    
+    // 确保有 width 和 height 或 viewBox
+    if (!svg.match(/width\s*=\s*["'][^"']+["']/) && !svg.match(/viewBox\s*=\s*["'][^"']+["']/)) {
+      console.warn("[Renderer] ⚠️  SVG 缺少尺寸属性，尝试修复...");
+      if (svg.includes('viewBox=')) {
+        // 如果已经有 viewBox，不需要添加 width/height
+      } else {
+        svg = svg.replace(/<svg[^>]*>/, (match) => {
+          if (!match.includes('width=')) {
+            match = match.replace(/<svg/, '<svg width="800" height="600"');
+          }
+          return match;
+        });
+      }
+    }
+    
+    console.log("[Renderer] ✅ SVG 提取成功", {
+      svgLength: svg.length,
+      hasSvg: svg.includes('<svg'),
+      hasXmlns: svg.includes('xmlns='),
+      hasDimensions: svg.match(/width\s*=/i) || svg.match(/viewBox\s*=/i)
+    });
+    
+    return {
+      svg,
+    };
+  } catch (error) {
+    console.error("Renderer生成SVG失败:", error);
+    throw error;
+  }
 }
 
 /**

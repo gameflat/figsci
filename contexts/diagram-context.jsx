@@ -148,7 +148,25 @@ export function DiagramProvider({ children }) {
             }
         }
 
-        const extractedXML = extractDiagramXML(data.data);
+        let extractedXML;
+        try {
+            extractedXML = extractDiagramXML(data.data);
+        } catch (error) {
+            console.error("[diagram-context] extractDiagramXML 失败:", error);
+            // 如果提取失败，尝试直接使用 data.data（可能是纯 XML）
+            if (data.data && typeof data.data === 'string') {
+                const trimmed = data.data.trim();
+                if (trimmed.startsWith('<') || trimmed.includes('<root>') || trimmed.includes('<mxfile>') || trimmed.includes('<mxGraphModel>')) {
+                    console.log("[diagram-context] 提取失败，但输入看起来是 XML 格式，直接使用");
+                    extractedXML = trimmed;
+                } else {
+                    // 如果既不是 SVG 格式也不是 XML 格式，抛出错误
+                    throw new Error(`无法从数据中提取 XML: ${error.message}`);
+                }
+            } else {
+                throw error;
+            }
+        }
         setChartXML(extractedXML);
         setLatestSvg(data.data);
 
@@ -285,7 +303,24 @@ export function DiagramProvider({ children }) {
 
                 if (format === "drawio") {
                     // 从 SVG 中提取 XML（用于 .drawio 格式）
-                    const xml = extractDiagramXML(exportData);
+                    let xml;
+                    try {
+                        xml = extractDiagramXML(exportData);
+                    } catch (error) {
+                        console.error("[saveDiagramToFile] extractDiagramXML 失败:", error);
+                        // 如果提取失败，尝试直接使用 exportData（可能是纯 XML）
+                        if (exportData && typeof exportData === 'string') {
+                            const trimmed = exportData.trim();
+                            if (trimmed.startsWith('<') || trimmed.includes('<root>') || trimmed.includes('<mxfile>') || trimmed.includes('<mxGraphModel>')) {
+                                console.log("[saveDiagramToFile] 提取失败，但输入看起来是 XML 格式，直接使用");
+                                xml = trimmed;
+                            } else {
+                                throw new Error(`无法从导出数据中提取 XML: ${error.message}`);
+                            }
+                        } else {
+                            throw error;
+                        }
+                    }
                     let xmlContent = xml;
                     // 确保有 mxfile 包装
                     if (!xml.includes("<mxfile")) {

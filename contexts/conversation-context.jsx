@@ -14,6 +14,7 @@ import {
  *
  * @typedef {Object} ConversationBranchMeta
  * @property {"root" | "comparison" | "manual" | "history"} type
+ * @property {"drawio" | "svg"} [renderMode] - 渲染模式（仅根分支）
  * @property {string} [comparisonRequestId]
  * @property {string} [comparisonResultId]
  * @property {string} [label]
@@ -42,14 +43,19 @@ import {
  * @property {ConversationBranch[]} branchTrail
  * @property {string} activeBranchId
  * @property {ConversationBranch} activeBranch
+ * @property {"drawio" | "svg"} activeRenderMode - 当前活跃的渲染模式
  * @property {(input?: CreateBranchInput) => ConversationBranch | null} createBranch
  * @property {(branchId: string) => ConversationBranch | null} switchBranch
+ * @property {(renderMode: "drawio" | "svg") => ConversationBranch | null} switchRenderMode - 切换渲染模式
  * @property {(messages: Message[]) => void} updateActiveBranchMessages
  * @property {(diagramXml: string | null) => void} updateActiveBranchDiagram
  * @property {() => void} resetActiveBranch
  */
 
-const ROOT_BRANCH_ID = "branch-root";
+const ROOT_BRANCH_ID_DRAWIO = "branch-root-drawio";
+const ROOT_BRANCH_ID_SVG = "branch-root-svg";
+// 为了向后兼容，保留旧的 ROOT_BRANCH_ID，默认指向 Draw.io 模式
+const ROOT_BRANCH_ID = ROOT_BRANCH_ID_DRAWIO;
 
 /** @type {React.Context<ConversationContextValue | undefined>} */
 const ConversationContext = createContext(undefined);
@@ -59,16 +65,32 @@ const createBranchId = () =>
         ? crypto.randomUUID()
         : `branch-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
-/** @returns {ConversationBranch} */
-const createRootBranch = () => ({
-    id: ROOT_BRANCH_ID,
+/**
+ * 根据渲染模式获取根分支ID
+ * @param {"drawio" | "svg"} renderMode
+ * @returns {string}
+ */
+const getRootBranchId = (renderMode) => {
+    return renderMode === "svg" ? ROOT_BRANCH_ID_SVG : ROOT_BRANCH_ID_DRAWIO;
+};
+
+/**
+ * 为指定模式创建根分支
+ * @param {"drawio" | "svg"} renderMode
+ * @returns {ConversationBranch}
+ */
+const createRootBranchForMode = (renderMode) => ({
+    id: getRootBranchId(renderMode),
     parentId: null,
-    label: "主干",
+    label: renderMode === "svg" ? "SVG模式主干" : "Draw.io模式主干",
     createdAt: new Date().toISOString(),
     messages: [],
     diagramXml: null,
-    meta: { type: "root" },
+    meta: { type: "root", renderMode },
 });
+
+/** @returns {ConversationBranch} */
+const createRootBranch = () => createRootBranchForMode("drawio");
 
 const cloneMessages = (messages) => messages.map((message) => ({ ...message }));
 
@@ -76,16 +98,47 @@ const cloneMessages = (messages) => messages.map((message) => ({ ...message }));
  * @param {{ children: React.ReactNode }} props
  */
 export function ConversationProvider({ children }) {
+    // 初始化时，为两种模式创建根分支
     const [branches, setBranches] = useState(() => {
-        const root = createRootBranch();
-        return { [root.id]: root };
+        const drawioRoot = createRootBranchForMode("drawio");
+        const svgRoot = createRootBranchForMode("svg");
+        return {
+            [drawioRoot.id]: drawioRoot,
+            [svgRoot.id]: svgRoot,
+        };
     });
-    const [branchOrder, setBranchOrder] = useState([ROOT_BRANCH_ID]);
-    const [activeBranchId, setActiveBranchId] = useState(ROOT_BRANCH_ID);
+    const [branchOrder, setBranchOrder] = useState([ROOT_BRANCH_ID_DRAWIO, ROOT_BRANCH_ID_SVG]);
+    const [activeBranchId, setActiveBranchId] = useState(ROOT_BRANCH_ID_DRAWIO);
     const pendingBranchRef = useRef(null);
 
+    // 根据当前活跃分支推断渲染模式
+    const activeRenderMode = useMemo(() => {
+        const currentBranch = branches[activeBranchId];
+        if (currentBranch?.meta?.renderMode) {
+            return currentBranch.meta.renderMode;
+        }
+        // 根据分支ID判断
+        if (activeBranchId === ROOT_BRANCH_ID_SVG || activeBranchId.startsWith("branch-") && branches[activeBranchId]?.parentId === ROOT_BRANCH_ID_SVG) {
+            // 检查是否是SVG模式的分支（通过遍历父分支链）
+            let current = branches[activeBranchId];
+            const visited = new Set();
+            while (current && !visited.has(current.id)) {
+                visited.add(current.id);
+                if (current.id === ROOT_BRANCH_ID_SVG || current.meta?.renderMode === "svg") {
+                    return "svg";
+                }
+                if (current.id === ROOT_BRANCH_ID_DRAWIO || current.meta?.renderMode === "drawio") {
+                    return "drawio";
+                }
+                current = current.parentId ? branches[current.parentId] : null;
+            }
+            return "svg";
+        }
+        return "drawio";
+    }, [activeBranchId, branches]);
+
     const activeBranch =
-        branches[activeBranchId] ?? branches[ROOT_BRANCH_ID] ?? createRootBranch();
+        branches[activeBranchId] ?? branches[ROOT_BRANCH_ID_DRAWIO] ?? createRootBranchForMode("drawio");
 
     const branchList = useMemo(
         () =>
@@ -254,6 +307,41 @@ export function ConversationProvider({ children }) {
         [branches]
     );
 
+    /**
+     * 切换渲染模式
+     * @param {"drawio" | "svg"} renderMode
+     * @returns {ConversationBranch | null}
+     */
+    const switchRenderMode = useCallback(
+        (renderMode) => {
+            const targetRootId = getRootBranchId(renderMode);
+            const targetRoot = branches[targetRootId];
+            
+            // 如果目标根分支不存在，创建它
+            if (!targetRoot) {
+                console.log(`[ConversationContext] 创建 ${renderMode} 模式的根分支`);
+                const newRoot = createRootBranchForMode(renderMode);
+                setBranches((prev) => ({
+                    ...prev,
+                    [newRoot.id]: newRoot,
+                }));
+                setBranchOrder((prev) => {
+                    if (!prev.includes(newRoot.id)) {
+                        return [...prev, newRoot.id];
+                    }
+                    return prev;
+                });
+                setActiveBranchId(newRoot.id);
+                return newRoot;
+            }
+            
+            // 切换到目标根分支
+            setActiveBranchId(targetRootId);
+            return targetRoot;
+        },
+        [branches]
+    );
+
     const value = useMemo(
         () => ({
             branches,
@@ -261,8 +349,10 @@ export function ConversationProvider({ children }) {
             branchTrail,
             activeBranchId,
             activeBranch,
+            activeRenderMode,
             createBranch,
             switchBranch,
+            switchRenderMode,
             updateActiveBranchMessages,
             updateActiveBranchDiagram,
             resetActiveBranch,
@@ -273,8 +363,10 @@ export function ConversationProvider({ children }) {
             branchTrail,
             activeBranchId,
             activeBranch,
+            activeRenderMode,
             createBranch,
             switchBranch,
+            switchRenderMode,
             updateActiveBranchMessages,
             updateActiveBranchDiagram,
             resetActiveBranch,

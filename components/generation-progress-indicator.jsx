@@ -442,8 +442,9 @@ function FloatingProgressStep({ phase, status, index }) {
  * @param {boolean} [props.isVisible=true] - 是否可见（正在生成中）
  * @param {() => void} [props.onReset] - 重置进度状态的回调函数
  * @param {ChargeInfo} [props.chargeInfo] - 本次任务的扣费信息（可选）
+ * @param {boolean} [props.hasUserMessages=false] - 是否有用户消息（用于判断是否显示组件）
  */
-export function FloatingProgressIndicator({ phase = "idle", isVisible = true, onReset, chargeInfo }) {
+export function FloatingProgressIndicator({ phase = "idle", isVisible = true, onReset, chargeInfo, hasUserMessages = false }) {
   // 追踪已完成的阶段历史
   const [completedPhases, setCompletedPhases] = useState([]);
   // 追踪上一次的阶段，用于检测变化
@@ -525,10 +526,11 @@ export function FloatingProgressIndicator({ phase = "idle", isVisible = true, on
   }, [phase, isVisible, startTime]);
 
   // 判断是否应该显示组件
-  // 1. 正在生成中（isVisible && phase !== "idle"）
-  // 2. 或者已完成但有历史记录（isFlowCompleted && hasStarted）
+  // 1. 必须有用户消息才显示（确保只在有对话历史时显示）
+  // 2. 正在生成中（isVisible && phase !== "idle"）
+  // 3. 或者已完成但有历史记录（isFlowCompleted && hasStarted）
   // 注意：完成后也要显示，所以 isFlowCompleted 条件不依赖 isVisible
-  const shouldShow = (isVisible && phase !== "idle") || (isFlowCompleted && hasStarted);
+  const shouldShow = hasUserMessages && ((isVisible && phase !== "idle") || (isFlowCompleted && hasStarted));
 
   if (!shouldShow) {
     return null;

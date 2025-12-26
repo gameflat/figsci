@@ -64,7 +64,7 @@
 
 **仍需补充的 API 端点**：
 - ⚠️ `POST /api/template-match` - 智能模板匹配
-- ⚠️ `POST /api/search-template` - 模板搜索
+- ⚠️ `POST /api/search-template` - 模板搜索（**未使用**，已实现但未被调用）
 - ⚠️ `GET /api/system-models` - 获取系统内置模型列表
 - ⚠️ `GET /api/models` - 获取模型列表
 - ⚠️ `POST /api/configs` - 配置管理
@@ -157,7 +157,7 @@
 
 ## 模板相关
 - `POST /api/template-match` - 智能模板匹配
-- `POST /api/search-template` - 模板搜索
+- `POST /api/search-template` - 模板搜索（**未使用**）
 
 ## 模型管理
 - `GET /api/models` - 获取模型列表
