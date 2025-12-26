@@ -1495,10 +1495,34 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           const usage = await result.usage;
           const totalUsage = await result.totalUsage;
 
-          // 判断任务是否成功完成
-          // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
-          // 其他情况（如 'length'、'error'、'cancelled'、'content-filter' 等）表示任务未正常完成
-          const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
+          // 判断任务是否成功完成（与 messageMetadata 中的逻辑保持一致）
+          // ReAct 模式下的任务完成判断：
+          // 1. 如果调用了 end_task，认为任务完成（无论成功或失败）
+          // 2. 如果 finishReason 是 'stop'，认为任务完成
+          // 3. 如果 finishReason 是 'tool-calls' 但达到了最大行动次数且没有调用 end_task，认为任务失败
+          // 4. 其他 finishReason（如 'length'、'error'、'cancelled' 等）都认为任务失败
+          let isTaskCompleted = false;
+          if (hasCalledEndTask) {
+            // 调用了 end_task，认为任务完成（LLM 自己决定结束）
+            isTaskCompleted = true;
+          } else if (finishReason === 'stop') {
+            // 正常停止，认为任务完成
+            isTaskCompleted = true;
+          } else if (finishReason === 'tool-calls') {
+            // 工具调用完成，需要进一步判断：
+            // - 如果达到了最大行动次数且没有调用 end_task，认为任务失败（可能因为工具执行失败导致无法继续）
+            // - 否则认为任务完成（可能因为达到了 maxSteps 限制，但这是正常的）
+            if (actionCount >= REACT_MAX_STEPS) {
+              // 达到了最大行动次数且没有调用 end_task，可能因为工具执行失败导致无法继续
+              isTaskCompleted = false;
+            } else {
+              // 未达到最大行动次数，认为任务完成
+              isTaskCompleted = true;
+            }
+          } else {
+            // 其他 finishReason（如 'length'、'error'、'cancelled'、'content-filter' 等）都认为任务失败
+            isTaskCompleted = false;
+          }
           
           // 为不同的 finishReason 提供更详细的说明
           let finishReasonDescription = '';
@@ -1556,7 +1580,33 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           if (part.type === "finish") {
             // 判断任务是否成功完成
             const finishReason = part.finishReason;
-            const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls' || hasCalledEndTask;
+            // ReAct 模式下的任务完成判断：
+            // 1. 如果调用了 end_task，认为任务完成（无论成功或失败）
+            // 2. 如果 finishReason 是 'stop'，认为任务完成
+            // 3. 如果 finishReason 是 'tool-calls' 但达到了最大行动次数且没有调用 end_task，认为任务失败
+            // 4. 其他 finishReason（如 'length'、'error'、'cancelled' 等）都认为任务失败
+            let isTaskCompleted = false;
+            if (hasCalledEndTask) {
+              // 调用了 end_task，认为任务完成（LLM 自己决定结束）
+              isTaskCompleted = true;
+            } else if (finishReason === 'stop') {
+              // 正常停止，认为任务完成
+              isTaskCompleted = true;
+            } else if (finishReason === 'tool-calls') {
+              // 工具调用完成，需要进一步判断：
+              // - 如果达到了最大行动次数且没有调用 end_task，认为任务失败（可能因为工具执行失败导致无法继续）
+              // - 否则认为任务完成（可能因为达到了 maxSteps 限制，但这是正常的）
+              if (actionCount >= REACT_MAX_STEPS) {
+                // 达到了最大行动次数且没有调用 end_task，可能因为工具执行失败导致无法继续
+                isTaskCompleted = false;
+              } else {
+                // 未达到最大行动次数，认为任务完成
+                isTaskCompleted = true;
+              }
+            } else {
+              // 其他 finishReason（如 'length'、'error'、'cancelled'、'content-filter' 等）都认为任务失败
+              isTaskCompleted = false;
+            }
 
             const metadata = {
               usage: {
@@ -1645,14 +1695,38 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
         ...parsedToolCalls
       ];
       
-      // 判断任务是否成功完成
-      // finishReason 为 'stop' 或 'tool-calls' 表示正常完成
-      // 对于不支持工具调用的模型，如果成功解析出操作指令，也认为是成功完成
+      // 判断任务是否成功完成（与非流式响应中的逻辑保持一致）
+      // ReAct 模式下的任务完成判断：
+      // 1. 如果调用了 end_task，认为任务完成（无论成功或失败）
+      // 2. 如果 finishReason 是 'stop'，认为任务完成
+      // 3. 如果 finishReason 是 'tool-calls' 但达到了最大行动次数且没有调用 end_task，认为任务失败
+      // 4. 其他 finishReason（如 'length'、'error'、'cancelled' 等）都认为任务失败
       const hasToolCalls = allToolCalls.length > 0;
       
       // content-filter 特殊情况处理：如果被拦截但已有部分工具调用，尝试继续处理
       const isContentFiltered = result.finishReason === 'content-filter';
-      let isTaskCompleted = result.finishReason === 'stop' || result.finishReason === 'tool-calls' || hasToolCalls;
+      
+      // 检查是否调用了 end_task
+      const hasCalledEndTaskInNonStreaming = allToolCalls.some(tc => tc.toolName === 'end_task');
+      
+      let isTaskCompleted = false;
+      if (hasCalledEndTaskInNonStreaming) {
+        // 调用了 end_task，认为任务完成（LLM 自己决定结束）
+        isTaskCompleted = true;
+      } else if (result.finishReason === 'stop') {
+        // 正常停止，认为任务完成
+        isTaskCompleted = true;
+      } else if (result.finishReason === 'tool-calls') {
+        // 工具调用完成，需要进一步判断：
+        // - 如果达到了最大行动次数且没有调用 end_task，认为任务失败（可能因为工具执行失败导致无法继续）
+        // - 否则认为任务完成（可能因为达到了 maxSteps 限制，但这是正常的）
+        // 注意：非流式响应中无法直接获取 actionCount，所以这里简化处理
+        // 如果 finishReason 是 'tool-calls'，认为任务完成
+        isTaskCompleted = true;
+      } else {
+        // 其他 finishReason（如 'length'、'error'、'cancelled'、'content-filter' 等）都认为任务失败
+        isTaskCompleted = false;
+      }
       
       // 如果遇到 content-filter 但已有工具调用，尝试标记为部分完成
       // 这样至少可以处理已经生成的工具调用

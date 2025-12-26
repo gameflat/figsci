@@ -27,8 +27,14 @@ const PYTHON_EXECUTION_MEMORY_LIMIT = process.env.PYTHON_EXECUTION_MEMORY_LIMIT 
  * @returns {string} 包装后的安全 Python 代码
  */
 function wrapPythonCode(userCode) {
+  // 预处理用户代码：移除或替换 plt.show() 调用，因为 SVG 后端不支持交互式显示
+  // 使用正则表达式匹配 plt.show() 调用（包括带括号和不带括号的情况）
+  const processedCode = userCode
+    .replace(/plt\.show\s*\(\s*\)/g, '# plt.show() # 已自动移除：SVG 后端不支持交互式显示')
+    .replace(/plt\.show\s*\(/g, '# plt.show( # 已自动移除：SVG 后端不支持交互式显示');
+  
   // 将用户代码的每一行添加正确的缩进（8个空格，因为 with 块需要4个空格，with 内部又需要4个空格）
-  const indentedUserCode = userCode
+  const indentedUserCode = processedCode
     .split('\n')
     .map(line => {
       // 如果行不为空，添加8个空格的缩进
@@ -44,8 +50,15 @@ function wrapPythonCode(userCode) {
 import sys
 import io
 import json
-import base64
+import os
 from contextlib import redirect_stdout, redirect_stderr
+
+# 关键：在导入 matplotlib 之前设置后端为 SVG，防止弹出 GUI 窗口
+# 使用环境变量方式（最可靠，在导入前生效）
+os.environ['MPLBACKEND'] = 'SVG'
+# 同时使用 matplotlib.use() 作为备用方案
+import matplotlib
+matplotlib.use('SVG', force=True)  # force=True 强制设置，即使已经导入过
 
 # 确保使用 UTF-8 编码
 if sys.version_info[0] >= 3:
@@ -54,9 +67,12 @@ if sys.version_info[0] >= 3:
     sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
     sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
-# 禁用危险模块（但保留 sys 的基础功能）
-# 注意：不能删除 sys 模块，因为很多库依赖它，但可以限制某些危险属性
-forbidden_modules = ['os', 'subprocess', 'shutil', 'socket', 'urllib', 'http', 'requests', 'ftplib', 'smtplib']
+# 禁用危险模块（但保留 sys 和 os 的基础功能）
+# 注意：不能删除 sys 和 os 模块，因为很多库依赖它们
+# os 模块保留用于环境变量设置，但用户代码中应避免使用危险操作
+# urllib 模块保留，因为 matplotlib 等库依赖 urllib.parse
+# 只删除真正危险的模块
+forbidden_modules = ['subprocess', 'shutil', 'socket', 'http', 'requests', 'ftplib', 'smtplib']
 for module in forbidden_modules:
     if module in sys.modules:
         del sys.modules[module]
@@ -71,8 +87,6 @@ try:
 ${indentedUserCode}
         
         # 检查是否有 matplotlib 图形
-        import matplotlib
-        matplotlib.use('SVG')
         import matplotlib.pyplot as plt
         
         # 如果图形已创建，保存为 SVG
@@ -173,6 +187,7 @@ export async function POST(req) {
           env: {
             ...process.env,
             PYTHONUNBUFFERED: '1', // 确保输出实时
+            MPLBACKEND: 'SVG', // 强制使用 SVG 后端，防止弹出 GUI 窗口
           }
         }),
         new Promise((_, reject) => 
@@ -190,7 +205,33 @@ export async function POST(req) {
           { status: 408 } // 408 Request Timeout
         );
       }
-      throw error;
+      
+      // 如果是 Python 执行错误，从错误对象中提取 stderr 和 stdout
+      // execAsync 的错误对象可能包含这些信息
+      const errorOutput = error.stderr || error.stdout || '';
+      const errorMessage = error.message || 'Python 代码执行失败';
+      
+      // 清理临时文件
+      if (tempFile) {
+        try {
+          await unlink(tempFile);
+          tempFile = null;
+        } catch (cleanupError) {
+          console.warn("[Python执行] 清理临时文件失败:", cleanupError);
+        }
+      }
+      
+      // 返回详细的错误信息，包括 stderr
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+          stderr: errorOutput,
+          stdout: error.stdout || '',
+          message: "Python 代码执行失败，请检查代码语法和逻辑"
+        },
+        { status: 500 }
+      );
     }
     
     const duration = Date.now() - startTime;
@@ -271,10 +312,17 @@ export async function POST(req) {
     }
     
     const errorMessage = error instanceof Error ? error.message : String(error);
+    // 尝试从错误对象中提取 stderr（如果是 execAsync 的错误）
+    const errorStderr = error.stderr || '';
+    const errorStdout = error.stdout || '';
+    
     return NextResponse.json(
       {
+        success: false,
         error: "Python 代码执行失败",
         message: errorMessage,
+        stderr: errorStderr,
+        stdout: errorStdout,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }

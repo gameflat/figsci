@@ -694,14 +694,25 @@ function ChatPanelOptimized({
           let detailedError = `❌ Python 代码执行失败\n\n📋 错误信息:\n${errorMessage}`;
           
           // 从错误对象中获取详细错误信息
+          // 优先从 error.result 获取（已解析的响应），否则尝试从 error.response 解析
           const errorResult = error.result || (error.response ? await error.response.json().catch(() => null) : null);
           
           if (errorResult) {
+            // 提取 stderr（Python 标准错误输出，包含详细的错误信息）
             if (errorResult.stderr) {
               detailedError += `\n\n🐛 Python 标准错误输出:\n\`\`\`\n${errorResult.stderr}\n\`\`\``;
             }
+            // 提取 stdout（Python 标准输出）
             if (errorResult.stdout) {
               detailedError += `\n\n📤 Python 标准输出:\n\`\`\`\n${errorResult.stdout}\n\`\`\``;
+            }
+            // 提取 message（额外的错误消息）
+            if (errorResult.message && errorResult.message !== errorMessage) {
+              detailedError += `\n\n📝 详细信息:\n${errorResult.message}`;
+            }
+            // 提取 details（开发环境的堆栈信息）
+            if (errorResult.details && process.env.NODE_ENV === 'development') {
+              detailedError += `\n\n🔍 调试信息:\n\`\`\`\n${errorResult.details}\n\`\`\``;
             }
           }
           
@@ -712,11 +723,20 @@ function ChatPanelOptimized({
           detailedError += `3. **结束任务**：如果错误无法修复、已达到最大行动次数，或任务无法继续，请调用 **end_task 工具**结束任务\n`;
           detailedError += `\n⚠️ 重要：你必须选择一个行动 - 要么修复代码后重新调用 run_python_code，要么调用 end_task 结束任务。不能只思考不行动！`;
           
+          console.log("[run_python_code] 准备添加工具结果，触发 LLM 下一步响应", {
+            toolCallId: toolCall.toolCallId,
+            errorLength: detailedError.length,
+            hasStderr: !!errorResult?.stderr,
+            hasStdout: !!errorResult?.stdout
+          });
+          
           addToolResult({
             tool: "run_python_code",
             toolCallId: toolCall.toolCallId,
             output: detailedError
           });
+          
+          console.log("[run_python_code] 工具结果已添加，等待 LLM 响应");
         }
       } else if (toolCall.toolName === "end_task") {
         const { reason, summary } = toolCall.input || {};
