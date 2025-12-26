@@ -721,6 +721,28 @@ function ChatMessageDisplay({
                             </div>)}
                     </div>;
       }
+      // 特殊处理：如果是 run_python_code，用代码框架包装
+      if (toolName === "run_python_code" && input?.code) {
+        return <div className="mt-1 max-h-80 overflow-auto">
+          <div className="rounded-lg border border-slate-200 bg-slate-900 text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-700 px-3 py-1.5">
+              <span className="text-[10px] font-medium text-slate-400">Python 代码</span>
+              <button
+                onClick={toggleExpanded}
+                className="text-[10px] text-slate-400 transition hover:text-slate-200"
+              >
+                {isExpanded ? "收起" : "展开"}
+              </button>
+            </div>
+            {isExpanded && (
+              <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-slate-100">
+                {input.code}
+              </pre>
+            )}
+          </div>
+        </div>;
+      }
+      
       const serialized = typeof input === "string" ? input : JSON.stringify(input, null, 2);
       return <pre className="mt-1 max-h-80 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] text-slate-500">
                     输入：{serialized}
@@ -732,13 +754,16 @@ function ChatMessageDisplay({
     >
                 <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                        <div className="text-[11px] font-medium text-slate-700">工具：{toolName}</div>
+                        {/* 隐藏工具名称，仅在开发环境显示 */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <div className="text-[11px] font-medium text-slate-700">工具：{toolName}</div>
+                        )}
                         <div className="flex items-center gap-2">
                             {input && Object.keys(input).length > 0 && <button
       onClick={toggleExpanded}
       className="text-[11px] text-slate-500 transition hover:text-slate-700"
     >
-                                    {isExpanded ? "隐藏参数" : "显示参数"}
+                                    {isExpanded ? "隐藏" : "显示"}
                                 </button>}
                         </div>
                     </div>
@@ -1109,6 +1134,29 @@ function ChatMessageDisplay({
                                                             chargeInfo={message.metadata.chargeResult}
                                                             compact={true}
                                                         />
+                                                        {/* ReAct 架构信息显示 - 已隐藏，仅在开发环境显示 */}
+                                                        {process.env.NODE_ENV === 'development' && message.metadata?.reactInfo && (
+                                                            <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/50 px-2 py-1.5 text-xs">
+                                                                <div className="font-semibold text-blue-700 mb-1">
+                                                                    ReAct 智能体状态（开发模式）
+                                                                </div>
+                                                                <div className="space-y-0.5 text-blue-600">
+                                                                    <div>
+                                                                        行动次数: {message.metadata.reactInfo.actionCount} / {message.metadata.reactInfo.maxActions}
+                                                                    </div>
+                                                                    {message.metadata.reactInfo.hasCalledEndTask && (
+                                                                        <div className="text-green-600">
+                                                                            ✓ 任务已结束
+                                                                        </div>
+                                                                    )}
+                                                                    {message.metadata.reactInfo.reachedMaxActions && !message.metadata.reactInfo.hasCalledEndTask && (
+                                                                        <div className="text-orange-600">
+                                                                            ⚠️ 已达到最大行动次数
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })()}

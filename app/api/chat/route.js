@@ -818,8 +818,21 @@ async function POST(req) {
     // - 正常生成：使用标准系统提示（完整的图表生成规范）
     // - 续写请求：使用续写系统提示（专门用于续写被截断的代码）
     // - 不支持工具调用：使用特殊的 JSON 输出格式提示词
+    // - ReAct 架构：使用模块化 prompt 组合（仅在非 architect 工作流时）
     // 从统一的 prompts 模块获取系统提示词
-    const systemMessage = getSystemMessage(outputMode, isContinuation || false, supportsToolCalls);
+    // 注意：shouldUseArchitectWorkflow 在后面定义，这里先使用临时变量
+    const willUseArchitectWorkflow = enableArchitectWorkflow ?? (process.env.ENABLE_ARCHITECT_WORKFLOW === 'true');
+    const shouldUseReact = !willUseArchitectWorkflow && supportsToolCalls && !isContinuation;
+    const systemMessage = getSystemMessage(
+      outputMode, 
+      isContinuation || false, 
+      supportsToolCalls,
+      {
+        useReact: shouldUseReact,
+        // 默认包含所有专业提示，让 LLM 自行判断使用哪个工具
+        requiredPrompts: shouldUseReact ? ['xml', 'python'] : []
+      }
+    );
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return Response.json(
         { error: "Missing messages payload." },
@@ -1129,8 +1142,72 @@ ${dataFileContexts.join('\n\n---\n\n')}
             replace: z.string().describe("替换内容")
           })).describe("按顺序应用的搜索/替换对数组")
         })
+      }),
+      run_python_code: tool({
+        description: `执行 Python 代码生成数据分析图表。当用户需要创建折线图、散点图、热力图、桑基图等数据分析图表时，使用此工具。
+
+**使用场景：**
+- 折线图、散点图、柱状图、饼图等数据可视化
+- 热力图、桑基图、网络图等复杂数据分析图
+- 基于用户上传的数据文件生成图表
+- 需要数据计算、统计分析后生成图表
+
+**代码要求：**
+- 必须使用 matplotlib 或 seaborn 创建图形
+- 代码必须包含 plt.show() 或类似的图形生成语句
+- 图形将自动转换为 SVG 格式并显示在画布上
+- 可以使用 pandas、numpy 等数据处理库
+
+**示例：**
+\`\`\`python
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# 创建示例数据
+data = {'x': [1, 2, 3, 4, 5], 'y': [2, 4, 6, 8, 10]}
+df = pd.DataFrame(data)
+
+# 绘制折线图
+plt.figure(figsize=(8, 6))
+plt.plot(df['x'], df['y'], marker='o')
+plt.xlabel('X轴标签')
+plt.ylabel('Y轴标签')
+plt.title('折线图示例')
+plt.grid(True)
+plt.show()
+\`\`\`
+
+**重要：** 代码执行后，如果成功生成图形，系统会自动将其转换为 SVG 并显示在画布上。`,
+        parameters: z.object({
+          code: z.string().describe("完整的 Python 代码，用于生成数据分析图表。必须包含图形创建和显示代码。")
+        })
+      }),
+      end_task: tool({
+        description: `结束当前任务流程。当任务已完成或无法继续时调用此工具。
+
+**使用场景：**
+- 任务已成功完成，用户需求已满足
+- 已达到最大行动次数限制，需要结束流程
+- 遇到无法解决的问题，需要终止任务
+
+**重要：** 此工具调用不计入行动次数限制。调用后，系统将停止后续工具调用并返回最终结果。`,
+        parameters: z.object({
+          reason: z.string().optional().describe("结束任务的原因（可选）"),
+          summary: z.string().optional().describe("任务完成总结（可选）")
+        })
       })
     }) : undefined; // 不支持工具调用时不传递 tools
+    
+    // ========== ReAct 架构配置 ==========
+    // 获取最大行动次数（默认3，end_task不计入）
+    const REACT_MAX_STEPS = parseInt(process.env.REACT_MAX_STEPS || '3', 10);
+    // 实际 maxSteps 需要包含 end_task 的可能调用，所以设置为 REACT_MAX_STEPS + 1
+    // 这样即使达到限制，LLM 仍可以调用 end_task 来正常结束
+    const actualMaxSteps = REACT_MAX_STEPS + 1;
+    
+    // 用于跟踪行动次数的变量（在流式响应中通过闭包访问）
+    let actionCount = 0;
+    let hasCalledEndTask = false;
     
     const commonConfig = {
       // model: google("gemini-2.5-flash-preview-05-20"),
@@ -1157,9 +1234,9 @@ ${dataFileContexts.join('\n\n---\n\n')}
       // 当不支持工具调用时，tools 为 undefined，不会传递给模型
       ...(toolsConfig && { tools: toolsConfig }),
       temperature: 0,
-      // 允许多轮工具调用：LLM 可以调用 display_diagram 生成图表，然后调用 edit_diagram 进行编辑
-      // 设置为 5 以支持复杂的多步工作流（如：生成图表 -> 编辑图表）
-      maxSteps: 5
+      // ReAct 架构：支持多步工具调用
+      // 设置为 REACT_MAX_STEPS + 1 以允许在达到限制后仍可调用 end_task
+      maxSteps: actualMaxSteps
     };
     // ========== 检查是否启用新工作流 ==========
     // 优先使用请求参数，其次使用环境变量
@@ -1381,7 +1458,30 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
     if (actualUseStreaming && supportsToolCalls) {
       // 流式输出：直接借助 AI SDK 的 streamText + toUIMessageStreamResponse
       // 仅在支持工具调用时使用流式输出
-      const result = await streamText(commonConfig);
+      const result = await streamText({
+        ...commonConfig,
+        // 添加步骤完成回调，用于跟踪行动次数
+        onStepFinish: ({ stepType, toolCalls, text }) => {
+          // 跟踪工具调用，但不计入 end_task
+          if (stepType === 'tool-call' && toolCalls) {
+            for (const toolCall of toolCalls) {
+              if (toolCall.toolName === 'end_task') {
+                hasCalledEndTask = true;
+                console.log("[ReAct] 检测到 end_task 调用，不计入行动次数");
+              } else {
+                // 其他工具调用计入行动次数
+                actionCount++;
+                console.log(`[ReAct] 行动次数: ${actionCount}/${REACT_MAX_STEPS} (工具: ${toolCall.toolName})`);
+                
+                // 如果达到最大行动次数，记录警告
+                if (actionCount >= REACT_MAX_STEPS) {
+                  console.warn(`[ReAct] ⚠️ 已达到最大行动次数限制 (${REACT_MAX_STEPS})，建议调用 end_task 结束任务`);
+                }
+              }
+            }
+          }
+        }
+      });
       
       // 用于存储扣费结果的变量（在 onFinish 中设置，在后续请求中可能用到）
       let chargeResult = null;
@@ -1456,7 +1556,7 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           if (part.type === "finish") {
             // 判断任务是否成功完成
             const finishReason = part.finishReason;
-            const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls';
+            const isTaskCompleted = finishReason === 'stop' || finishReason === 'tool-calls' || hasCalledEndTask;
 
             const metadata = {
               usage: {
@@ -1470,7 +1570,14 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
               // 标记任务是否失败，前端可据此判断是否需要回滚
               taskFailed: !isTaskCompleted,
               // 包含扣费结果，如果还未设置则为 undefined，前端会在后续检查
-              chargeResult: chargeResult
+              chargeResult: chargeResult,
+              // ReAct 架构信息
+              reactInfo: {
+                actionCount: actionCount,
+                maxActions: REACT_MAX_STEPS,
+                hasCalledEndTask: hasCalledEndTask,
+                reachedMaxActions: actionCount >= REACT_MAX_STEPS
+              }
             };
 
             // 如果 onFinish 中尚未写入实际扣费结果，则基于当前 usage 预估一个显示用的 chargeResult

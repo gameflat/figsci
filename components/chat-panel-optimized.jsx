@@ -589,6 +589,151 @@ function ChatPanelOptimized({
             output: `Failed to edit diagram: ${errorMessage}`
           });
         }
+      } else if (toolCall.toolName === "run_python_code") {
+        const { code } = toolCall.input || {};
+        console.log("[run_python_code] 工具调用开始", { 
+          toolCallId: toolCall.toolCallId, 
+          codeLength: code?.length,
+          codePreview: code?.substring(0, 200)
+        });
+        
+        try {
+          if (!code || typeof code !== "string" || !code.trim()) {
+            addToolResult({
+              tool: "run_python_code",
+              toolCallId: toolCall.toolCallId,
+              output: "错误：未提供 Python 代码。请确保代码参数不为空。"
+            });
+            return;
+          }
+          
+          // 调用 Python 执行 API
+          const response = await fetch("/api/execute-python", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ code })
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            // 构建包含详细错误信息的错误对象
+            const error = new Error(result.error || result.message || "Python 代码执行失败");
+            // 将响应结果直接附加到错误对象上，避免异步解析
+            error.result = result;
+            throw error;
+          }
+          
+          if (result.success && result.svg) {
+            // Python 执行成功，生成了 SVG
+            console.log("[run_python_code] Python 执行成功，生成 SVG", {
+              svgLength: result.svg.length,
+              duration: result.duration
+            });
+            
+            // 将 SVG 转换为 draw.io XML 或直接显示 SVG（根据渲染模式）
+            if (isSvgMode) {
+              // SVG 模式：直接使用 display_svg 工具的结果格式
+              await handleCanvasUpdate(result.svg, {
+                origin: "python_svg",
+                modelRuntime: selectedModel ?? void 0
+              });
+              
+              addToolResult({
+                tool: "run_python_code",
+                toolCallId: toolCall.toolCallId,
+                output: `Python 代码执行成功，已生成 SVG 图表。\n执行时间: ${result.duration}ms\n\n标准输出:\n${result.stdout || '(无)'}\n\n标准错误:\n${result.stderr || '(无)'}`
+              });
+            } else {
+              // Draw.io 模式：将 SVG 转换为 draw.io XML
+              // 这里需要将 SVG 嵌入到 draw.io 中
+              // 可以使用 SVG 图像节点来显示
+              // 使用 encodeURIComponent 编码 SVG，避免 base64 编码问题
+              const svgEncoded = encodeURIComponent(result.svg);
+              const imageDataUrl = `data:image/svg+xml;charset=utf-8,${svgEncoded}`;
+              
+              // 创建一个包含 SVG 图像的 draw.io XML
+              // 注意：这里简化处理，实际可能需要更复杂的转换
+              const svgXml = `<root>
+  <mxCell id="0" />
+  <mxCell id="1" parent="0" />
+  <mxCell id="2" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;aspect=fixed;imageAspect=0;image=${imageDataUrl};" vertex="1" parent="1">
+    <mxGeometry x="0" y="0" width="800" height="600" as="geometry" />
+  </mxCell>
+</root>`;
+              
+              await handleCanvasUpdate(svgXml, {
+                origin: "python_diagram",
+                modelRuntime: selectedModel ?? void 0
+              });
+              
+              addToolResult({
+                tool: "run_python_code",
+                toolCallId: toolCall.toolCallId,
+                output: `Python 代码执行成功，已生成图表。\n执行时间: ${result.duration}ms\n\n标准输出:\n${result.stdout || '(无)'}\n\n标准错误:\n${result.stderr || '(无)'}`
+              });
+            }
+          } else if (result.success && result.message) {
+            // 执行成功但没有生成图形
+            addToolResult({
+              tool: "run_python_code",
+              toolCallId: toolCall.toolCallId,
+              output: `Python 代码执行成功，但未生成图形。\n${result.message}\n\n标准输出:\n${result.stdout || '(无)'}\n\n标准错误:\n${result.stderr || '(无)'}`
+            });
+          } else {
+            // 执行失败
+            throw new Error(result.error || "Python 代码执行失败");
+          }
+        } catch (error) {
+          console.error("[run_python_code] 执行失败:", error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          // 构建详细的错误信息，帮助 LLM 理解错误并决定下一步行动
+          let detailedError = `❌ Python 代码执行失败\n\n📋 错误信息:\n${errorMessage}`;
+          
+          // 从错误对象中获取详细错误信息
+          const errorResult = error.result || (error.response ? await error.response.json().catch(() => null) : null);
+          
+          if (errorResult) {
+            if (errorResult.stderr) {
+              detailedError += `\n\n🐛 Python 标准错误输出:\n\`\`\`\n${errorResult.stderr}\n\`\`\``;
+            }
+            if (errorResult.stdout) {
+              detailedError += `\n\n📤 Python 标准输出:\n\`\`\`\n${errorResult.stdout}\n\`\`\``;
+            }
+          }
+          
+          // 提供明确的下一步行动指导
+          detailedError += `\n\n💡 下一步行动建议:\n`;
+          detailedError += `1. **分析错误**：仔细阅读上述错误信息，确定问题所在\n`;
+          detailedError += `2. **修复代码**：如果错误可以修复（如语法错误、编码问题、缺少库等），请修改 Python 代码后**再次调用 run_python_code 工具**\n`;
+          detailedError += `3. **结束任务**：如果错误无法修复、已达到最大行动次数，或任务无法继续，请调用 **end_task 工具**结束任务\n`;
+          detailedError += `\n⚠️ 重要：你必须选择一个行动 - 要么修复代码后重新调用 run_python_code，要么调用 end_task 结束任务。不能只思考不行动！`;
+          
+          addToolResult({
+            tool: "run_python_code",
+            toolCallId: toolCall.toolCallId,
+            output: detailedError
+          });
+        }
+      } else if (toolCall.toolName === "end_task") {
+        const { reason, summary } = toolCall.input || {};
+        console.log("[end_task] 任务结束", { 
+          toolCallId: toolCall.toolCallId, 
+          reason,
+          summary
+        });
+        
+        addToolResult({
+          tool: "end_task",
+          toolCallId: toolCall.toolCallId,
+          output: `任务已结束。${reason ? `\n原因: ${reason}` : ''}${summary ? `\n总结: ${summary}` : ''}`
+        });
+        
+        // end_task 调用后，停止后续工具调用
+        // 注意：AI SDK 会自动处理，这里只是记录日志
       }
     },
     onError: (error2) => {
