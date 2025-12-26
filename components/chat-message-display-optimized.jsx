@@ -323,6 +323,17 @@ const DiagramToolCard = memo(({
             <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-[13px] leading-relaxed text-slate-700">
                 {statusMessage}
             </div>
+            {/* 对于 run_python_code 工具，显示 Python 代码 */}
+            {toolName === "run_python_code" && input?.code && (
+                <div className="mt-3">
+                    <div className="text-xs text-slate-600 mb-2">Python 代码：</div>
+                    <div className="max-h-80 overflow-auto rounded-lg border border-slate-200 bg-slate-900 text-slate-100">
+                        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-slate-100">
+                            {input.code}
+                        </pre>
+                    </div>
+                </div>
+            )}
             {/* 在图表生成完成时显示缩略图 */}
             {currentState === "output-available" && diagramResult && (diagramResult.svg || diagramResult.xml) && (
                 <div className="mt-3">
@@ -576,7 +587,8 @@ function ChatMessageDisplay({
       message.parts.forEach((part) => {
         if (typeof part.type !== "string") return;
         const toolName = part.type.replace("tool-", "");
-        if (toolName !== "display_diagram" && toolName !== "display_svg") return;
+        // 包含 display_diagram、display_svg 和 run_python_code（如果生成了图表）
+        if (toolName !== "display_diagram" && toolName !== "display_svg" && toolName !== "run_python_code") return;
         const toolCallId = part.toolCallId;
         if (!toolCallId) return;
         const result = getDiagramResult?.(toolCallId);
@@ -683,39 +695,59 @@ function ChatMessageDisplay({
         messageMetadata={messageMetadata}
       />;
     }
-    // 对于 run_python_code 工具，只显示代码，不显示工具调用详细信息和执行结果
-    if (toolName === "run_python_code" && input?.code) {
-      const storedExpansion = expandedTools[callId];
-      const isExpanded = storedExpansion !== void 0 ? storedExpansion : true;
-      const toggleExpanded = () => {
-        setExpandedTools((prev) => ({
-          ...prev,
-          [callId]: !isExpanded
-        }));
-      };
-      return <div
-        key={callId}
-        className="my-2 w-full max-w-[min(720px,90%)]"
-      >
-        <div className="max-h-80 overflow-auto">
-          <div className="rounded-lg border border-slate-200 bg-slate-900 text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-700 px-3 py-1.5">
-              <span className="text-[10px] font-medium text-slate-400">Python 代码</span>
-              <button
-                onClick={toggleExpanded}
-                className="text-[10px] text-slate-400 transition hover:text-slate-200"
-              >
-                {isExpanded ? "收起" : "展开"}
-              </button>
+    // 对于 run_python_code 工具，如果生成了图表，显示图表卡片；否则只显示代码
+    if (toolName === "run_python_code") {
+      const diagramResult = diagramResults.get(callId);
+      // 如果生成了图表，显示 DiagramToolCard（包含代码和图表）
+      if (diagramResult && (diagramResult.svg || diagramResult.xml)) {
+        return <DiagramToolCard
+          key={callId}
+          part={part}
+          onCopy={handleCopyDiagramXml}
+          onStopAll={onStopAll}
+          isGenerationBusy={isGenerationBusy}
+          diagramResult={diagramResult}
+          onStreamingApply={handleStreamingApply}
+          onRetry={onRetryGeneration}
+          messageMetadata={messageMetadata}
+        />;
+      }
+      // 如果没有生成图表，只显示代码
+      if (input?.code) {
+        const storedExpansion = expandedTools[callId];
+        const isExpanded = storedExpansion !== void 0 ? storedExpansion : true;
+        const toggleExpanded = () => {
+          setExpandedTools((prev) => ({
+            ...prev,
+            [callId]: !isExpanded
+          }));
+        };
+        return <div
+          key={callId}
+          className="my-2 w-full max-w-[min(720px,90%)]"
+        >
+          <div className="max-h-80 overflow-auto">
+            <div className="rounded-lg border border-slate-200 bg-slate-900 text-slate-100">
+              <div className="flex items-center justify-between border-b border-slate-700 px-3 py-1.5">
+                <span className="text-[10px] font-medium text-slate-400">Python 代码</span>
+                <button
+                  onClick={toggleExpanded}
+                  className="text-[10px] text-slate-400 transition hover:text-slate-200"
+                >
+                  {isExpanded ? "收起" : "展开"}
+                </button>
+              </div>
+              {isExpanded && (
+                <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-slate-100">
+                  {input.code}
+                </pre>
+              )}
             </div>
-            {isExpanded && (
-              <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-slate-100">
-                {input.code}
-              </pre>
-            )}
           </div>
-        </div>
-      </div>;
+        </div>;
+      }
+      // 如果没有代码也没有图表，返回 null（不显示）
+      return null;
     }
     // 对于 end_task 工具，完全隐藏，不显示任何信息
     if (toolName === "end_task") {

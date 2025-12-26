@@ -961,6 +961,15 @@ function ChatPanelOptimized({
               updateActiveBranchDiagram(mergedXml);
               setDiagramResultVersion((prev) => prev + 1);
               
+              // 保存到历史记录（Python 生图成功后）
+              try {
+                await fetchAndFormatDiagram({ saveHistory: true });
+                console.log("[run_python_code] 已保存图表到历史记录（SVG 模式）");
+              } catch (historyError) {
+                console.warn("[run_python_code] 保存历史记录失败:", historyError);
+                // 历史记录保存失败不影响主流程，只记录警告
+              }
+              
               // 使用统一的工具结果添加函数，确保在正确的状态下添加和触发
               const successOutput = `Python 代码执行成功，已生成 SVG 图表。\n执行时间: ${result.duration}ms\n\n标准输出:\n${result.stdout || '(无)'}\n\n标准错误:\n${result.stderr || '(无)'}`;
               
@@ -1033,6 +1042,15 @@ function ChatPanelOptimized({
               });
               updateActiveBranchDiagram(mergedXml);
               setDiagramResultVersion((prev) => prev + 1);
+              
+              // 保存到历史记录（Python 生图成功后）
+              try {
+                await fetchAndFormatDiagram({ saveHistory: true });
+                console.log("[run_python_code] 已保存图表到历史记录（Draw.io 模式）");
+              } catch (historyError) {
+                console.warn("[run_python_code] 保存历史记录失败:", historyError);
+                // 历史记录保存失败不影响主流程，只记录警告
+              }
               
               // 使用统一的工具结果添加函数，确保在正确的状态下添加和触发
               const successOutput = `Python 代码执行成功，已生成图表。\n执行时间: ${result.duration}ms\n\n标准输出:\n${result.stdout || '(无)'}\n\n标准错误:\n${result.stderr || '(无)'}`;
