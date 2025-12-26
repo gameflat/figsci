@@ -211,7 +211,10 @@ ${currentXml.trim()}
         });
         console.log("[提示词格式化] ✅ 自定义 AI API 调用成功");
       } catch (error) {
-        if (error.name === 'AbortError' || abortSignal?.aborted) {
+        if (error.name === 'AbortError' || 
+            error.message?.includes('aborted') || 
+            error.message?.includes('cancel') ||
+            abortSignal?.aborted) {
           throw error;
         }
         console.error("[提示词格式化] ❌ 自定义 API 调用失败:", error);
@@ -235,7 +238,10 @@ ${currentXml.trim()}
         responseText = response.text;
         console.log("[提示词格式化] ✅ AI SDK 调用成功");
       } catch (error) {
-        if (error.name === 'AbortError' || abortSignal?.aborted) {
+        if (error.name === 'AbortError' || 
+            error.message?.includes('aborted') || 
+            error.message?.includes('cancel') ||
+            abortSignal?.aborted) {
           throw error;
         }
         console.error("[提示词格式化] ❌ AI SDK 调用失败:", error);
@@ -254,6 +260,13 @@ ${currentXml.trim()}
       formattedPrompt: cleanedText || userInput,
     };
   } catch (error) {
+    // 如果是取消错误，直接抛出，不要降级处理
+    if (error.name === 'AbortError' || 
+        error.message?.includes('aborted') || 
+        error.message?.includes('cancel') ||
+        abortSignal?.aborted) {
+      throw error;
+    }
     console.error("提示词格式化失败:", error);
     return simpleFormatPrompt(userInput);
   }

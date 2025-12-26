@@ -105,15 +105,29 @@ export async function executeWorkflow({
     }
     console.log("[工作流] 步骤 1/5: 提示词格式化...");
     const formatStartTime = Date.now();
-    const formatResult = await formatPrompt({
-      userInput,
-      currentXml,
-      modelRuntime: effectiveModelRuntime,
-      abortSignal,
-    });
+    let formatResult;
+    try {
+      formatResult = await formatPrompt({
+        userInput,
+        currentXml,
+        modelRuntime: effectiveModelRuntime,
+        abortSignal,
+      });
+    } catch (error) {
+      // 如果是取消错误，直接抛出
+      if (error.name === 'AbortError' || 
+          error.message?.includes('aborted') || 
+          error.message?.includes('cancel') ||
+          abortSignal?.aborted) {
+        throw error;
+      }
+      // 其他错误，记录并继续（formatPrompt 内部已经降级处理）
+      console.warn("[工作流] ⚠️  步骤 1/5 提示词格式化失败，使用原始输入:", error.message);
+      formatResult = { formattedPrompt: userInput };
+    }
     metadata.steps.formatPrompt = {
       duration: Date.now() - formatStartTime,
-      success: true,
+      success: !!formatResult,
     };
     console.log("[工作流] ✅ 步骤 1/5 完成: 提示词格式化");
     
@@ -177,6 +191,13 @@ export async function executeWorkflow({
       };
       console.log("[工作流] ✅ 步骤 3/5 完成: VISUAL SCHEMA生成");
     } catch (error) {
+      // 如果是取消错误，直接抛出
+      if (error.name === 'AbortError' || 
+          error.message?.includes('aborted') || 
+          error.message?.includes('cancel') ||
+          abortSignal?.aborted) {
+        throw error;
+      }
       console.error("[工作流] ❌ 步骤 3/5 Architect失败:", error);
       metadata.steps.generateVisualSchema = {
         duration: Date.now() - architectStartTime,
@@ -266,6 +287,15 @@ export async function executeWorkflow({
     metadata.totalDuration = Date.now() - metadata.startTime;
     metadata.success = false;
     metadata.error = error.message;
+    
+    // 如果是取消错误，直接抛出，不要包装
+    if (error.name === 'AbortError' || 
+        error.message?.includes('aborted') || 
+        error.message?.includes('cancel') ||
+        abortSignal?.aborted) {
+      console.log("[工作流] ⏹️  工作流已被用户取消");
+      throw error;
+    }
     
     console.error("[工作流] ❌ 工作流执行失败:", error);
     throw error;

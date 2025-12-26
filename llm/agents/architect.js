@@ -197,7 +197,10 @@ ${mermaid}
         });
         console.log("[Architect] ✅ 自定义 AI API 调用成功");
       } catch (error) {
-        if (error.name === 'AbortError' || abortSignal?.aborted) {
+        if (error.name === 'AbortError' || 
+            error.message?.includes('aborted') || 
+            error.message?.includes('cancel') ||
+            abortSignal?.aborted) {
           throw error;
         }
         console.error("[Architect] ❌ 自定义 API 调用失败:", error);
@@ -221,7 +224,10 @@ ${mermaid}
         responseText = response.text;
         console.log("[Architect] ✅ AI SDK 调用成功");
       } catch (error) {
-        if (error.name === 'AbortError' || abortSignal?.aborted) {
+        if (error.name === 'AbortError' || 
+            error.message?.includes('aborted') || 
+            error.message?.includes('cancel') ||
+            abortSignal?.aborted) {
           throw error;
         }
         console.error("[Architect] ❌ AI SDK 调用失败:", error);
@@ -245,6 +251,14 @@ ${mermaid}
       rawOutput: responseText,
     };
   } catch (error) {
+    // 如果是取消错误，直接抛出，不要包装
+    if (error.name === 'AbortError' || 
+        error.message?.includes('aborted') || 
+        error.message?.includes('cancel') ||
+        abortSignal?.aborted) {
+      console.log("[Architect] ⏹️  Architect 已被用户取消");
+      throw error;
+    }
     console.error("Architect生成失败:", error);
     throw error;
   }

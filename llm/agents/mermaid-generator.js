@@ -179,7 +179,10 @@ export async function generateMermaid({
         });
         console.log("[Mermaid生成] ✅ 自定义 AI API 调用成功");
       } catch (error) {
-        if (error.name === 'AbortError' || abortSignal?.aborted) {
+        if (error.name === 'AbortError' || 
+            error.message?.includes('aborted') || 
+            error.message?.includes('cancel') ||
+            abortSignal?.aborted) {
           throw error;
         }
         console.error("[Mermaid生成] ❌ 自定义 API 调用失败:", error);
@@ -203,7 +206,10 @@ export async function generateMermaid({
         responseText = response.text;
         console.log("[Mermaid生成] ✅ AI SDK 调用成功");
       } catch (error) {
-        if (error.name === 'AbortError' || abortSignal?.aborted) {
+        if (error.name === 'AbortError' || 
+            error.message?.includes('aborted') || 
+            error.message?.includes('cancel') ||
+            abortSignal?.aborted) {
           throw error;
         }
         console.error("[Mermaid生成] ❌ AI SDK 调用失败:", error);

@@ -1356,6 +1356,14 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           }
         });
       } catch (error) {
+        // 如果是取消错误，直接抛出，不要回退到原有逻辑
+        if (error.name === 'AbortError' || 
+            error.message?.includes('aborted') || 
+            error.message?.includes('cancel') ||
+            req.signal?.aborted) {
+          console.log("[工作流] ⏹️  工作流已被用户取消");
+          throw error;
+        }
         console.error("[工作流] ❌ 工作流执行失败，回退到原有逻辑:", error);
         // 如果工作流失败，回退到原有逻辑
         // 继续执行下面的代码
@@ -1756,6 +1764,24 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
     // - 其他未预期的异常
     // 
     // 注意：流式响应内部的错误已在流创建时处理，这里只处理流创建之前的错误
+    
+    // 如果是取消错误，返回适当的响应
+    if (error.name === 'AbortError' || 
+        error.message?.includes('aborted') || 
+        error.message?.includes('cancel') ||
+        req.signal?.aborted) {
+      console.log("[API] ⏹️  请求已被用户取消");
+      // 返回 499 Client Closed Request（非标准状态码，但常用于表示客户端关闭连接）
+      // 或者返回 200 但包含取消信息
+      return Response.json(
+        {
+          error: "请求已被用户取消",
+          cancelled: true
+        },
+        { status: 499 }
+      );
+    }
+    
     console.error("Error in chat route:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? error.stack : void 0;
