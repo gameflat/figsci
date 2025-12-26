@@ -123,8 +123,9 @@ return result.toUIMessageStreamResponse({
   - 参考：[app/api/template-match/route.js](mdc:app/api/template-match/route.js)
   - 详细说明：[.cursor/rules/ai-agents-workflow.mdc](mdc:.cursor/rules/ai-agents-workflow.mdc)
 
-- **POST /api/search-template** - 模板搜索
+- **POST /api/search-template** - 模板搜索 ⚠️ **未使用**
   - 根据查询内容搜索匹配的模板
+  - ⚠️ **状态**：此 API 路由已实现但当前未被项目使用，保留供未来使用
   - 参考：[app/api/search-template/route.js](mdc:app/api/search-template/route.js)
 
 ### 模型管理 API

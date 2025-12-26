@@ -226,7 +226,13 @@ tsconfig.json                   # TypeScript 编译器配置
 
 ### 4.1 渲染模式架构
 
-项目支持两种渲染模式，通过统一的接口抽象：
+项目支持两种渲染模式，通过统一的接口抽象。**重要变化**：两种模式现在都使用 Draw.io 画布，SVG 模式通过 `buildSvgRootXml` 函数将 SVG 转换为 Draw.io XML 格式后统一渲染。
+
+**模式切换机制**：
+- 每个渲染模式都有独立的根分支（在 `ConversationContext` 中管理）
+- 切换模式时自动切换到对应模式的根分支
+- 每个分支独立保存画布内容和对话历史
+- 两种模式的数据都存储在 `DiagramContext` 中，使用相同的画布组件（`DrawIoEmbed`）渲染
 
 #### Draw.io 模式（默认）
 
@@ -253,22 +259,39 @@ Draw.io 编辑器
 
 #### SVG 模式
 
+**重要变化**：SVG 模式现在统一使用 Draw.io 画布，通过 `buildSvgRootXml` 函数将 SVG 转换为 Draw.io XML 格式。
+
 ```
 用户请求
   ↓
 ChatPanelOptimized
   ↓
-SvgEditorContext (svg-editor-context.jsx)
+display_svg 工具调用
   ↓
-SvgStudio (components/svg-studio.jsx)
+buildSvgRootXml (lib/svg.js)
   ↓
-SVG Canvas
+转换为 Draw.io XML（包含 SVG 作为 image cell）
+  ↓
+useDiagramOrchestrator
+  ↓
+DiagramContext (diagram-context.jsx)
+  ↓
+DrawIoEmbed (react-drawio)
+  ↓
+Draw.io 编辑器（显示 SVG 内容）
 ```
 
 关键组件：
-- `contexts/svg-editor-context.jsx` – SVG 编辑器状态管理，提供 SVG 元素、工具状态和历史记录
-- `components/svg-studio.jsx` – SVG 编辑器组件，提供可视化编辑界面
-- `lib/svg.js` – SVG 处理工具函数，提供 SVG 解析、生成和转换功能
+- `lib/svg.js` – SVG 处理工具函数，提供 `buildSvgRootXml` 函数将 SVG 转换为 Draw.io XML 格式
+- `components/chat-panel-optimized.jsx` – 处理 `display_svg` 工具调用，调用 `buildSvgRootXml` 进行转换
+- `contexts/diagram-context.jsx` – Draw.io 状态管理，统一管理两种模式的画布状态
+- `features/chat-panel/hooks/use-diagram-orchestrator.js` – 图表编排器，统一处理两种模式的画布更新
+
+**转换机制**：
+- SVG 内容通过 `buildSvgRootXml` 函数转换为 Draw.io XML 格式
+- SVG 被编码为 data URL，作为 Draw.io 的 image cell 嵌入到画布中
+- 转换后的 XML 包含完整的 `<root>` 结构，可以直接应用到 Draw.io 画布
+- 两种模式现在都使用相同的画布组件（`DrawIoEmbed`）和状态管理（`DiagramContext`）
 
 ### 4.2 光子扣费架构
 
@@ -420,6 +443,12 @@ useDrawioFallback Hook
 - `diagram-repair/route.js` – 图表修复功能
   - 调用 `lib/diagram-repair-client.js` 修复无效的 Draw.io XML
   - 使用 AI 分析图表问题并生成修复方案
+
+#### 模板相关路由
+- `search-template/route.js` – 模板搜索 API ⚠️ **未使用**
+  - 根据查询内容搜索匹配的模板，返回详细的绘图指导信息
+  - ⚠️ **状态**：此 API 路由已实现但当前未被项目使用，保留供未来使用
+  - 供 LLM 工具调用使用，但尚未集成到工具列表中
 
 #### 模型管理路由
 - `models/route.js` – 获取模型列表
@@ -622,21 +651,35 @@ App (app/page.jsx)
 ## 10. 技术栈
 
 ### 10.1 核心框架
-- Next.js 15 (App Router) - 全栈 React 框架
-- React 19 - UI 库
-- TypeScript - 类型安全（部分文件使用 JSDoc 类型注释）
+- Next.js 15.2.3 (App Router) - 全栈 React 框架
+- React 19.0.0 - UI 库
+- React DOM 19.0.0 - React DOM 渲染库
+- TypeScript 5.x - 类型安全（部分文件使用 JSDoc 类型注释）
 
 ### 10.2 UI 组件库
 - Radix UI - 无样式、可访问的组件原语
-- Tailwind CSS - 实用优先的 CSS 框架
+  - `@radix-ui/react-dialog` ^1.1.6
+  - `@radix-ui/react-select` ^2.2.6
+  - `@radix-ui/react-tooltip` ^1.1.8
+  - `@radix-ui/react-alert-dialog` ^1.1.15
+  - `@radix-ui/react-collapsible` ^1.1.12
+  - `@radix-ui/react-scroll-area` ^1.2.3
+- Tailwind CSS 4.x - 实用优先的 CSS 框架
+- Lucide React ^0.483.0 - 图标库
 
 ### 10.3 AI 和图表
-- Vercel AI SDK (`ai` 包) - AI 集成工具包
-- react-drawio - Draw.io 编辑器 React 封装
+- Vercel AI SDK (`ai` 包) ^5.0.89 - AI 集成工具包
+- `@ai-sdk/react` ^2.0.22 - React AI SDK Hooks
+- AI SDK Providers:
+  - `@ai-sdk/openai` ^2.0.19 - OpenAI 提供者
+  - `@ai-sdk/google` ^2.0.0 - Google (Gemini) 提供者
+  - `@ai-sdk/amazon-bedrock` ^3.0.52 - Amazon Bedrock 提供者
+  - `@openrouter/ai-sdk-provider` ^0.4.6 - OpenRouter 提供者
+- react-drawio ^1.0.3 - Draw.io 编辑器 React 封装
 - draw.io XML - 图表数据格式
 
 ### 10.4 工具库
-- Zod v3 – 数据验证和模式定义
+- Zod ^3.25.76 – 数据验证和模式定义（Zod v3）
 - 自定义工具函数 – `lib/` 目录下的 13 个工具模块：
   - 模型管理：`server-models.js`、`env-models.js`、`system-models.js`
   - 图表处理：`diagram-validation.js`、`diagram-repair-client.js`、`diagram-templates.js`、`svg.js`
@@ -685,6 +728,6 @@ App (app/page.jsx)
 
 ---
 
-文档版本：2.1.0  
-最后更新：2025-01-18 
+文档版本：2.2.0  
+最后更新：2025-01-24 
 维护者：Figsci Team

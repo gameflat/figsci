@@ -411,42 +411,165 @@ Draw.io 模式：
 
 SVG 模式：
 
+**重要变化**：SVG 模式现在统一使用 Draw.io 画布，通过 `buildSvgRootXml` 函数将 SVG 转换为 Draw.io XML 格式。
+
 实现位置：
-- 主组件: `components/svg-studio.jsx`
-- 状态管理: `contexts/svg-editor-context.jsx`
+- 转换函数: `lib/svg.js` - `buildSvgRootXml` 函数
+- 主组件: `components/chat-panel-optimized.jsx` - 处理 `display_svg` 工具调用
+- 状态管理: `contexts/diagram-context.jsx` - 统一管理两种模式的画布状态
 
 核心实现：
 
 ```javascript
-// app/page.jsx
-<div className="flex h-full w-full rounded-xl border border-slate-200 bg-white/90">
-  <SvgStudio />
-</div>
+// components/chat-panel-optimized.jsx
+// 处理 display_svg 工具调用
+if (toolCall.toolName === "display_svg") {
+  const { svg } = toolCall.input;
+  // SVG 模式下，统一使用 buildSvgRootXml 转换为 Draw.io XML
+  const { rootXml, dataUrl } = buildSvgRootXml(svg);
+  await handleCanvasUpdate(rootXml, {
+    origin: "display",
+    modelRuntime: selectedModel ?? void 0,
+  });
+}
+```
+
+```javascript
+// lib/svg.js
+export function buildSvgRootXml(svg) {
+  // 1. 清理和验证 SVG
+  const cleaned = svg.replace(XML_DECLARATION, "").trim();
+  assertSafeSvg(cleaned);
+  
+  // 2. 将 SVG 编码为 data URL
+  const dataUrl = svgToDataUrl(cleaned);
+  const styleImageUrl = `data:image/svg+xml,${encodeURIComponent(cleaned)}`;
+  
+  // 3. 推断 SVG 尺寸
+  const inferred = inferSvgDimensions(cleaned) ?? {
+    width: DEFAULT_CANVAS.width * 0.8,
+    height: DEFAULT_CANVAS.height * 0.6,
+  };
+  
+  // 4. 计算缩放和位置
+  const scale = Math.min(1, MAX_SVG_VIEWPORT.width / inferred.width, ...);
+  const width = Math.max(MIN_SVG_SIZE.width, Math.round(inferred.width * scale));
+  const height = Math.max(MIN_SVG_SIZE.height, Math.round(inferred.height * scale));
+  const x = Math.max(20, Math.round((DEFAULT_CANVAS.width - width) / 2));
+  const y = Math.max(20, Math.round((DEFAULT_CANVAS.height - height) / 2));
+  
+  // 5. 构建 Draw.io XML（将 SVG 作为 image cell）
+  const style = `shape=image;imageAspect=1;aspect=fixed;...image=${styleImageUrl};`;
+  const rootXml = `<root><mxCell id="0"/><mxCell id="1" parent="0"/>` +
+    `<mxCell id="2" value="" style="${style}" vertex="1" parent="1">` +
+    `<mxGeometry x="${x}" y="${y}" width="${width}" height="${height}" as="geometry" />` +
+    `</mxCell></root>`;
+  
+  return { rootXml, dataUrl, dimensions: { width, height } };
+}
 ```
 
 关键特性：
 
-1. SVG 画布渲染   - 支持网格背景、缩放、平移
-   - 变换组支持缩放和平移操作
-   - 根据元素类型渲染不同的 SVG 元素
+1. **SVG 转换机制**：
+   - SVG 内容通过 `buildSvgRootXml` 函数转换为 Draw.io XML 格式
+   - SVG 被编码为 data URL，作为 Draw.io 的 image cell 嵌入到画布中
+   - 转换后的 XML 包含完整的 `<root>` 结构，可以直接应用到 Draw.io 画布
+   - 自动推断 SVG 尺寸并进行缩放，确保内容适合画布显示
 
-2. 支持的元素类型   - 矩形 (`rect`): 支持位置、大小、圆角、填充、描边
-   - 椭圆 (`ellipse`): 支持中心点、半径、填充、描边
-   - 线条 (`line`): 支持起点、终点、连接点吸附
-   - 路径 (`path`): 支持自定义路径数据
-   - 文本 (`text`): 支持文本内容、字体大小、位置
+2. **统一画布渲染**：
+   - 两种模式现在都使用相同的画布组件（`DrawIoEmbed`）
+   - 使用相同的状态管理（`DiagramContext`）
+   - SVG 模式下的内容通过 Draw.io 的 image cell 机制显示
 
-3. 交互功能   - 选择工具: 点击选择、框选（Marquee Selection）
-   - 绘制工具: 矩形、椭圆、线条、文本
-   - 编辑工具: 拖拽移动、调整大小、旋转
-   - 对齐工具: 左对齐、居中、右对齐、顶部、底部
-   - 吸附功能: 网格吸附、锚点吸附
+3. **数据格式**：
+   - 输入：完整的自包含 SVG 标记（包含 `<svg>` 标签）
+   - 输出：Draw.io XML 格式（包含 `<root>` 结构）
+   - 中间格式：SVG data URL（用于预览和缩略图）
 
-4. 视图控制   - 缩放: 支持 0.2x - 8x 缩放，鼠标滚轮 + Ctrl/Cmd 缩放
-   - 平移: 空格键 + 拖拽，或鼠标滚轮平移
-   - 网格: 可切换显示/隐藏，支持网格吸附
+4. **安全验证**：
+   - 检查 SVG 是否包含 `<svg>` 根节点
+   - 禁止包含脚本、事件处理器或 JavaScript URI
+   - 确保 SVG 内容安全可渲染
 
-#### 4.1.4 画布更新机制
+#### 4.1.4 渲染模式切换机制
+
+**统一画布架构**：两种渲染模式现在都使用 Draw.io 画布，通过不同的数据格式和转换机制实现。
+
+**模式切换流程**：
+
+```
+用户切换渲染模式
+  ↓
+renderMode 状态变化（drawio ↔ svg）
+  ↓
+useEffect 监听模式变化
+  ↓
+1. 停止正在进行的生成（如果存在）
+  ↓
+2. 切换到对应模式的根分支（ConversationContext）
+  ↓
+3. 恢复对应分支的画布内容
+   - Draw.io 模式：直接加载 XML
+   - SVG 模式：加载已转换的 Draw.io XML（包含 SVG image cell）
+  ↓
+4. 恢复对应分支的对话历史
+  ↓
+5. 清空输入框
+```
+
+**实现位置**：
+- `components/chat-panel-optimized.jsx`（第 1006-1062 行）- 模式切换逻辑
+- `contexts/conversation-context.jsx` - 分支管理和模式切换
+
+**关键实现**：
+
+```javascript
+// components/chat-panel-optimized.jsx
+useEffect(() => {
+  if (lastRenderModeRef.current !== renderMode) {
+    // 1. 停止正在进行的生成
+    if (status === "streaming" || status === "submitted") {
+      handleStopAll({
+        type: "info",
+        message: "已切换渲染模式，自动暂停当前生成。"
+      });
+    }
+    
+    // 2. 切换到对应模式的根分支
+    const targetBranch = switchRenderMode(renderMode);
+    
+    // 3. 恢复画布内容
+    if (targetBranch.diagramXml) {
+      await handleDiagramXml(targetBranch.diagramXml, {
+        origin: "display",
+        modelRuntime: void 0
+      });
+    } else {
+      clearDiagram();
+    }
+    
+    // 4. 恢复对话历史
+    setMessages(targetBranch.messages || []);
+    setInput("");
+    
+    lastRenderModeRef.current = renderMode;
+  }
+}, [renderMode, switchRenderMode, status, handleStopAll, handleDiagramXml, clearDiagram, setMessages, setInput]);
+```
+
+**分支管理**：
+- 每个渲染模式都有独立的根分支
+- 分支元数据中包含 `renderMode` 标识
+- 切换模式时自动切换到对应模式的根分支
+- 每个分支独立保存画布内容和对话历史
+
+**数据格式统一**：
+- Draw.io 模式：直接使用 Draw.io XML 格式
+- SVG 模式：SVG 通过 `buildSvgRootXml` 转换为 Draw.io XML，然后统一存储
+- 两种模式的数据都存储在 `DiagramContext` 中，使用相同的画布组件渲染
+
+#### 4.1.5 画布更新机制
 
 XML 处理流程：
 
@@ -658,6 +781,24 @@ NEXT_PUBLIC_DRAWIO_BASE_URL=https://your-drawio.com
 #### 5.1.2 图表修复（/api/diagram-repair）
 
 （待补充详细实现）
+
+#### 5.1.4 模板搜索（/api/search-template）⚠️ **未使用**
+
+**状态**：此 API 路由已实现但当前未被项目使用，保留供未来使用。
+
+**功能说明**：
+- 根据查询内容搜索匹配的模板
+- 返回最匹配的模板及其详细的绘图指导信息
+- 支持按模板类型、标题、描述、标签等进行搜索
+- 返回布局建议、配色方案、节点样式等绘图指导
+
+**实现位置**：
+- `app/api/search-template/route.js` - 模板搜索 API 实现
+
+**未使用原因**：
+- 该 API 路由已实现，但尚未集成到 `/api/chat` 的工具列表中
+- LLM 目前无法调用此工具进行模板搜索
+- 保留此路由供未来集成使用
 
 #### 5.1.3 Architect Workflow（/api/chat 集成）
 
@@ -2569,7 +2710,7 @@ Draw.io 文件包含两个始终存在的特殊单元格：
 
 ---
 
-文档版本：1.1.0  
-最后更新：2025-01-18  
+文档版本：1.2.0  
+最后更新：2025-01-24  
 维护者：Figsci Team
 
