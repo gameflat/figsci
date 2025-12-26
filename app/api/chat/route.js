@@ -1251,6 +1251,7 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           architectModel: normalizeModelConfig(architectModel),
           rendererModel: normalizeModelConfig(rendererModel),
           renderMode: outputMode,
+          abortSignal,
         });
         
         console.log("[工作流] ✅ 工作流执行成功");

@@ -18,9 +18,10 @@ import { MERMAID_GENERATOR_SYSTEM_MESSAGE } from "@/lib/prompts";
  * @param {string} config.model - 模型名称
  * @param {string} config.systemPrompt - 系统提示词
  * @param {string} config.userPrompt - 用户提示词
+ * @param {AbortSignal} [config.abortSignal] - 取消信号，用于取消请求
  * @returns {Promise<string>} API 返回的文本
  */
-async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt }) {
+async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt, abortSignal }) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -41,6 +42,7 @@ async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt }) {
       ],
       temperature: 0.3,
     }),
+    signal: abortSignal,
   });
   
   if (!response.ok) {
@@ -68,11 +70,13 @@ async function callCustomApi({ url, apiKey, model, systemPrompt, userPrompt }) {
  * @param {Object} params
  * @param {string} params.userInput - 用户输入的原始内容或格式化后的提示词
  * @param {Object} [params.modelRuntime] - 模型运行时配置（可选）
+ * @param {AbortSignal} [params.abortSignal] - 取消信号，用于取消请求
  * @returns {Promise<{mermaid: string}>}
  */
 export async function generateMermaid({ 
   userInput, 
-  modelRuntime 
+  modelRuntime,
+  abortSignal
 }) {
   try {
     // 解析模型配置
@@ -171,9 +175,13 @@ export async function generateMermaid({
           model: customApiConfig.model,
           systemPrompt: MERMAID_GENERATOR_SYSTEM_MESSAGE,
           userPrompt: userInput,
+          abortSignal,
         });
         console.log("[Mermaid生成] ✅ 自定义 AI API 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Mermaid生成] ❌ 自定义 API 调用失败:", error);
         return { mermaid: "" };
       }
@@ -190,10 +198,14 @@ export async function generateMermaid({
             },
           ],
           temperature: 0.3,
+          abortSignal,
         });
         responseText = response.text;
         console.log("[Mermaid生成] ✅ AI SDK 调用成功");
       } catch (error) {
+        if (error.name === 'AbortError' || abortSignal?.aborted) {
+          throw error;
+        }
         console.error("[Mermaid生成] ❌ AI SDK 调用失败:", error);
         return { mermaid: "" };
       }

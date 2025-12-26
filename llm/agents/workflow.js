@@ -70,6 +70,7 @@ function getDefaultSystemModelRuntime() {
  * @param {Object} [params.architectModel] - Architect模型配置（可选，覆盖默认配置）
  * @param {Object} [params.rendererModel] - Renderer模型配置（可选，覆盖默认配置）
  * @param {"drawio" | "svg"} [params.renderMode="drawio"] - 渲染模式，决定输出XML还是SVG
+ * @param {AbortSignal} [params.abortSignal] - 取消信号，用于取消工作流执行
  * @returns {Promise<{xml?: string, svg?: string, formattedPrompt?: string, mermaid?: string, visualSchema?: string, metadata?: Object}>}
  */
 export async function executeWorkflow({ 
@@ -78,7 +79,8 @@ export async function executeWorkflow({
   modelRuntime,
   architectModel,
   rendererModel,
-  renderMode = "drawio"
+  renderMode = "drawio",
+  abortSignal
 }) {
   const metadata = {
     startTime: Date.now(),
@@ -98,12 +100,16 @@ export async function executeWorkflow({
       }
     }
     // 步骤 1: 提示词格式化
+    if (abortSignal?.aborted) {
+      throw new DOMException('工作流已被用户取消', 'AbortError');
+    }
     console.log("[工作流] 步骤 1/5: 提示词格式化...");
     const formatStartTime = Date.now();
     const formatResult = await formatPrompt({
       userInput,
       currentXml,
       modelRuntime: effectiveModelRuntime,
+      abortSignal,
     });
     metadata.steps.formatPrompt = {
       duration: Date.now() - formatStartTime,
@@ -114,6 +120,9 @@ export async function executeWorkflow({
     const formattedPrompt = formatResult.formattedPrompt;
     
     // 步骤 2: Mermaid生成
+    if (abortSignal?.aborted) {
+      throw new DOMException('工作流已被用户取消', 'AbortError');
+    }
     console.log("[工作流] 步骤 2/5: Mermaid生成...");
     const mermaidStartTime = Date.now();
     let mermaidResult;
@@ -121,6 +130,7 @@ export async function executeWorkflow({
       mermaidResult = await generateMermaid({
         userInput: formattedPrompt,
         modelRuntime: effectiveModelRuntime,
+        abortSignal,
       });
       metadata.steps.generateMermaid = {
         duration: Date.now() - mermaidStartTime,
@@ -148,6 +158,9 @@ export async function executeWorkflow({
     const mermaid = (mermaidResult.isValid !== false && mermaidResult.mermaid) ? mermaidResult.mermaid : "";
     
     // 步骤 3: The Architect - 生成VISUAL SCHEMA
+    if (abortSignal?.aborted) {
+      throw new DOMException('工作流已被用户取消', 'AbortError');
+    }
     console.log("[工作流] 步骤 3/5: The Architect生成VISUAL SCHEMA...");
     const architectStartTime = Date.now();
     let architectResult;
@@ -156,6 +169,7 @@ export async function executeWorkflow({
         formattedPrompt,
         mermaid,
         modelRuntime: architectModel || effectiveModelRuntime,
+        abortSignal,
       });
       metadata.steps.generateVisualSchema = {
         duration: Date.now() - architectStartTime,
@@ -175,6 +189,9 @@ export async function executeWorkflow({
     const visualSchema = architectResult.visualSchema;
     
     // 步骤 4: The Renderer - 根据renderMode生成XML或SVG
+    if (abortSignal?.aborted) {
+      throw new DOMException('工作流已被用户取消', 'AbortError');
+    }
     const isSvgMode = renderMode === "svg";
     console.log(`[工作流] 步骤 4/5: The Renderer生成${isSvgMode ? "SVG" : "XML"}...`);
     const rendererStartTime = Date.now();
@@ -185,6 +202,7 @@ export async function executeWorkflow({
         rendererResult = await generateSvg({
           visualSchema,
           modelRuntime: rendererModel || effectiveModelRuntime,
+          abortSignal,
         });
         metadata.steps.generateSvg = {
           duration: Date.now() - rendererStartTime,
@@ -196,6 +214,7 @@ export async function executeWorkflow({
         rendererResult = await generateXml({
           visualSchema,
           modelRuntime: rendererModel || effectiveModelRuntime,
+          abortSignal,
         });
         metadata.steps.generateXml = {
           duration: Date.now() - rendererStartTime,
