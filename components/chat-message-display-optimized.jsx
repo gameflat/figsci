@@ -793,7 +793,12 @@ function ChatMessageDisplay({
   // 对比功能已移除，leadingComparisons、anchoredComparisons、renderedAnchors 已删除
   const showExamplePanel = messages.length === 0;
 
-  // 计算最近一条 AI 消息的扣费结果，用于在进度指示器中展示“本次扣费”
+  // 计算是否有用户消息，用于判断是否显示流程组件
+  const hasUserMessages = useMemo(() => {
+    return messages.some(msg => msg.role === "user");
+  }, [messages]);
+
+  // 计算最近一条 AI 消息的扣费结果，用于在进度指示器中展示"本次扣费"
   const latestAssistantChargeInfo = useMemo(() => {
     // 从后往前查找，找到最近一条带有 chargeResult 的 AI 消息
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -1063,6 +1068,7 @@ function ChatMessageDisplay({
               isVisible={isGenerationBusy || generationPhase !== "idle"}
               onReset={onProgressReset}
               chargeInfo={latestAssistantChargeInfo}
+              hasUserMessages={hasUserMessages}
             />
             {error && <div className="text-red-500 text-sm mt-2">
                     错误：{error.message}
