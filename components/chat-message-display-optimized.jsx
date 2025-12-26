@@ -775,14 +775,11 @@ function ChatMessageDisplay({
                                 {output || (toolName === "display_diagram" ? "生成图表时出错" : toolName === "edit_diagram" ? "编辑图表时出错" : "工具执行出错")}
                             </div> : null}
                     </div>
-                    <div className="rounded-lg bg-slate-50 px-2.5 py-2">
-                        <div className="mb-1 text-[11px] font-semibold text-slate-600">
-                            执行状态：{state}
+                    {output && <div className="rounded-lg bg-slate-50 px-2.5 py-2">
+                        <div className="text-[11px] text-slate-700 whitespace-pre-wrap break-words">
+                            {typeof output === "string" ? output : JSON.stringify(output, null, 2)}
                         </div>
-                        {output && <div className="text-[11px] text-slate-700 whitespace-pre-wrap break-words">
-                                {typeof output === "string" ? output : JSON.stringify(output, null, 2)}
-                            </div>}
-                    </div>
+                    </div>}
                 </div>
             </div>;
   };
@@ -1135,28 +1132,6 @@ function ChatMessageDisplay({
                                                             compact={true}
                                                         />
                                                         {/* ReAct 架构信息显示 - 已隐藏，仅在开发环境显示 */}
-                                                        {process.env.NODE_ENV === 'development' && message.metadata?.reactInfo && (
-                                                            <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/50 px-2 py-1.5 text-xs">
-                                                                <div className="font-semibold text-blue-700 mb-1">
-                                                                    ReAct 智能体状态（开发模式）
-                                                                </div>
-                                                                <div className="space-y-0.5 text-blue-600">
-                                                                    <div>
-                                                                        行动次数: {message.metadata.reactInfo.actionCount} / {message.metadata.reactInfo.maxActions}
-                                                                    </div>
-                                                                    {message.metadata.reactInfo.hasCalledEndTask && (
-                                                                        <div className="text-green-600">
-                                                                            ✓ 任务已结束
-                                                                        </div>
-                                                                    )}
-                                                                    {message.metadata.reactInfo.reachedMaxActions && !message.metadata.reactInfo.hasCalledEndTask && (
-                                                                        <div className="text-orange-600">
-                                                                            ⚠️ 已达到最大行动次数
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 );
                                             })()}

@@ -1208,6 +1208,8 @@ plt.show()
     // 用于跟踪行动次数的变量（在流式响应中通过闭包访问）
     let actionCount = 0;
     let hasCalledEndTask = false;
+    // 用于存储任务完成状态（在 messageMetadata 中计算，在 onFinish 中使用）
+    let taskCompletedStatus = null;
     
     const commonConfig = {
       // model: google("gemini-2.5-flash-preview-05-20"),
@@ -1462,9 +1464,21 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
         ...commonConfig,
         // 添加步骤完成回调，用于跟踪行动次数
         onStepFinish: ({ stepType, toolCalls, text }) => {
+          console.log("[onStepFinish] 步骤完成", { stepType, toolCallsCount: toolCalls?.length, hasText: !!text });
+          
           // 跟踪工具调用，但不计入 end_task
-          if (stepType === 'tool-call' && toolCalls) {
+          // 注意：不依赖 stepType === 'tool-call'，因为某些情况下 stepType 可能是 undefined
+          // 直接检查 toolCalls 是否存在且有值
+          if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
+            console.log("[onStepFinish] 检测到工具调用步骤", { 
+              stepType, 
+              toolCallsCount: toolCalls.length,
+              toolNames: toolCalls.map(tc => tc.toolName)
+            });
+            
             for (const toolCall of toolCalls) {
+              console.log("[onStepFinish] 处理工具调用", { toolName: toolCall.toolName, toolCallId: toolCall.toolCallId });
+              
               if (toolCall.toolName === 'end_task') {
                 hasCalledEndTask = true;
                 console.log("[ReAct] 检测到 end_task 调用，不计入行动次数");
@@ -1495,35 +1509,11 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           const usage = await result.usage;
           const totalUsage = await result.totalUsage;
 
-          // 判断任务是否成功完成（与 messageMetadata 中的逻辑保持一致）
-          // ReAct 模式下的任务完成判断：
-          // 1. 如果调用了 end_task，认为任务完成（无论成功或失败）
-          // 2. 如果 finishReason 是 'stop'，认为任务完成
-          // 3. 如果 finishReason 是 'tool-calls' 但达到了最大行动次数且没有调用 end_task，认为任务失败
-          // 4. 其他 finishReason（如 'length'、'error'、'cancelled' 等）都认为任务失败
-          let isTaskCompleted = false;
-          if (hasCalledEndTask) {
-            // 调用了 end_task，认为任务完成（LLM 自己决定结束）
-            isTaskCompleted = true;
-          } else if (finishReason === 'stop') {
-            // 正常停止，认为任务完成
-            isTaskCompleted = true;
-          } else if (finishReason === 'tool-calls') {
-            // 工具调用完成，需要进一步判断：
-            // - 如果达到了最大行动次数且没有调用 end_task，认为任务失败（可能因为工具执行失败导致无法继续）
-            // - 否则认为任务完成（可能因为达到了 maxSteps 限制，但这是正常的）
-            if (actionCount >= REACT_MAX_STEPS) {
-              // 达到了最大行动次数且没有调用 end_task，可能因为工具执行失败导致无法继续
-              isTaskCompleted = false;
-            } else {
-              // 未达到最大行动次数，认为任务完成
-              isTaskCompleted = true;
-            }
-          } else {
-            // 其他 finishReason（如 'length'、'error'、'cancelled'、'content-filter' 等）都认为任务失败
-            isTaskCompleted = false;
-          }
-          
+          // 注意：任务完成状态判断已统一在 messageMetadata 中处理
+          // 这里只负责扣费逻辑，使用 messageMetadata 中计算的 taskCompletedStatus
+          // 如果 messageMetadata 还没有设置 taskCompletedStatus，使用默认值 false（保守处理）
+          const isTaskCompleted = taskCompletedStatus !== null ? taskCompletedStatus : false;
+
           // 为不同的 finishReason 提供更详细的说明
           let finishReasonDescription = '';
           if (finishReason === 'content-filter') {
@@ -1540,7 +1530,8 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           console.log("【流式生成】生成完成");
           console.log("-".repeat(60));
           console.log(`完成原因: ${finishReason}${finishReasonDescription}`);
-          console.log(`任务状态: ${isTaskCompleted ? '✅ 成功完成' : '⚠️ 未完成'}`);
+          console.log(`任务状态: ${isTaskCompleted ? '✅ 成功完成' : '⚠️ 未完成（等待工具执行结果）'}`);
+          console.log(`工具调用情况: actionCount=${actionCount}, hasCalledEndTask=${hasCalledEndTask}`);
           console.log(`生成耗时: ${durationMs}ms`);
           console.log("\nToken 使用量（本轮）:");
           console.log(`  - 输入: ${usage.inputTokens || 0} tokens`);
@@ -1556,6 +1547,7 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
           // 在 AI 生成完成后进行光子扣费
           // 使用 totalUsage 进行扣费，因为它包含了整个对话的 token 使用量
           // 传入 isTaskCompleted 参数，用于区分固定费用和 token 费用的收取逻辑
+          // 注意：isTaskCompleted 的值来自 messageMetadata 中的计算
           const finalChargeResult = await chargePhotonIfEnabled(req, {
             inputTokens: totalUsage.inputTokens,
             outputTokens: totalUsage.outputTokens,
@@ -1577,35 +1569,112 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
         },
         // 提取 metadata 发送到客户端
         messageMetadata: ({ part }) => {
+          // 检查 part 中是否有工具调用信息（即使 onStepFinish 还没被调用）
+          // 这样可以提前检测到工具调用，避免因为 actionCount 还没更新而错误地标记为完成
+          if (part.type === "tool-call" || (part.toolCalls && Array.isArray(part.toolCalls) && part.toolCalls.length > 0)) {
+            console.log("[messageMetadata] 检测到工具调用 part", {
+              partType: part.type,
+              toolCallsCount: part.toolCalls?.length || 0,
+              toolNames: part.toolCalls?.map(tc => tc.toolName) || []
+            });
+            
+            // 如果检测到工具调用，立即更新状态（避免重复计数，onStepFinish 也会更新）
+            if (part.toolCalls && Array.isArray(part.toolCalls)) {
+              for (const toolCall of part.toolCalls) {
+                if (toolCall.toolName === 'end_task') {
+                  hasCalledEndTask = true;
+                  console.log("[messageMetadata] 检测到 end_task 调用");
+                } else if (actionCount === 0) {
+                  // 只有在 actionCount 为 0 时才更新（避免重复计数）
+                  // 因为 onStepFinish 也会更新 actionCount
+                  actionCount++;
+                  console.log(`[messageMetadata] 提前检测到工具调用，更新 actionCount: ${actionCount}/${REACT_MAX_STEPS} (工具: ${toolCall.toolName})`);
+                }
+              }
+            }
+          }
+          
           if (part.type === "finish") {
-            // 判断任务是否成功完成
+            // ========== 统一的任务完成判断逻辑 ==========
+            // 这是系统中唯一判断任务完成状态的地方，确保逻辑清晰一致
+            // ReAct 模式下的任务完成判断规则：
+            // 1. 如果调用了 end_task，认为任务完成（LLM 自己决定结束）
+            // 2. 如果 finishReason 是 'stop' 且 actionCount > 0，任务未完成（等待工具执行结果）
+            // 3. 如果 finishReason 是 'stop' 且 actionCount === 0，任务完成（没有工具调用）
+            // 4. 如果 finishReason 是 'tool-calls' 且 actionCount >= REACT_MAX_STEPS，任务未完成（达到限制）
+            // 5. 如果 finishReason 是 'tool-calls' 且 actionCount < REACT_MAX_STEPS，任务完成（正常完成）
+            // 6. 其他 finishReason（如 'length'、'error'、'cancelled' 等）都认为任务失败
             const finishReason = part.finishReason;
-            // ReAct 模式下的任务完成判断：
-            // 1. 如果调用了 end_task，认为任务完成（无论成功或失败）
-            // 2. 如果 finishReason 是 'stop'，认为任务完成
-            // 3. 如果 finishReason 是 'tool-calls' 但达到了最大行动次数且没有调用 end_task，认为任务失败
-            // 4. 其他 finishReason（如 'length'、'error'、'cancelled' 等）都认为任务失败
             let isTaskCompleted = false;
+            
             if (hasCalledEndTask) {
-              // 调用了 end_task，认为任务完成（LLM 自己决定结束）
+              // 规则 1：调用了 end_task，认为任务完成
               isTaskCompleted = true;
+              console.log("[messageMetadata] 检测到 end_task 调用，任务完成");
             } else if (finishReason === 'stop') {
-              // 正常停止，认为任务完成
-              isTaskCompleted = true;
-            } else if (finishReason === 'tool-calls') {
-              // 工具调用完成，需要进一步判断：
-              // - 如果达到了最大行动次数且没有调用 end_task，认为任务失败（可能因为工具执行失败导致无法继续）
-              // - 否则认为任务完成（可能因为达到了 maxSteps 限制，但这是正常的）
-              if (actionCount >= REACT_MAX_STEPS) {
-                // 达到了最大行动次数且没有调用 end_task，可能因为工具执行失败导致无法继续
+              // 规则 2 和 3：finishReason 是 'stop' 时的判断
+              if (actionCount > 0) {
+                // 规则 2：有工具调用，等待工具执行结果
                 isTaskCompleted = false;
+                console.log(`[messageMetadata] finishReason 是 'stop' 且有工具调用（actionCount=${actionCount}），任务未完成，等待工具执行结果`);
               } else {
-                // 未达到最大行动次数，认为任务完成
+                // 规则 3：没有工具调用，任务完成
                 isTaskCompleted = true;
+                console.log("[messageMetadata] finishReason 是 'stop' 且没有工具调用，任务完成");
+              }
+            } else if (finishReason === 'tool-calls') {
+              // 规则 4 和 5：finishReason 是 'tool-calls' 时的判断
+              if (actionCount >= REACT_MAX_STEPS) {
+                // 规则 4：达到最大行动次数，任务未完成（可能因为工具执行失败导致无法继续）
+                isTaskCompleted = false;
+                console.log(`[messageMetadata] finishReason 是 'tool-calls' 且达到最大行动次数（${actionCount}/${REACT_MAX_STEPS}），任务未完成`);
+              } else {
+                // 规则 5：未达到最大行动次数，任务完成（正常完成）
+                isTaskCompleted = true;
+                console.log(`[messageMetadata] finishReason 是 'tool-calls' 且未达到最大行动次数（${actionCount}/${REACT_MAX_STEPS}），任务完成`);
               }
             } else {
-              // 其他 finishReason（如 'length'、'error'、'cancelled'、'content-filter' 等）都认为任务失败
+              // 规则 6：其他 finishReason 都认为任务失败
               isTaskCompleted = false;
+              console.log(`[messageMetadata] finishReason 是 '${finishReason}'，任务失败`);
+            }
+
+            // 存储任务完成状态，供 onFinish 回调使用
+            taskCompletedStatus = isTaskCompleted;
+
+            // ========== 任务失败判断逻辑 ==========
+            // 区分"任务未完成（等待工具执行结果）"和"任务失败（无法继续）"
+            // 只有在真正无法继续时才标记为失败，否则应该等待AI继续响应
+            let taskFailed = false;
+            
+            if (isTaskCompleted) {
+              // 任务已完成，不失败
+              taskFailed = false;
+            } else if (hasCalledEndTask) {
+              // 调用了 end_task 但任务未完成，可能是LLM主动结束（如遇到无法解决的问题）
+              // 这种情况应该标记为失败，因为LLM已经决定不再继续
+              taskFailed = true;
+              console.log("[messageMetadata] 调用了 end_task 但任务未完成，标记为失败");
+            } else if (finishReason === 'stop' && actionCount > 0) {
+              // finishReason 是 'stop' 且有工具调用，任务未完成但可以继续
+              // 如果还有剩余行动次数，不应该标记为失败，应该等待工具执行结果
+              if (actionCount < REACT_MAX_STEPS) {
+                // 还有剩余行动次数，任务未完成但可以继续，不标记为失败
+                taskFailed = false;
+                console.log(`[messageMetadata] finishReason 是 'stop' 且有工具调用（actionCount=${actionCount}/${REACT_MAX_STEPS}），任务未完成但可以继续，不标记为失败`);
+              } else {
+                // 已达到最大行动次数，任务失败
+                taskFailed = true;
+                console.log(`[messageMetadata] finishReason 是 'stop' 且已达到最大行动次数（${actionCount}/${REACT_MAX_STEPS}），任务失败`);
+              }
+            } else if (finishReason === 'tool-calls' && actionCount >= REACT_MAX_STEPS) {
+              // finishReason 是 'tool-calls' 且达到最大行动次数，任务失败
+              taskFailed = true;
+              console.log(`[messageMetadata] finishReason 是 'tool-calls' 且达到最大行动次数（${actionCount}/${REACT_MAX_STEPS}），任务失败`);
+            } else {
+              // 其他情况（如 'length'、'error'、'cancelled' 等），任务失败
+              taskFailed = true;
+              console.log(`[messageMetadata] finishReason 是 '${finishReason}'，任务失败`);
             }
 
             const metadata = {
@@ -1618,7 +1687,8 @@ ${dataFileContexts.join('\n\n---\n\n')}`;
               finishReason: finishReason,
               isTaskCompleted: isTaskCompleted,
               // 标记任务是否失败，前端可据此判断是否需要回滚
-              taskFailed: !isTaskCompleted,
+              // 只有在真正无法继续时才标记为失败
+              taskFailed: taskFailed,
               // 包含扣费结果，如果还未设置则为 undefined，前端会在后续检查
               chargeResult: chargeResult,
               // ReAct 架构信息
