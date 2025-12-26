@@ -964,8 +964,43 @@ ${dataFileContexts.join('\n\n---\n\n')}
 
     formattedTextContent += `
 渲染模式: ${outputMode === "svg" ? "svg" : "drawio-xml"}`;
+    
+    // ========== 清理消息中的不支持文件类型 ==========
+    // 在调用 convertToModelMessages 之前，需要先过滤掉所有消息中的 Excel/CSV 文件
+    // 因为 AI SDK 不支持这些文件类型的媒体类型
+    // 数据文件已经在上面转换为文本上下文，不需要再传递给模型
+    const cleanedMessages = messages.map((msg) => {
+      // 如果消息有 parts 数组，过滤掉数据文件
+      if (msg.parts && Array.isArray(msg.parts)) {
+        const cleanedParts = msg.parts.filter((part) => {
+          // 保留文本和图片，过滤掉数据文件
+          if (part.type === "text" || part.type === "image") {
+            return true;
+          }
+          if (part.type === "file") {
+            const mediaType = part.mediaType || "";
+            const fileName = part.fileName || "";
+            const url = part.url || "";
+            // 判断是否为数据文件
+            const isDataFile = 
+              mediaType.includes("excel") ||
+              mediaType.includes("spreadsheet") ||
+              mediaType.includes("csv") ||
+              fileName.toLowerCase().match(/\.(xlsx|xls|csv)$/) ||
+              url.match(/\.(xlsx|xls|csv)$/i);
+            // 过滤掉数据文件
+            return !isDataFile;
+          }
+          // 其他类型保留
+          return true;
+        });
+        return { ...msg, parts: cleanedParts };
+      }
+      return msg;
+    });
+    
     // 转换为 AI SDK 统一消息格式，便于后续直接传给模型
-    const modelMessages = convertToModelMessages(messages);
+    const modelMessages = convertToModelMessages(cleanedMessages);
     // sanitizeContent：保证空字符串/空附件不会让模型报错，必要时注入中文占位
     const sanitizeContent = (content) => {
       const placeholder = "（空内容占位，防止空文本导致错误）";
